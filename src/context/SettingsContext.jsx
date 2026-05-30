@@ -4,7 +4,7 @@ const SettingsContext = createContext();
 
 export function SettingsProvider({ children }) {
   const [settings, setSettings] = useState(() => {
-    const saved = localStorage.getItem('sidebar_settings');
+    const saved = localStorage.getItem('sidebar_settings_v3');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -13,15 +13,15 @@ export function SettingsProvider({ children }) {
       }
     }
     return {
-      showCustomerChallan: false,
+      showCustomerChallan: true,
       showCustomerInvoice: false,
-      showPurchaseOrder: false,
+      showPurchaseOrder: true,
       showSalesOrder: false,
     };
   });
 
   React.useEffect(() => {
-    localStorage.setItem('sidebar_settings', JSON.stringify(settings));
+    localStorage.setItem('sidebar_settings_v3', JSON.stringify(settings));
   }, [settings]);
 
   const toggleSetting = (key) => {

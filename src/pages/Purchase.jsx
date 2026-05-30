@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   X, 
   Plus, 
@@ -12,11 +12,22 @@ import {
   Coins,
   BadgeDollarSign,
   Calculator,
-  Info
+  Info,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Layers,
+  Users,
+  Banknote,
+  Download,
+  Building,
+  Upload
 } from 'lucide-react';
 
 export function Purchase() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isPurchaseOrder = location.pathname.includes('company_purchase_order');
+  const pageTitle = isPurchaseOrder ? 'Purchase Order Summary' : 'Purchase Invoice Summary';
   const [companyToggle, setCompanyToggle] = useState(false);
   const [collectionModalOpen, setCollectionModalOpen] = useState(false);
   const [loadingSheetModalOpen, setLoadingSheetModalOpen] = useState(false);
@@ -34,7 +45,7 @@ export function Purchase() {
         
         {/* Header */}
         <div className="bg-[#4F46E5] px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <h2 className="text-white text-[16px] font-medium tracking-wide">Purchase Invoice Summary</h2>
+          <h2 className="text-white text-[16px] font-medium tracking-wide">{pageTitle}</h2>
           
           <div className="flex flex-wrap items-center gap-2">
             <button 
@@ -160,10 +171,10 @@ export function Purchase() {
           <div className="bg-white rounded-[4px] shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col">
             
             {/* Modal Header */}
-            <div className="bg-[#4F46E5] px-4 py-3 flex items-center justify-between">
+            <div className="bg-[#17a2b8] px-4 py-2 flex items-center justify-between">
               <div className="flex flex-wrap items-center gap-2">
                 <BarChart2 className="w-5 h-5 text-white" strokeWidth={3} />
-                <h3 className="text-white font-medium text-[16px]">Collection Report</h3>
+                <h3 className="text-white font-bold text-[16px]">Collection Report</h3>
               </div>
               <button onClick={() => setCollectionModalOpen(false)} className="text-white hover:text-red-200 transition-colors">
                 <X className="w-5 h-5 font-bold text-white" strokeWidth={3} />
@@ -173,94 +184,207 @@ export function Purchase() {
             <div className="p-4 sm:p-6 flex flex-col gap-4">
               
               {/* Select Period and Date */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
-                <div className="flex flex-col gap-1 w-full sm:w-auto">
-                  <label className="text-[14px] font-bold text-gray-800">Select Period</label>
-                  <select className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-600 outline-none w-[200px]">
-                    <option>Today</option>
-                    <option>Yesterday</option>
-                    <option>Last 7 Days</option>
-                    <option>Last 30 Days</option>
-                    <option>Last Month</option>
-                    <option>This Month</option>
-                    <option>Custom Range</option>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div className="w-full sm:w-auto">
+                  <select className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-700 outline-none w-[100px] shadow-sm">
+                    <option>All</option>
                   </select>
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5 bg-[#4F46E5] text-white px-3 py-1.5 rounded-[4px] text-[13px] font-bold">
-                  <Calendar className="w-4 h-4" />
-                  23-May-2026
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                  <div className="flex items-center gap-2">
+                    <label className="text-[13px] font-bold text-gray-800">Select Period</label>
+                    <select className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-1 text-[13px] text-gray-700 outline-none w-[120px] shadow-sm">
+                      <option>Today</option>
+                      <option>Yesterday</option>
+                      <option>Last 7 Days</option>
+                      <option>Last 30 Days</option>
+                      <option>This Month</option>
+                      <option>Custom Range</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 bg-[#17a2b8] text-white px-3 py-1.5 rounded-[4px] text-[13px] font-bold shadow-sm">
+                    <Calendar className="w-4 h-4" />
+                    30-May-2026
+                  </div>
                 </div>
               </div>
 
               {/* Metric Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {/* Today's Sales */}
-                <div className="bg-[#4F46E5] rounded-[4px] p-4 text-white relative overflow-hidden">
-                  <div className="flex flex-col relative z-10">
-                    <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                      <BarChart2 className="w-5 h-5" strokeWidth={2.5} />
-                      <span className="font-bold text-[15px]">Today's Sales</span>
-                    </div>
-                    <span className="text-[28px] font-bold leading-none">0</span>
+                <div className="bg-[#17a2b8] rounded-[4px] p-2 text-white flex flex-col justify-center shadow-sm">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <BarChart2 className="w-4 h-4" strokeWidth={3} />
+                    <span className="font-bold text-[13px]">Today's Sales</span>
                   </div>
-                  <ShoppingCart className="w-16 h-16 absolute right-[-10px] bottom-[-10px] opacity-30 rotate-12" />
-                  <ShoppingCart className="w-10 h-10 absolute right-4 top-1/2 -translate-y-1/2 opacity-100" />
+                  <span className="text-[18px] font-bold leading-none">0</span>
                 </div>
-                
                 {/* Cash Sales */}
-                <div className="bg-[#28a745] rounded-[4px] p-4 text-white relative overflow-hidden">
-                  <div className="flex flex-col relative z-10">
-                    <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                      <span className="bg-white text-[#28a745] px-1 rounded-sm text-[10px] font-bold">₹</span>
-                      <span className="font-bold text-[15px]">Cash Sales</span>
-                    </div>
-                    <span className="text-[28px] font-bold leading-none">0</span>
+                <div className="bg-[#28a745] rounded-[4px] p-2 text-white flex flex-col justify-center shadow-sm">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Coins className="w-4 h-4" strokeWidth={3} />
+                    <span className="font-bold text-[13px]">Cash Sales</span>
                   </div>
-                  <Coins className="w-10 h-10 absolute right-4 top-1/2 -translate-y-1/2 opacity-100" />
+                  <span className="text-[18px] font-bold leading-none">0</span>
                 </div>
-                
                 {/* Credit Sales */}
-                <div className="bg-[#dc3545] rounded-[4px] p-4 text-white relative overflow-hidden">
-                  <div className="flex flex-col relative z-10">
-                    <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
-                      <span className="font-bold text-[15px]">Credit Sales</span>
-                    </div>
-                    <span className="text-[28px] font-bold leading-none">0</span>
+                <div className="bg-[#dc3545] rounded-[4px] p-2 text-white flex flex-col justify-center shadow-sm">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <BadgeDollarSign className="w-4 h-4" strokeWidth={3} />
+                    <span className="font-bold text-[13px]">Credit Sales</span>
                   </div>
-                  <BadgeDollarSign className="w-10 h-10 absolute right-4 top-1/2 -translate-y-1/2 opacity-100" />
+                  <span className="text-[18px] font-bold leading-none">0</span>
                 </div>
               </div>
 
-              {/* Empty Divider */}
-              <div className="h-[20px] rounded-full border border-gray-200 mt-2 mb-2 w-full"></div>
-
-              {/* Total Collection Banner */}
-              <div className="bg-[#28a745] rounded-[4px] px-4 py-3 text-white flex items-center justify-between">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Calculator className="w-5 h-5" strokeWidth={2.5} />
-                  <span className="font-bold text-[15px] uppercase">Total Collection</span>
+              {/* Money In / Out Split */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
+                {/* MONEY IN */}
+                <div className="border border-gray-200 rounded-[4px] flex flex-col overflow-hidden shadow-sm">
+                  <div className="bg-[#d4edda] text-[#28a745] font-bold text-[12px] px-3 py-2 flex items-center gap-2 border-b border-gray-200">
+                    <ArrowDownToLine className="w-4 h-4" strokeWidth={3} />
+                    MONEY IN
+                  </div>
+                  <div className="bg-white p-2 space-y-1">
+                    <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
+                      <div className="flex items-center gap-2">
+                        <Layers className="w-4 h-4 text-[#28a745]" />
+                        Total Cash Sale
+                      </div>
+                      <span className="font-bold text-black">₹0</span>
+                    </div>
+                    <div className="border-b border-gray-100"></div>
+                    <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-[#28a745]" />
+                        Total Credit Recovery
+                      </div>
+                      <span className="font-bold text-black">₹0</span>
+                    </div>
+                    <div className="border-b border-gray-100"></div>
+                    <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
+                      <div className="flex items-center gap-2">
+                        <Banknote className="w-4 h-4 text-[#28a745]" />
+                        Total Other Income
+                      </div>
+                      <span className="font-bold text-black">₹0</span>
+                    </div>
+                    <div className="border-b border-gray-100"></div>
+                    <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
+                      <div className="flex items-center gap-2">
+                        <Download className="w-4 h-4 text-[#28a745]" />
+                        Total Payment In
+                      </div>
+                      <span className="font-bold text-black">₹0</span>
+                    </div>
+                  </div>
+                  <div className="bg-[#28a745] text-white font-bold text-[13px] px-3 py-2 flex justify-between items-center mt-auto">
+                    <span>TOTAL MONEY IN</span>
+                    <span>₹0</span>
+                  </div>
                 </div>
-                <div className="font-bold text-[22px]">
+
+                {/* MONEY OUT */}
+                <div className="border border-gray-200 rounded-[4px] flex flex-col overflow-hidden shadow-sm">
+                  <div className="bg-[#f8d7da] text-[#dc3545] font-bold text-[12px] px-3 py-2 flex items-center gap-2 border-b border-gray-200">
+                    <ArrowUpFromLine className="w-4 h-4" strokeWidth={3} />
+                    MONEY OUT
+                  </div>
+                  <div className="bg-white p-2 space-y-1">
+                    <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
+                      <div className="flex items-center gap-2">
+                        <Building className="w-4 h-4 text-[#dc3545]" />
+                        Total Company Paid
+                      </div>
+                      <span className="font-bold text-black">₹0</span>
+                    </div>
+                    <div className="border-b border-gray-100"></div>
+                    <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-[#dc3545]" />
+                        Total Employee Paid
+                      </div>
+                      <span className="font-bold text-black">₹0</span>
+                    </div>
+                    <div className="border-b border-gray-100"></div>
+                    <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-[#dc3545]" />
+                        Total Expenses Paid
+                      </div>
+                      <span className="font-bold text-black">₹0</span>
+                    </div>
+                    <div className="border-b border-gray-100"></div>
+                    <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
+                      <div className="flex items-center gap-2">
+                        <Upload className="w-4 h-4 text-[#dc3545]" />
+                        Total Payment Out
+                      </div>
+                      <span className="font-bold text-black">₹0</span>
+                    </div>
+                  </div>
+                  <div className="bg-[#dc3545] text-white font-bold text-[13px] px-3 py-2 flex justify-between items-center mt-auto">
+                    <span>TOTAL MONEY OUT</span>
+                    <span>₹0</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Net Collection */}
+              <div className="bg-[#28a745] rounded-[4px] px-4 py-2 text-white flex items-center justify-between shadow-sm mt-1">
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1.5">
+                    <Calculator className="w-5 h-5" strokeWidth={2.5} />
+                    <span className="font-bold text-[14px] uppercase">NET COLLECTION</span>
+                  </div>
+                  <span className="text-[10.5px] font-medium opacity-90 mt-0.5">(Total Money In ₹0 - Total Money Out ₹0)</span>
+                </div>
+                <div className="font-bold text-[20px]">
                   ₹0
                 </div>
               </div>
 
-              {/* Empty State message */}
-              <div className="flex flex-col items-center justify-center py-12 gap-3 text-gray-500">
-                <div className="w-12 h-12 bg-gray-500 rounded-full flex items-center justify-center text-white">
-                  <Info className="w-6 h-6" strokeWidth={3} />
+              {/* Accounts Collection */}
+              <div className="flex flex-col gap-2 mt-1">
+                <div className="flex items-center gap-1.5 text-gray-500 mb-0.5">
+                  <FileText className="w-4 h-4" strokeWidth={3} />
+                  <span className="font-bold text-[13px]">Accounts Collection</span>
                 </div>
-                <p className="text-[15px]">No sales or payment data found for selected date range</p>
+                
+                <div className="border border-gray-200 rounded-[4px] overflow-hidden shadow-sm">
+                  <div className="p-3 bg-white flex items-center justify-between border-b border-gray-200">
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-full bg-[#17a2b8] text-white flex items-center justify-center font-bold text-[13px]">
+                        1
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-black text-[13px]">Cash Account</span>
+                        <span className="text-[#28a745] font-bold text-[10px]">Cash (Balance)</span>
+                      </div>
+                    </div>
+                    <span className="text-[#007bff] font-bold text-[14px]">-₹22,020</span>
+                  </div>
+                  
+                  <div className="bg-[#17a2b8] p-3 flex items-center justify-between text-white">
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-1.5">
+                        <Building className="w-4 h-4" strokeWidth={2.5} />
+                        <span className="font-bold text-[13px]">Total Cash & Bank Balance</span>
+                      </div>
+                      <span className="text-[10.5px] font-medium mt-0.5 opacity-90">Cash -₹22,020 + Bank ₹0</span>
+                    </div>
+                    <span className="font-bold text-[16px]">-₹22,020</span>
+                  </div>
+                </div>
               </div>
 
             </div>
             
             {/* Modal Footer */}
-            <div className="border-t border-gray-200 px-4 py-3 flex justify-end">
+            <div className="border-t border-gray-200 px-4 py-2 flex justify-end bg-gray-50 rounded-b-[4px]">
               <button 
                 onClick={() => setCollectionModalOpen(false)} 
-                className="flex items-center gap-1.5 bg-[#6c757d] hover:bg-[#5a6268] text-white px-4 py-1.5 rounded-[4px] text-[14px] transition-colors shadow-sm"
+                className="flex items-center gap-1.5 bg-[#6c757d] hover:bg-[#5a6268] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm"
               >
                 <X className="w-4 h-4 font-bold" strokeWidth={3} />
                 Close

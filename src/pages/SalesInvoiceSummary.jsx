@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   BarChart2, 
   Printer, 
@@ -19,9 +19,11 @@ import {
   Users,
   FileText
 } from 'lucide-react';
+import { cn } from '../utils';
 
 export function SalesInvoiceSummary() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [collectionModalOpen, setCollectionModalOpen] = useState(false);
   const [loadingSheetModalOpen, setLoadingSheetModalOpen] = useState(false);
   const [reportDate, setReportDate] = useState("2026-05-27");
@@ -39,8 +41,16 @@ export function SalesInvoiceSummary() {
       <div className="bg-white rounded shadow-sm border border-gray-200 flex-1 flex flex-col overflow-hidden">
         
         {/* Header */}
-        <div className="bg-[#4F46E5] px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <h2 className="text-white text-[16px] font-medium tracking-wide">Sales Invoice Summary</h2>
+        <div className={cn(
+          "px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2",
+          location.pathname.includes('customer_challan_invoice') ? "bg-[#17a2b8]" : "bg-[#4F46E5]"
+        )}>
+          <h2 className="text-white text-[16px] font-medium tracking-wide">
+            {location.pathname.includes('customer_sale_order') ? 'Sales Order Summary' : 
+             location.pathname.includes('customer_challan_invoice') ? 'Customer Challan Summary' : 
+             location.pathname.includes('customer_sale') ? 'Customer Invoice Summary' :
+             'Sales Invoice Summary'}
+          </h2>
           
           <div className="flex flex-wrap items-center gap-2">
             <button 
@@ -58,7 +68,12 @@ export function SalesInvoiceSummary() {
               Loading Sheet
             </button>
             <button 
-              onClick={() => navigate('/admin/sales-invoice')}
+              onClick={() => navigate(
+                location.pathname.includes('customer_sale_order') ? '/admin/sales-order-invoice' : 
+                location.pathname.includes('customer_challan_invoice') ? '/admin/customer-challan-creation' :
+                location.pathname.includes('customer_sale') ? '/admin/customer-invoice-creation' :
+                '/admin/sales-invoice'
+              )}
               className="flex items-center gap-1.5 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors"
             >
               <Plus className="w-4 h-4" strokeWidth={3} />
@@ -75,16 +90,29 @@ export function SalesInvoiceSummary() {
 
         {/* Filter Bar */}
         <div className="p-3 border-b border-gray-200 flex flex-col md:flex-row gap-4 items-start md:items-end">
-          <div className="flex-1 w-full md:w-auto">
+          <div className="flex-1 w-full md:w-auto relative">
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <div className="w-8 h-[18px] bg-gray-300 rounded-full relative cursor-pointer flex items-center">
                 <div className="w-[14px] h-[14px] bg-white rounded-full absolute left-[2px] shadow-sm"></div>
               </div>
               <span className="text-[13px] font-bold text-gray-800">Customer Name</span>
             </div>
-            <select className="w-full min-w-0 border border-gray-300 rounded-[3px] px-3 py-1.5 text-[14px] text-gray-500 outline-none focus:border-[#4F46E5] appearance-none bg-white">
-              <option>Select Name</option>
-            </select>
+            <div className="relative flex items-center">
+              <input 
+                type="text"
+                list="customer-names"
+                placeholder="Select or Search Name"
+                className="w-full min-w-0 border border-gray-300 rounded-[3px] px-3 py-1.5 pr-8 text-[14px] text-gray-700 outline-none focus:border-[#4F46E5] bg-white"
+              />
+              <Search className="absolute right-2.5 w-4 h-4 text-gray-400" />
+            </div>
+            <datalist id="customer-names">
+              <option value="John Doe" />
+              <option value="Jane Smith" />
+              <option value="Acme Corp" />
+              <option value="Global Industries" />
+              <option value="Tech Solutions Ltd" />
+            </datalist>
           </div>
 
           <div className="flex flex-wrap items-end gap-2 w-full md:w-auto">
@@ -146,12 +174,12 @@ export function SalesInvoiceSummary() {
           <div className="bg-white rounded-[4px] shadow-2xl w-full max-w-4xl flex flex-col overflow-hidden max-h-[95vh] border border-gray-300">
             
             {/* Modal Header */}
-            <div className="bg-[#4F46E5] px-4 py-3 flex items-center justify-between shadow-sm">
+            <div className="bg-[#17a2b8] px-4 py-2 flex items-center justify-between shadow-sm">
               <div className="flex flex-wrap items-center gap-2">
                 <BarChart2 className="w-5 h-5 text-white" strokeWidth={3} />
                 <h3 className="text-white font-medium text-[16px]">Collection Report</h3>
               </div>
-              <button onClick={() => setCollectionModalOpen(false)} className="text-white hover:text-red-200 transition-colors">
+              <button onClick={() => setCollectionModalOpen(false)} className="text-white hover:text-gray-200 transition-colors">
                 <X className="w-6 h-6 font-bold text-white" strokeWidth={3} />
               </button>
             </div>
@@ -163,6 +191,8 @@ export function SalesInvoiceSummary() {
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <select className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-700 outline-none w-[150px] shadow-sm bg-white">
                   <option>All</option>
+                  <option>Retailsale</option>
+                  <option>Wholesale</option>
                 </select>
                 
                 <div className="flex flex-wrap items-center gap-3">
@@ -204,7 +234,7 @@ export function SalesInvoiceSummary() {
 
               {/* Metric Cards (Top Row) */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-[#4F46E5] rounded-[4px] p-3 text-white flex flex-col shadow-sm">
+                <div className="bg-[#17a2b8] rounded-[4px] p-2 px-3 text-white flex flex-col shadow-sm">
                   <div className="flex flex-wrap items-center gap-1.5 mb-1 opacity-90">
                     <BarChart2 className="w-4 h-4" strokeWidth={3} />
                     <span className="font-bold text-[14px]">Today's Sales</span>
@@ -336,18 +366,44 @@ export function SalesInvoiceSummary() {
                 </div>
               </div>
 
-              {/* Empty State message */}
-              <div className="flex flex-col items-center justify-center py-6 gap-3 text-gray-500">
-                <div className="w-10 h-10 bg-gray-500 rounded-full flex items-center justify-center text-white">
-                  <Info className="w-5 h-5" strokeWidth={3} />
+              {/* Accounts Collection */}
+              <div className="flex flex-col mt-2">
+                <div className="flex items-center gap-2 text-gray-600 mb-2">
+                  <Banknote className="w-5 h-5" strokeWidth={2} />
+                  <span className="font-bold text-[15px]">Accounts Collection</span>
                 </div>
-                <p className="text-[15px]">No sales or payment data found for selected date range</p>
+                
+                <div className="border border-gray-200 rounded-[4px] bg-white overflow-hidden shadow-sm flex flex-col mb-4">
+                  <div className="flex items-center justify-between p-3 border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-[#17a2b8] text-white flex items-center justify-center font-bold text-[14px]">
+                        1
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-[15px] text-gray-800">Cash Account</span>
+                        <span className="text-[13px] font-bold text-[#28a745]">Cash (Balance)</span>
+                      </div>
+                    </div>
+                    <span className="font-bold text-[16px] text-[#007bff]">-₹22,020</span>
+                  </div>
+                  
+                  <div className="bg-[#17a2b8] text-white p-3 flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <Building className="w-4 h-4" strokeWidth={2} />
+                        <span className="font-bold text-[15px]">Total Cash & Bank Balance</span>
+                      </div>
+                      <span className="text-[13px] opacity-90 mt-1">Cash -₹22,020 + Bank ₹0</span>
+                    </div>
+                    <span className="font-bold text-[16px]">-₹22,020</span>
+                  </div>
+                </div>
               </div>
 
             </div>
             
             {/* Modal Footer */}
-            <div className="bg-white border-t border-gray-200 px-4 py-3 flex justify-end shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+            <div className="bg-[#f8f9fa] border-t border-gray-200 px-4 py-3 flex justify-end shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
               <button 
                 onClick={() => setCollectionModalOpen(false)} 
                 className="flex items-center gap-1.5 bg-[#6c757d] hover:bg-[#5a6268] text-white px-4 py-1.5 rounded-[4px] text-[14px] transition-colors shadow-sm"

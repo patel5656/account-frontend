@@ -13,13 +13,12 @@ import {
   ChevronDown,
   PlusCircle,
   Grip,
-  Trash2,
-  PauseCircle
+  PauseCircle,
+  Plus
 } from 'lucide-react';
 import { cn } from '../utils';
-import { useAuditLog } from '../context/AuditLogContext';
-import { ImportInvoiceAIModal } from '../components/ImportInvoiceAIModal';
 import { HoldInvoiceModal } from '../components/HoldInvoiceModal';
+import { ImportInvoiceAIModal } from '../components/ImportInvoiceAIModal';
 
 // Inline Youtube SVG to avoid lucide-react export issues
 const YoutubeIcon = ({ className }) => (
@@ -28,24 +27,14 @@ const YoutubeIcon = ({ className }) => (
   </svg>
 );
 
-export function SalesInvoice() {
+export function PurchaseOrder() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { addLog } = useAuditLog();
   
-  const isReturn = location.pathname.includes('sales-return-invoice');
-  const isQuotation = location.pathname.includes('quotation-invoice');
-  const isSalesOrder = location.pathname.includes('sales-order-invoice');
-  const isCustomerInvoice = location.pathname.includes('customer-invoice-creation');
-  const isCustomerChallan = location.pathname.includes('customer-challan-creation');
-  const pageTitle = isQuotation ? 'Quotation' : (isReturn ? 'Sales Return' : (isSalesOrder ? 'Sales Order' : (isCustomerInvoice ? 'Customer Invoice' : (isCustomerChallan ? 'Customer Challan' : 'Sales Invoice'))));
+  const pageTitle = 'Purchase Order';
 
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isHoldModalOpen, setIsHoldModalOpen] = useState(false);
-
-  // Toggles State
-  const [isTaxIncluded, setIsTaxIncluded] = useState(true);
-  const [paymentMode, setPaymentMode] = useState('Cash');
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const dateInputRef = useRef(null);
@@ -67,12 +56,6 @@ export function SalesInvoice() {
   
   const [disc2, setDisc2] = useState(5);
   const [disc2Type, setDisc2Type] = useState('%');
-
-  // Manual Summary Inputs
-  const [manualDiscPercent, setManualDiscPercent] = useState("");
-  const [manualDiscAmount, setManualDiscAmount] = useState("");
-  const [manualFreightAmt, setManualFreightAmt] = useState("");
-  const [manualFreightGst, setManualFreightGst] = useState("");
 
   // Calculation Logic
   const baseAmount = (qty || 0) * (price || 0);
@@ -101,73 +84,22 @@ export function SalesInvoice() {
   // For summary display percentage roughly
   const effectiveDiscPercent = baseAmount > 0 ? ((totalDiscAmount / baseAmount) * 100).toFixed(2) : 0;
 
-  const appliedDiscAmount = manualDiscAmount !== "" ? Number(manualDiscAmount) : totalDiscAmount;
-  const appliedFreightAmt = manualFreightAmt !== "" ? Number(manualFreightAmt) : 0;
-  const appliedFreightGst = manualFreightGst !== "" ? Number(manualFreightGst) : 0;
-  const totalFreight = appliedFreightAmt + (appliedFreightAmt * (appliedFreightGst / 100));
-
-  const finalCalculatedAmount = Math.max(0, baseAmount - appliedDiscAmount) + totalFreight;
-
-  const handleSave = () => {
-    addLog({
-      userName: 'Admin User',
-      userRole: 'Admin',
-      actionType: 'Create',
-      billNumber: `INV-${Math.floor(1000 + Math.random() * 9000)}`,
-      moduleName: pageTitle,
-      previousData: null,
-      updatedData: { qty, price, finalAmount, totalDiscAmount },
-      ipAddress: '192.168.1.5'
-    });
-    alert('Invoice saved and audit log created!');
-  };
-
-  const handleEditRow = () => {
-    addLog({
-      userName: 'Admin User',
-      userRole: 'Admin',
-      actionType: 'Edit',
-      billNumber: `INV-${Math.floor(1000 + Math.random() * 9000)}`,
-      moduleName: pageTitle,
-      previousData: { qty: 10, price: 1000, finalAmount: 10000 },
-      updatedData: { qty, price, finalAmount },
-      ipAddress: '192.168.1.5'
-    });
-    alert('Row edit logged!');
-  };
-
-  const handleDeleteRow = () => {
-    addLog({
-      userName: 'Admin User',
-      userRole: 'Admin',
-      actionType: 'Delete',
-      billNumber: `INV-${Math.floor(1000 + Math.random() * 9000)}`,
-      moduleName: pageTitle,
-      previousData: { qty, price, finalAmount },
-      updatedData: null,
-      ipAddress: '192.168.1.5'
-    });
-    alert('Row delete logged!');
-  };
-
   return (
+    <>
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] flex flex-col relative pb-12">
       <div className="bg-white m-3 mt-0 shadow-sm border border-gray-200 flex-1 flex flex-col">
         
         {/* Top Header */}
-        <div className="bg-[#4F46E5] flex items-center justify-between px-3 py-1.5">
+        <div className="bg-[#17a2b8] flex items-center justify-between px-3 py-1.5">
           <h2 className="text-white font-medium text-[15px]">{pageTitle}</h2>
           
           <div className="flex flex-wrap items-center gap-3">
-            <div 
-              className="flex flex-wrap items-center gap-1.5 cursor-pointer" 
-              onClick={() => setPaymentMode(paymentMode === 'Cash' ? 'Credit' : 'Cash')}
-            >
-              <span className={`text-[13px] font-bold ${paymentMode === 'Credit' ? 'text-white' : 'text-gray-300'}`}>Credit</span>
-              <div className={`w-[32px] h-[18px] rounded-full relative border transition-colors ${paymentMode === 'Cash' ? 'bg-[#117a8b] border-[#148ea1]' : 'bg-gray-400 border-gray-500'}`}>
-                <div className={`w-[14px] h-[14px] rounded-full absolute top-[1px] transition-all bg-white shadow-sm ${paymentMode === 'Cash' ? 'right-[1px]' : 'left-[1px]'}`}></div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-white text-[13px] font-bold">Credit</span>
+              <div className="w-[28px] h-[16px] bg-[#117a8b] rounded-full relative cursor-pointer border border-[#148ea1]">
+                <div className="w-[12px] h-[12px] bg-[#4F46E5] rounded-full absolute top-[1px] right-[1px]"></div>
               </div>
-              <span className={`text-[13px] font-bold ${paymentMode === 'Cash' ? 'text-white' : 'text-gray-300'}`}>Cash</span>
+              <span className="text-white text-[13px] font-bold">Cash</span>
             </div>
             
             <button className="bg-white p-1 rounded-sm shadow-sm">
@@ -189,28 +121,15 @@ export function SalesInvoice() {
         <div className="p-3 border-b border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <label className="text-[13px] font-bold text-gray-800">Customer Name</label>
+              <label className="text-[13px] font-bold text-gray-800">Company Name</label>
               <span className="text-[13px] font-bold text-[#dc3545] invisible md:visible absolute md:static left-1/2 -translate-x-1/2 top-4">Due Amount : 0</span>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex-1 flex items-center relative">
-                <input 
-                  type="text"
-                  list="customer-names-list"
-                  placeholder="Select Name"
-                  className="w-full min-w-0 border border-gray-300 border-r-0 rounded-l-[3px] px-3 py-1.5 text-[13px] focus:outline-none focus:border-[#4F46E5] bg-white text-gray-800"
-                />
-                <datalist id="customer-names-list">
-                  <option value="John Doe" />
-                  <option value="Jane Smith" />
-                  <option value="Acme Corp" />
-                  <option value="Global Industries" />
-                  <option value="Tech Solutions Ltd" />
-                </datalist>
-                <button 
-                  onClick={() => alert("Search triggered")}
-                  className="bg-[#4F46E5] hover:bg-[#4338ca] text-white px-3 py-1.5 border border-[#4F46E5] rounded-r-[3px] transition-colors"
-                >
+              <div className="flex-1 flex items-center">
+                <select className="w-full min-w-0 border border-gray-300 border-r-0 rounded-l-[3px] px-3 py-1.5 text-[13px] focus:outline-none focus:border-[#17a2b8] appearance-none bg-white text-gray-400">
+                  <option value="">Select Name</option>
+                </select>
+                <button className="bg-[#17a2b8] text-white px-3 py-1.5 border border-[#17a2b8] rounded-r-[3px]">
                   <Search className="w-4 h-4" />
                 </button>
               </div>
@@ -239,7 +158,7 @@ export function SalesInvoice() {
                    placeholder="(AUTO GENRATED)"
                    className="w-full min-w-0 border border-gray-300 border-r-0 rounded-l-[3px] px-3 py-1 text-[13px] bg-white text-gray-400"
                  />
-                 <button className="bg-[#4F46E5] text-white px-3 py-1 border border-[#4F46E5] rounded-r-[3px]">
+                 <button className="bg-[#17a2b8] text-white px-3 py-1 border border-[#17a2b8] rounded-r-[3px]">
                    <Search className="w-4 h-4" />
                  </button>
                </div>
@@ -280,37 +199,35 @@ export function SalesInvoice() {
         {/* Data Table */}
         <div className="flex-1 min-h-[300px] overflow-x-auto">
           <div className="min-w-[1000px]">
-            {/* Table Header: 9 Columns grid-cols-[40px_1fr_80px_80px_100px_90px_90px_100px_80px] */}
-            <div className="bg-[#343a40] text-white grid grid-cols-[40px_1fr_80px_80px_100px_110px_110px_100px_80px] text-center border-b border-gray-600">
+            {/* Table Header: 8 Columns */}
+            <div className="bg-[#343a40] text-white grid grid-cols-[40px_2fr_1.5fr_1fr_1fr_1.5fr_1fr_80px] text-center border-b border-gray-600">
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold leading-tight flex flex-col justify-center">
                 S.NO.
+                <span className="text-[10px]">#</span>
               </div>
-              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">
-                PRODUCT NAME
+              <div className="border-r border-gray-600 py-2 px-2 flex items-center justify-between">
+                <span className="text-[12px] font-bold">PRODUCT NAME</span>
+                <div className="flex items-center gap-1 bg-[#17a2b8] px-2 py-0.5 rounded-sm">
+                  <span className="text-[10px] font-bold">Barcode</span>
+                </div>
               </div>
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex flex-col justify-center">
-                QTY
+                QUANTITY
               </div>
-              <div className="border-r border-gray-600 py-2 text-[12px] font-bold text-[#ffc107] flex items-center justify-center">
-                FREE QTY
+              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex flex-col justify-center">
+                MRP
+              </div>
+              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex flex-col justify-center">
+                DIS
               </div>
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex flex-col justify-center leading-tight">
-                <span className="font-normal text-[10px]">(TAX INCLUDED)</span>
-                <div 
-                  onClick={() => setIsTaxIncluded(!isTaxIncluded)}
-                  className="flex items-center justify-center gap-1 mt-0.5 cursor-pointer"
-                >
-                  <div className={`w-[24px] h-[14px] rounded-full relative transition-colors ${isTaxIncluded ? 'bg-[#117a8b]' : 'bg-gray-400'}`}>
-                    <div className={`w-[10px] h-[10px] bg-white rounded-full absolute top-[2px] transition-all shadow-sm ${isTaxIncluded ? 'right-[2px]' : 'left-[2px]'}`}></div>
+                <span className="font-normal text-[10px]">(TAX EXCLUDED)</span>
+                <div className="flex items-center justify-center gap-1 mt-0.5">
+                  <div className="w-[20px] h-[10px] bg-[#117a8b] rounded-full relative">
+                    <div className="w-[8px] h-[8px] bg-white rounded-full absolute top-[1px] left-[1px]"></div>
                   </div>
                   PRICE
                 </div>
-              </div>
-              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-blue-300">
-                DISC 1
-              </div>
-              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-blue-300">
-                DISC 2
               </div>
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">
                 AMOUNT
@@ -321,32 +238,45 @@ export function SalesInvoice() {
             </div>
 
             {/* Input Row */}
-            <div className="grid grid-cols-[40px_1fr_80px_80px_100px_110px_110px_100px_80px] bg-white border-b border-gray-200">
+            <div className="grid grid-cols-[40px_2fr_1.5fr_1fr_1fr_1.5fr_1fr_80px] bg-white border-b border-gray-200">
               <div className="border-r border-gray-200 flex items-center justify-center p-1 bg-gray-600">
               </div>
-              <div className="border-r border-gray-200 p-1 flex relative">
-                <input type="text" placeholder="Enter Product Name" className="w-full px-2 py-1 text-[13px] outline-none" />
-                <button className="absolute right-1 top-1.5 bottom-1.5 bg-[#4F46E5] text-white text-[11px] px-2 rounded-sm font-bold flex items-center gap-1">
-                  <FilterIcon className="w-3 h-3" /> Product
+              <div className="border-r border-gray-200 p-1 flex">
+                <input type="text" placeholder="Enter Barcode" className="w-full px-2 py-1 text-[13px] outline-none border border-gray-300 rounded-l-[3px]" />
+                <button className="bg-gray-100 border border-gray-300 border-l-0 text-gray-600 px-2 rounded-r-[3px] font-bold flex items-center justify-center">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 5v14M21 5v14M8 5v14M12 5v14M16 5v14"/></svg>
                 </button>
               </div>
               
-              <div className="border-r border-gray-200 p-1">
+              <div className="border-r border-gray-200 p-1 flex">
                  <input 
                    type="number" 
                    value={qty}
                    onChange={(e) => setQty(Number(e.target.value))}
-                   className="w-full h-full border border-gray-200 rounded-[3px] px-2 text-[13px] outline-none text-center font-bold" 
+                   className="w-[60%] h-full border border-gray-200 rounded-l-[3px] px-2 text-[13px] outline-none text-center font-bold" 
                  />
+                 <select className="w-[40%] border border-gray-200 rounded-r-[3px] text-[12px] outline-none bg-gray-50 border-l-0 text-center text-gray-500 appearance-none">
+                   <option>Units</option>
+                 </select>
               </div>
 
               <div className="border-r border-gray-200 p-1">
                  <input 
                    type="number" 
-                   value={freeQty}
-                   onChange={(e) => setFreeQty(Number(e.target.value))}
-                   className="w-full h-full border border-yellow-300 bg-yellow-50 rounded-[3px] px-2 text-[13px] outline-none text-center font-bold text-yellow-800" 
+                   value={price}
+                   onChange={(e) => setPrice(Number(e.target.value))}
+                   className="w-full h-full border border-gray-200 rounded-[3px] px-2 text-[13px] outline-none text-center font-bold" 
                  />
+              </div>
+
+              <div className="border-r border-gray-200 p-1 flex">
+                 <input 
+                   type="number" 
+                   value={disc1}
+                   onChange={(e) => setDisc1(Number(e.target.value))}
+                   className="w-[60%] h-full border border-gray-200 rounded-l-[3px] px-1 text-[13px] outline-none text-center font-bold border-r-0" 
+                 />
+                 <div className="w-[40%] bg-gray-50 border border-gray-200 rounded-r-[3px] flex items-center justify-center text-[12px] text-gray-500 font-bold">%</div>
               </div>
 
               <div className="border-r border-gray-200 p-1">
@@ -354,59 +284,20 @@ export function SalesInvoice() {
                   type="number" 
                   value={price}
                   onChange={(e) => setPrice(Number(e.target.value))}
-                  className="w-full h-full border border-gray-200 rounded-[3px] px-2 text-[13px] outline-none text-right font-bold" 
+                  className="w-full h-full border border-gray-200 rounded-[3px] px-2 text-[13px] outline-none text-center font-bold" 
                 />
               </div>
 
-              {/* Disc 1 */}
-              <div className="border-r border-gray-200 p-1 flex">
-                 <input 
-                   type="number" 
-                   value={disc1}
-                   onChange={(e) => setDisc1(Number(e.target.value))}
-                   className="w-[60%] border border-blue-200 rounded-l-[3px] px-1 text-[13px] outline-none border-r-0 text-center text-blue-800 bg-blue-50" 
-                 />
-                 <select 
-                   value={disc1Type}
-                   onChange={(e) => setDisc1Type(e.target.value)}
-                   className="w-[40%] border border-blue-200 rounded-r-[3px] px-0 text-[12px] outline-none bg-blue-100 text-blue-800 appearance-none text-center"
-                 >
-                   <option value="%">%</option>
-                   <option value="₹">₹</option>
-                 </select>
-              </div>
-
-              {/* Disc 2 */}
-              <div className="border-r border-gray-200 p-1 flex">
-                 <input 
-                   type="number" 
-                   value={disc2}
-                   onChange={(e) => setDisc2(Number(e.target.value))}
-                   className="w-[60%] border border-blue-200 rounded-l-[3px] px-1 text-[13px] outline-none border-r-0 text-center text-blue-800 bg-blue-50" 
-                 />
-                 <select 
-                   value={disc2Type}
-                   onChange={(e) => setDisc2Type(e.target.value)}
-                   className="w-[40%] border border-blue-200 rounded-r-[3px] px-0 text-[12px] outline-none bg-blue-100 text-blue-800 appearance-none text-center"
-                 >
-                   <option value="%">%</option>
-                   <option value="₹">₹</option>
-                 </select>
-              </div>
-
-              <div className="border-r border-gray-200 p-1 flex items-center justify-end pr-2 text-[13px] font-bold text-gray-800 bg-gray-50">
+              <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] font-bold text-gray-800 bg-gray-50">
                 {finalAmount.toFixed(2)}
               </div>
               
               <div className="bg-[#343a40] flex items-center justify-center gap-2 p-1">
-                <button className="text-[#28a745] hover:text-green-400">
-                  <PlusSquare className="w-[18px] h-[18px]" strokeWidth={2.5} />
+                <button className="bg-[#28a745] rounded-[3px] p-0.5 text-white hover:bg-green-600">
+                  <Plus className="w-[18px] h-[18px]" strokeWidth={3} />
                 </button>
-                <button onClick={handleEditRow} className="text-white hover:text-gray-300">
+                <button className="bg-transparent rounded-[3px] p-0.5 text-white hover:text-gray-300">
                   <Edit className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                </button>
-                <button onClick={handleDeleteRow} className="text-red-400 hover:text-red-300">
-                  <Trash2 className="w-[18px] h-[18px]" strokeWidth={2.5} />
                 </button>
               </div>
             </div>
@@ -460,7 +351,7 @@ export function SalesInvoice() {
              <div className="flex items-center justify-between">
                <span className="text-[13px] font-bold text-gray-800">Subtotal:</span>
                <div className="w-[200px] bg-[#e9ecef] min-w-0 border border-gray-300 rounded-[3px] px-3 py-1 text-[13px] text-gray-800 font-bold text-right">
-                 {baseAmount.toFixed(2)}
+                 {finalAmount.toFixed(2)}
                </div>
              </div>
 
@@ -469,11 +360,11 @@ export function SalesInvoice() {
                <div className="w-[200px] flex gap-2">
                  <div className="flex-1 relative mt-[18px]">
                    <span className="absolute -top-[18px] left-0 text-[11px] font-bold text-gray-800">Dis.%</span>
-                   <input type="number" value={manualDiscPercent !== "" ? manualDiscPercent : effectiveDiscPercent} onChange={(e) => setManualDiscPercent(e.target.value)} className="w-full min-w-0 border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] outline-none bg-white text-right text-blue-700 font-bold" />
+                   <input type="text" value={effectiveDiscPercent} className="w-full min-w-0 border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] outline-none bg-white text-right text-blue-700 font-bold" readOnly />
                  </div>
                  <div className="flex-1 relative mt-[18px]">
                    <span className="absolute -top-[18px] left-0 text-[11px] font-bold text-gray-800">Dis. Amount</span>
-                   <input type="number" value={manualDiscAmount !== "" ? manualDiscAmount : totalDiscAmount.toFixed(2)} onChange={(e) => setManualDiscAmount(e.target.value)} className="w-full min-w-0 border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] outline-none bg-white text-right text-blue-700 font-bold" />
+                   <input type="text" value={totalDiscAmount.toFixed(2)} className="w-full min-w-0 border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] outline-none bg-white text-right text-blue-700 font-bold" readOnly />
                  </div>
                </div>
              </div>
@@ -483,11 +374,11 @@ export function SalesInvoice() {
                <div className="w-[200px] flex gap-2">
                  <div className="flex-1 relative mt-[18px]">
                    <span className="absolute -top-[18px] left-0 text-[11px] font-bold text-gray-800">Amount</span>
-                   <input type="number" value={manualFreightAmt !== "" ? manualFreightAmt : "0"} onChange={(e) => setManualFreightAmt(e.target.value)} className="w-full min-w-0 border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] outline-none bg-white text-right" />
+                   <input type="text" value="0" className="w-full min-w-0 border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] outline-none bg-white text-right" readOnly />
                  </div>
                  <div className="flex-1 relative mt-[18px]">
                    <span className="absolute -top-[18px] left-0 text-[11px] font-bold text-gray-800">Gst %</span>
-                   <input type="number" value={manualFreightGst !== "" ? manualFreightGst : "0"} onChange={(e) => setManualFreightGst(e.target.value)} className="w-full min-w-0 border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] outline-none bg-white text-right" />
+                   <input type="text" value="0" className="w-full min-w-0 border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] outline-none bg-white text-right" readOnly />
                  </div>
                </div>
              </div>
@@ -495,7 +386,7 @@ export function SalesInvoice() {
              <div className="flex items-center justify-between mt-1">
                <span className="text-[13px] font-bold text-gray-800">Final Amount:</span>
                <div className="w-[200px] bg-[#e9ecef] min-w-0 border border-gray-300 rounded-[3px] px-3 py-1 text-[14px] text-[#28a745] font-bold text-right shadow-sm border-[#28a745]">
-                 {finalCalculatedAmount.toFixed(2)}
+                 {finalAmount.toFixed(2)}
                </div>
              </div>
           </div>
@@ -504,14 +395,14 @@ export function SalesInvoice() {
       </div>
 
       {/* Fixed Bottom Action Bar */}
-      <div className="fixed bottom-0 left-0 md:left-[220px] right-0 bg-[#343a40] z-40 px-2 sm:px-4 py-2 invoice-bottom-bar shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+      <div className="fixed bottom-0 left-0 md:left-[220px] right-0 bg-[#343a40] z-40 px-4 py-2 flex items-center justify-between shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
         <div className="flex flex-wrap items-center gap-1 text-[12px] font-bold">
           <span className="text-white">Last Invoice Total:</span>
           <span className="text-[#ffc107]">0</span>
         </div>
         
-        <div className="flex items-center justify-center gap-1.5 flex-1 max-w-[400px] mx-auto flex-wrap">
-          <button onClick={handleSave} className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] transition-colors">
+        <div className="flex items-center justify-center gap-1.5 flex-1 max-w-[400px] mx-auto">
+          <button className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] transition-colors">
             <Check className="w-4 h-4" strokeWidth={3} />
             Save
           </button>
@@ -526,7 +417,7 @@ export function SalesInvoice() {
             </button>
           </div>
 
-          <button className="flex items-center gap-1 bg-[#4F46E5] hover:bg-[#4338ca] text-white px-3 py-1.5 rounded-[3px] text-[13px] transition-colors">
+          <button className="flex items-center gap-1 bg-[#17a2b8] hover:bg-[#138496] text-white px-3 py-1.5 rounded-[3px] text-[13px] transition-colors">
             <Printer className="w-4 h-4" strokeWidth={3} />
             Print
           </button>
@@ -547,17 +438,17 @@ export function SalesInvoice() {
         </button>
       </div>
 
-      {/* Modals */}
-      <ImportInvoiceAIModal 
-        isOpen={isImportModalOpen} 
-        onClose={() => setIsImportModalOpen(false)} 
-      />
+    </div>
+
       <HoldInvoiceModal 
         isOpen={isHoldModalOpen} 
         onClose={() => setIsHoldModalOpen(false)} 
       />
-
-    </div>
+      <ImportInvoiceAIModal 
+        isOpen={isImportModalOpen} 
+        onClose={() => setIsImportModalOpen(false)} 
+      />
+    </>
   );
 }
 

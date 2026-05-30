@@ -8,6 +8,7 @@ import { SalesInvoice } from './pages/SalesInvoice';
 import { BankLedger } from './pages/BankLedger';
 import { AllBookBalance } from './pages/AllBookBalance';
 import { PurchaseInvoice } from './pages/PurchaseInvoice';
+import { PurchaseOrder } from './pages/PurchaseOrder';
 import { StockDetails } from './pages/StockDetails';
 import { ExpenseLedgerInput } from './pages/ExpenseLedgerInput';
 import { IncomeLedgerInput } from './pages/IncomeLedgerInput';
@@ -78,6 +79,10 @@ import { NotificationPermission } from './pages/NotificationPermission';
 import { HardRefreshPage } from './pages/HardRefreshPage';
 import { StockAdjustmentForm } from './pages/StockAdjustmentForm';
 import { AuditLogs } from './pages/AuditLogs';
+import { PosBilling } from './pages/PosBilling';
+import { BranchMaster } from './pages/BranchMaster';
+import { WarehouseMaster } from './pages/WarehouseMaster';
+import { GodownTransfer } from './pages/GodownTransfer';
 
 import { SettingsProvider } from './context/SettingsContext';
 
@@ -91,11 +96,18 @@ function App() {
             <Route path="/admin/registration" element={<FirmRegistration />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/admin/invoice-details/customer_sale" element={<SalesInvoiceSummary />} />
+            <Route path="/admin/invoice-details/customer_sale_order" element={<SalesInvoiceSummary />} />
+            <Route path="/admin/invoice-details/customer_challan_invoice" element={<SalesInvoiceSummary />} />
+            <Route path="/admin/sales-order-invoice" element={<SalesInvoice />} />
+            <Route path="/admin/customer-invoice-creation" element={<SalesInvoice />} />
+            <Route path="/admin/customer-challan-creation" element={<SalesInvoice />} />
             <Route path="/admin/sales-invoice" element={<SalesInvoice />} />
             <Route path="/admin/sales-return-invoice" element={<SalesInvoice />} />
             <Route path="/admin/quotation-invoice" element={<SalesInvoice />} />
             <Route path="/admin/create_invoices/company_purchase" element={<PurchaseInvoice />} />
             <Route path="/admin/create_invoices/company_purchase_return" element={<PurchaseInvoice />} />
+            <Route path="/admin/create_invoices/company_purchase_order" element={<PurchaseOrder />} />
+            <Route path="/admin/invoice-details/company_purchase_order" element={<Purchase />} />
             <Route path="/admin/stock-details" element={<StockDetails />} />
             <Route path="/admin/bank-ledger" element={<BankLedger />} />
             <Route path="/admin/allbookbalance" element={<AllBookBalance />} />
@@ -138,6 +150,10 @@ function App() {
             <Route path="/admin/voucher_master" element={<VoucherMaster />} />
             <Route path="/admin/purchase" element={<Purchase />} />
             <Route path="/admin/purchase_return" element={<PurchaseReturn />} />
+            <Route path="/admin/godown_transfer" element={<GodownTransfer />} />
+            <Route path="/admin/pos" element={<PosBilling />} />
+            <Route path="/admin/branch_master" element={<BranchMaster />} />
+            <Route path="/admin/warehouse_master" element={<WarehouseMaster />} />
             <Route path="/admin/sales" element={<SalesInvoiceSummary />} />
             <Route path="/admin/sales_return" element={<SalesReturnSummary />} />
             <Route path="/admin/quotation" element={<Quotation />} />
@@ -176,7 +192,7 @@ function App() {
             <Route path="/tools/notification-permission" element={<NotificationPermission />} />
             <Route path="/tools/hard-refresh" element={<HardRefreshPage />} />
             <Route path="/admin/audit-logs" element={<AuditLogs />} />
-            <Route path="*" element={<Navigate to="/" />} />
+            <Route path="*" element={<Navigate to="/dashboard" />} />
           </Routes>
         </DashboardLayout>
       </Router>

@@ -46,7 +46,10 @@ import {
   Trash2,
   Bell,
   RefreshCw,
-  Printer
+  Printer,
+  ArrowRightLeft,
+  Building2,
+  Warehouse
 } from 'lucide-react';
 import { CashBankMasterModal } from './CashBankMasterModal';
 import { PartyMasterModal } from './PartyMasterModal';
@@ -61,6 +64,8 @@ import { MessageTemplateModal } from './MessageTemplateModal';
 import { GstUqcMergeModal } from './GstUqcMergeModal';
 import { StockCorrectionModal } from './StockCorrectionModal';
 import { BalanceCorrectionModal } from './BalanceCorrectionModal';
+import { BranchMasterModal } from './BranchMasterModal';
+import { WarehouseMasterModal } from './WarehouseMasterModal';
 import { useSettings } from '../context/SettingsContext';
 
 const menuItems = [
@@ -95,6 +100,9 @@ const menuItems = [
     subitems: [
       { name: 'Purchase', subtitle: '(Ctrl+P)', icon: ShoppingCart, path: '/admin/purchase', hasPlus: true },
       { name: 'Purchase Return', icon: CornerUpLeft, path: '/admin/purchase_return', hasPlus: true },
+      { name: 'Warehouse Master', icon: Warehouse, path: '/admin/warehouse_master', hasPlus: true },
+      { name: 'Branch Master', icon: Building2, path: '/admin/branch_master', hasPlus: true },
+      { name: 'Stock Transfer', icon: ArrowRightLeft, path: '/admin/godown_transfer', hasPlus: false },
       { name: 'Sales', subtitle: '(Ctrl+S)', icon: ClipboardList, path: '/admin/sales', hasPlus: true },
       { name: 'Sales Return', icon: RefreshCcw, path: '/admin/sales_return', hasPlus: true },
       { name: 'Quotation', icon: Receipt, path: '/admin/quotation', hasPlus: true },
@@ -102,6 +110,7 @@ const menuItems = [
       { name: 'Stock Inventory', icon: BarChart, path: '/admin/stock_inventory', hasPlus: false },
     ]
   },
+  { name: 'POS Billing', icon: Barcode, path: '/admin/pos' },
   { 
     name: 'Account', 
     icon: Users, 
@@ -236,6 +245,8 @@ export function Sidebar({ isOpen, onClose }) {
   const [isGstUqcMergeModalOpen, setIsGstUqcMergeModalOpen] = useState(false);
   const [isStockCorrectionModalOpen, setIsStockCorrectionModalOpen] = useState(false);
   const [isBalanceCorrectionModalOpen, setIsBalanceCorrectionModalOpen] = useState(false);
+  const [isBranchMasterModalOpen, setIsBranchMasterModalOpen] = useState(false);
+  const [isWarehouseMasterModalOpen, setIsWarehouseMasterModalOpen] = useState(false);
   const { settings } = useSettings();
 
   const toggleSubmenu = (name, e) => {
@@ -249,17 +260,22 @@ export function Sidebar({ isOpen, onClose }) {
       const dynamicSubitems = [...item.subitems];
       
       // Insert new items if settings are enabled
+      let offset = 0;
       if (settings?.showPurchaseOrder) {
-        dynamicSubitems.splice(0, 0, { name: 'Purchase Order', icon: ClipboardList, path: '/admin/create_invoices/company_purchase', hasPlus: true });
+        dynamicSubitems.splice(0, 0, { name: 'Purchase Order', icon: ShoppingCart, path: '/admin/invoice-details/company_purchase_order', hasPlus: true });
+        offset++;
       }
       if (settings?.showSalesOrder) {
-        dynamicSubitems.splice(settings?.showPurchaseOrder ? 4 : 3, 0, { name: 'Sale Order', icon: ClipboardList, path: '/admin/sales-invoice', hasPlus: true });
-        if (settings?.showCustomerChallan) {
-          dynamicSubitems.splice(dynamicSubitems.length - 2, 0, { name: 'Customer Challan', icon: FileText, path: '/admin/sales-invoice', hasPlus: true });
-        }
-        if (settings?.showCustomerInvoice) {
-          dynamicSubitems.splice(dynamicSubitems.length - 2, 0, { name: 'Customer Invoice', icon: Receipt, path: '/admin/sales-invoice', hasPlus: true });
-        }
+        dynamicSubitems.splice(2 + offset, 0, { name: 'Sale Order', icon: ShoppingCart, path: '/admin/invoice-details/customer_sale_order', hasPlus: true });
+        offset++;
+      }
+      if (settings?.showCustomerChallan) {
+        dynamicSubitems.splice(4 + offset, 0, { name: 'Customer Challan', icon: FileText, path: '/admin/invoice-details/customer_challan_invoice', hasPlus: true });
+        offset++;
+      }
+      if (settings?.showCustomerInvoice) {
+        dynamicSubitems.splice(4 + offset, 0, { name: 'Customer Invoice', icon: FileText, path: '/admin/invoice-details/customer_sale', hasPlus: true });
+        offset++;
       }
 
       return { ...item, subitems: dynamicSubitems };
@@ -387,6 +403,10 @@ export function Sidebar({ isOpen, onClose }) {
                                 e.stopPropagation();
                                 if (subitem.name === 'Bank Master') {
                                   setIsBankMasterModalOpen(true);
+                                } else if (subitem.name === 'Branch Master') {
+                                  setIsBranchMasterModalOpen(true);
+                                } else if (subitem.name === 'Warehouse Master') {
+                                  setIsWarehouseMasterModalOpen(true);
                                 } else if (subitem.name === 'Company Master') {
                                   setIsCompanyMasterModalOpen(true);
                                 } else if (subitem.name === 'Customer Master') {
@@ -403,11 +423,21 @@ export function Sidebar({ isOpen, onClose }) {
                                   setIsPaymentMasterModalOpen(true);
                                 } else if (subitem.name === 'Unit Catalog Master') {
                                   setIsUnitCatalogMasterModalOpen(true);
-                                } else if (subitem.name === 'Purchase' || subitem.name === 'Purchase Order') {
+                                } else if (subitem.name === 'Purchase') {
                                   navigate('/admin/create_invoices/company_purchase');
+                                } else if (subitem.name === 'Purchase Order') {
+                                  navigate('/admin/create_invoices/company_purchase_order');
                                 } else if (subitem.name === 'Purchase Return') {
                                   navigate('/admin/create_invoices/company_purchase_return');
-                                } else if (subitem.name === 'Sales' || subitem.name === 'Sale Order' || subitem.name === 'Customer Challan' || subitem.name === 'Customer Invoice') {
+                                } else if (subitem.name === 'POS') {
+                                  navigate('/admin/pos');
+                                } else if (subitem.name === 'Sale Order') {
+                                  navigate('/admin/sales-order-invoice');
+                                } else if (subitem.name === 'Customer Invoice') {
+                                  navigate('/admin/customer-invoice-creation');
+                                } else if (subitem.name === 'Customer Challan') {
+                                  navigate('/admin/customer-challan-creation');
+                                } else if (subitem.name === 'Sales') {
                                   navigate('/admin/sales-invoice');
                                 } else if (subitem.name === 'Sales Return') {
                                   navigate('/admin/sales-return-invoice');
@@ -504,6 +534,14 @@ export function Sidebar({ isOpen, onClose }) {
     <BalanceCorrectionModal
       isOpen={isBalanceCorrectionModalOpen}
       onClose={() => setIsBalanceCorrectionModalOpen(false)}
+    />
+    <BranchMasterModal
+      isOpen={isBranchMasterModalOpen}
+      onClose={() => setIsBranchMasterModalOpen(false)}
+    />
+    <WarehouseMasterModal
+      isOpen={isWarehouseMasterModalOpen}
+      onClose={() => setIsWarehouseMasterModalOpen(false)}
     />
     </>
   );
