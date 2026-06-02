@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Plus, Calendar, FileDown, Printer, MessageCircle, Send, CheckSquare, Square, Edit2, Trash2, RefreshCw, AlertCircle } from 'lucide-react';
+import { X, Plus, Calendar, FileDown, Printer, MessageCircle, Send, CheckSquare, Square, Edit2, Trash2, RefreshCw, AlertCircle, Filter } from 'lucide-react';
 import { WhatsAppReminderModal } from '../components/WhatsAppReminderModal';
 
 const SAMPLE_CUSTOMERS = [
@@ -23,6 +23,20 @@ export function CustomerOutstanding() {
   const [confirmAction, setConfirmAction] = useState(null);
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [bulkStatus, setBulkStatus] = useState('');
+
+  const handleExport = () => {
+    const csvContent = [
+      ['#', 'Customer Name', 'Invoice No', 'Due Amount', 'Balance', 'Due Date', 'Mobile', 'Status'],
+      ...filtered.map((c, i) => [
+        i + 1, c.name, c.invoiceNo, c.dueAmount, c.balance, c.dueDate, c.mobile, c.status
+      ])
+    ].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "customer_outstanding.csv";
+    link.click();
+  };
 
   const filtered = rows.filter(c => {
     const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -89,7 +103,7 @@ export function CustomerOutstanding() {
       <div className="bg-white rounded shadow-sm border border-gray-200 flex-1 flex flex-col overflow-hidden">
 
         {/* Header */}
-        <div className="bg-[#4F46E5] px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="bg-[#4F46E5] px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 print:hidden">
           <h2 className="text-white text-[16px] font-medium tracking-wide">Customer Outstanding</h2>
           <div className="flex flex-wrap items-center gap-2">
             <button onClick={() => navigate('/admin/party-ledger/customer_payment')}
@@ -100,7 +114,7 @@ export function CustomerOutstanding() {
               className="flex items-center gap-1.5 bg-[#25D366] hover:bg-[#1da851] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm">
               <Send className="w-4 h-4" strokeWidth={2.5} /> Bulk WhatsApp
             </button>
-            <button onClick={() => alert('Exporting...')}
+            <button onClick={handleExport}
               className="flex items-center gap-1.5 bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors">
               <FileDown className="w-4 h-4" strokeWidth={2.5} /> Export
             </button>
@@ -116,11 +130,11 @@ export function CustomerOutstanding() {
         </div>
 
         {/* Filter Bar */}
-        <div className="p-3 bg-white border-b border-gray-200">
+        <div className="p-3 bg-white border-b border-gray-200 print:hidden">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
             <div className="flex items-center flex-1 w-full max-w-[500px] bg-white border border-gray-300 rounded-[3px] overflow-hidden shadow-sm focus-within:border-blue-400">
               <div className="px-3 py-2 text-blue-500 bg-gray-50 border-r border-gray-300 flex-shrink-0">
-                <FilterIcon className="w-4 h-4" />
+                <Filter className="w-4 h-4" />
               </div>
               <select className="px-2 py-2 text-[13px] outline-none bg-transparent text-gray-600 border-r border-gray-300 min-w-[110px]">
                 <option>Party Name</option>
@@ -139,12 +153,9 @@ export function CustomerOutstanding() {
                 <option value="Paid">Paid</option>
               </select>
               <div className="flex items-center border border-gray-300 rounded-[3px] overflow-hidden shadow-sm">
-                <input type="text" defaultValue="23-05-2026" readOnly
-                  className="w-[110px] border-0 px-2 py-2 text-[13px] outline-none text-gray-600 bg-white" />
-                <div className="px-2 py-2 border-l border-gray-300 flex items-center bg-white text-gray-500">
-                  <Calendar className="w-4 h-4" />
-                </div>
-                <button className="bg-[#28a745] hover:bg-[#218838] text-white px-3 py-2 text-[13px] font-medium transition-colors">Search</button>
+                <input type="date" defaultValue="2026-05-23"
+                  className="w-[130px] border-0 px-2 py-2 text-[13px] outline-none text-gray-600 bg-white" />
+                <button className="bg-[#28a745] hover:bg-[#218838] text-white px-3 py-2 text-[13px] font-medium transition-colors border-l border-gray-300">Search</button>
               </div>
             </div>
           </div>
@@ -152,7 +163,7 @@ export function CustomerOutstanding() {
 
         {/* Bulk Action Bar */}
         {selectedCount > 0 && (
-          <div className="bg-indigo-50 border-b border-indigo-200 px-4 py-2 flex flex-wrap items-center gap-2">
+          <div className="bg-indigo-50 border-b border-indigo-200 px-4 py-2 flex flex-wrap items-center gap-2 print:hidden">
             <span className="text-[13px] font-bold text-[#4F46E5]">{selectedCount} customer{selectedCount > 1 ? 's' : ''} selected</span>
             <div className="h-4 w-[1px] bg-indigo-200 mx-1 hidden sm:block"></div>
             <button

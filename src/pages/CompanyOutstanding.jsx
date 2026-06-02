@@ -120,12 +120,9 @@ export function CompanyOutstanding() {
                 <option value="Paid">Paid</option>
               </select>
               <div className="flex items-center border border-gray-300 rounded-[3px] overflow-hidden shadow-sm">
-                <input type="text" defaultValue="23-05-2026" readOnly
-                  className="w-[110px] border-0 px-2 py-1.5 text-[13px] outline-none text-gray-600 bg-white" />
-                <div className="px-2 py-1.5 border-l border-gray-300 flex items-center bg-white text-gray-500">
-                  <Calendar className="w-4 h-4" />
-                </div>
-                <button className="bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 text-[13px] font-medium transition-colors">Search</button>
+                <input type="date" defaultValue="2026-05-23"
+                  className="w-[130px] border-0 px-2 py-1.5 text-[13px] outline-none text-gray-600 bg-white" />
+                <button className="bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 text-[13px] font-medium transition-colors border-l border-gray-300">Search</button>
               </div>
             </div>
           </div>

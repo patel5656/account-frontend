@@ -14,12 +14,41 @@ export function SaleSummary() {
   };
   const currentDate = getFormattedDate();
 
+  const handleWhatsApp = () => {
+    const msg = encodeURIComponent(`Sales Summary\nFrom ${currentDate} to ${currentDate}\nTotal Sale: 0\nSale Return: 0\nTotal Due: 0`);
+    window.open(`https://wa.me/?text=${msg}`, '_blank');
+  };
+
+  const handleExport = () => {
+    const csvContent = [
+      ['#', 'Date', 'Invoice No', 'Party Name', 'Type', 'Total Sale', 'Sale Return', 'Paid Amount', 'Total Due'],
+      ['', '', '', 'Totals :', '', '0', '0', '0', '0']
+    ].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "sale_summary.csv";
+    link.click();
+  };
+
+  const handleDownload = () => {
+    const csvContent = [
+      ['#', 'Date', 'Invoice No', 'Party Name', 'Type', 'Total Sale', 'Sale Return', 'Paid Amount', 'Total Due'],
+      ['', '', '', 'Totals :', '', '0', '0', '0', '0']
+    ].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "sale_summary_download.csv";
+    link.click();
+  };
+
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] p-3 flex flex-col relative pb-[70px]">
       <div className="bg-white rounded shadow-sm border border-gray-200 w-full overflow-hidden flex-1">
         
         {/* Top Control Bar */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b border-gray-200 print:hidden">
           <div className="flex flex-col sm:flex-row gap-6">
             
             {/* Select Period */}
@@ -100,7 +129,7 @@ export function SaleSummary() {
         </div>
 
         {/* Footer Buttons */}
-        <div className="sticky bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-gray-200 p-2 sm:p-3 footer-btns">
+        <div className="sticky bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-gray-200 p-2 sm:p-3 footer-btns print:hidden">
           <button 
             onClick={() => navigate(-1)}
             className="bg-[#dc3545] hover:bg-[#c82333] text-white text-[13px] font-medium px-4 py-1.5 rounded-[3px] flex items-center justify-center gap-1 shadow-sm transition-colors"
@@ -114,19 +143,19 @@ export function SaleSummary() {
             <ArrowRight className="w-4 h-4" />
           </button>
           <button 
-            onClick={() => window.open('https://web.whatsapp.com/', '_blank')}
+            onClick={handleWhatsApp}
             className="bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] shadow-sm transition-colors"
           >
             <WhatsappIcon className="w-4 h-4" />
           </button>
           <button 
-            onClick={() => alert('Exporting data...')}
+            onClick={handleExport}
             className="bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 text-[13px] font-bold px-3 py-1.5 rounded-[3px] flex items-center gap-1 shadow-sm transition-colors"
           >
             <Upload className="w-4 h-4" strokeWidth={2.5} /> Export
           </button>
           <button 
-            onClick={() => alert('Downloading data...')}
+            onClick={handleDownload}
             className="bg-[#343a40] hover:bg-[#23272b] text-white text-[13px] font-bold px-3 py-1.5 rounded-[3px] flex items-center gap-1 shadow-sm transition-colors"
           >
             <Download className="w-4 h-4" strokeWidth={2.5} /> Download

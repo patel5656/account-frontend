@@ -12,9 +12,16 @@ const YoutubeIcon = ({ className }) => (
 
 export function IncomeLedgerInput() {
   const navigate = useNavigate();
+  const fileInputRef = React.useRef(null);
+  const [entries, setEntries] = React.useState([]);
+
+  const handleAddEntry = () => {
+    setEntries([...entries, { id: Date.now() }]);
+  };
 
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] flex flex-col p-3">
+      <input type="file" ref={fileInputRef} className="hidden" />
       <div className="bg-white rounded shadow-sm border border-gray-200 flex-1 flex flex-col overflow-hidden">
         
         {/* Header */}
@@ -97,6 +104,38 @@ export function IncomeLedgerInput() {
               </div>
             </div>
 
+            {/* Render added entries */}
+            {entries.map((entry, index) => (
+              <div key={entry.id} className="grid grid-cols-[50px_130px_1fr_120px_120px_100px_100px_80px] bg-white border-b border-gray-200">
+                <div className="border-r border-gray-200 flex items-center justify-center p-1 bg-gray-100 text-[13px]">
+                  {index + 1}
+                </div>
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
+                  23-05-2026
+                </div>
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
+                  Sample Information
+                </div>
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
+                  0
+                </div>
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
+                  0
+                </div>
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
+                  0
+                </div>
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
+                  0
+                </div>
+                <div className="p-1 flex items-center justify-center">
+                  <button className="text-red-500 hover:text-red-700" onClick={() => setEntries(entries.filter(e => e.id !== entry.id))}>
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+
             {/* Input Row */}
             <div className="grid grid-cols-[50px_130px_1fr_120px_120px_100px_100px_80px] bg-white border-b border-gray-200">
               <div className="border-r border-gray-200 flex items-center justify-center p-1 bg-[#343a40] text-white text-[13px] font-bold">
@@ -104,14 +143,10 @@ export function IncomeLedgerInput() {
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center">
                 <input 
-                  type="text" 
-                  readOnly
-                  value="23-05-2026"
-                  className="w-full h-[32px] border border-gray-300 border-r-0 rounded-l-[3px] px-2 text-[13px] outline-none text-gray-600"
+                  type="date" 
+                  defaultValue="2026-05-23"
+                  className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-600"
                 />
-                <div className="h-[32px] border border-gray-300 border-l-0 px-2 flex items-center justify-center rounded-r-[3px] text-gray-500">
-                  <Calendar className="w-4 h-4" />
-                </div>
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center">
                  <input type="text" placeholder="Enter Other Information" className="w-full h-[32px] px-2 text-[13px] outline-none text-center placeholder-gray-400" />
@@ -129,10 +164,10 @@ export function IncomeLedgerInput() {
                 <input type="text" value="0" className="w-full h-[32px] bg-transparent text-[13px] outline-none text-center" readOnly />
               </div>
               <div className="bg-[#343a40] flex items-center justify-center gap-1.5 p-1">
-                <button className="bg-white p-1 rounded-sm shadow-sm hover:bg-gray-100">
+                <button onClick={() => fileInputRef.current?.click()} className="bg-white p-1 rounded-sm shadow-sm hover:bg-gray-100">
                   <Paperclip className="w-4 h-4 text-gray-600" strokeWidth={2.5} />
                 </button>
-                <button className="bg-[#28a745] hover:bg-[#218838] flex items-center justify-center w-[26px] h-[26px] rounded-[2px]">
+                <button onClick={handleAddEntry} className="bg-[#28a745] hover:bg-[#218838] flex items-center justify-center w-[26px] h-[26px] rounded-[2px]">
                   <Plus className="w-5 h-5 text-white" strokeWidth={3} />
                 </button>
               </div>

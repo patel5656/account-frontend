@@ -5,6 +5,39 @@ import { Share2, MessageCircle, Upload, Download, ExternalLink } from 'lucide-re
 export function GstrPurchaseSummary() {
   const navigate = useNavigate();
 
+  const handleExportCSV = () => {
+    const csvContent = [
+      ['Date/Invoice No.', 'Party Name', 'GSTIN', 'State', 'Taxable Amount', 'GST %', 'Quantity', 'IGST', 'CGST', 'SGST', 'Sub Total', 'Grand Total'],
+      ['', '', '', 'Total', '0', '', '', '0', '0', '0', '0', '0']
+    ].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "gstr_purchase_summary.csv";
+    link.click();
+  };
+
+  const handleDownload = () => {
+    const data = { message: "GSTR Purchase Summary Data" };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "gstr_purchase_summary.json";
+    link.click();
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: 'GST Purchase Summary',
+        text: 'Check out the GST Purchase Summary',
+        url: window.location.href,
+      }).catch(console.error);
+    } else {
+      alert('Sharing is not supported on this browser.');
+    }
+  };
+
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] p-4 flex flex-col relative pb-[80px]">
       
@@ -98,19 +131,34 @@ export function GstrPurchaseSummary() {
         >
           <span className="text-[16px] leading-none mt-[-2px]">&laquo;</span> Go back
         </button>
-        <button className="bg-[#28a745] hover:bg-[#218838] text-white text-[13px] font-medium px-3 py-1.5 rounded-[3px] flex items-center justify-center shadow-sm transition-colors">
+        <button 
+          onClick={handleShare}
+          className="bg-[#28a745] hover:bg-[#218838] text-white text-[13px] font-medium px-3 py-1.5 rounded-[3px] flex items-center justify-center shadow-sm transition-colors"
+        >
           <Share2 className="w-4 h-4" />
         </button>
-        <button className="bg-[#28a745] hover:bg-[#218838] text-white text-[13px] font-medium px-3 py-1.5 rounded-[3px] flex items-center justify-center shadow-sm transition-colors">
+        <button 
+          onClick={() => window.open('https://web.whatsapp.com/', '_blank')}
+          className="bg-[#28a745] hover:bg-[#218838] text-white text-[13px] font-medium px-3 py-1.5 rounded-[3px] flex items-center justify-center shadow-sm transition-colors"
+        >
           <MessageCircle className="w-4 h-4 fill-white" />
         </button>
-        <button className="bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 text-[13px] font-medium px-4 py-1.5 rounded-[3px] flex items-center justify-center gap-1.5 shadow-sm transition-colors">
+        <button 
+          onClick={handleExportCSV}
+          className="bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 text-[13px] font-medium px-4 py-1.5 rounded-[3px] flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+        >
           <Upload className="w-4 h-4" /> Export
         </button>
-        <button className="bg-[#343a40] hover:bg-[#23272b] text-white text-[13px] font-medium px-4 py-1.5 rounded-[3px] flex items-center justify-center gap-1.5 shadow-sm transition-colors">
+        <button 
+          onClick={handleDownload}
+          className="bg-[#343a40] hover:bg-[#23272b] text-white text-[13px] font-medium px-4 py-1.5 rounded-[3px] flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+        >
           <Download className="w-4 h-4" /> Download
         </button>
-        <button className="bg-[#4F46E5] hover:bg-[#4338ca] text-white text-[13px] font-medium px-4 py-1.5 rounded-[3px] flex items-center justify-center gap-1.5 shadow-sm transition-colors">
+        <button 
+          onClick={() => window.open('https://www.gst.gov.in/', '_blank')}
+          className="bg-[#4F46E5] hover:bg-[#4338ca] text-white text-[13px] font-medium px-4 py-1.5 rounded-[3px] flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+        >
           <ExternalLink className="w-4 h-4" /> Open GSTR Portal
         </button>
       </div>

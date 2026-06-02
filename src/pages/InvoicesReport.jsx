@@ -66,9 +66,11 @@ export function InvoicesReport() {
                 <span className="text-[11px] font-semibold text-[#4F46E5]">(24-May-2026)</span>
               </div>
               <div className="flex gap-1.5 w-full">
-                <select className="flex-1 h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white">
-                  <option>Today</option>
-                </select>
+                <input 
+                  type="date" 
+                  defaultValue="2026-05-24"
+                  className="flex-1 h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white" 
+                />
                 <button className="h-[32px] w-[36px] bg-[#007bff] hover:bg-[#0069d9] text-white flex items-center justify-center rounded-[3px] transition-colors shadow-sm focus:outline-none">
                   <Search className="w-4 h-4" strokeWidth={2.5} />
                 </button>

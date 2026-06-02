@@ -13,22 +13,18 @@ export function ProfitLossAccount() {
           <div className="flex flex-wrap items-center justify-center gap-4 mb-4">
             <div className="relative">
               <input 
-                type="text" 
-                value="24/05/2026"
-                readOnly
-                className="h-[32px] w-[130px] border border-gray-300 rounded-[3px] pl-3 pr-8 text-[13px] outline-none text-gray-600 bg-white"
+                type="date" 
+                defaultValue="2026-05-24"
+                className="h-[32px] w-[140px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-600 bg-white"
               />
-              <svg className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
             </div>
             
             <div className="relative">
               <input 
-                type="text" 
-                value="24/05/2026"
-                readOnly
-                className="h-[32px] w-[130px] border border-gray-300 rounded-[3px] pl-3 pr-8 text-[13px] outline-none text-gray-600 bg-white"
+                type="date" 
+                defaultValue="2026-05-24"
+                className="h-[32px] w-[140px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-600 bg-white"
               />
-              <svg className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
             </div>
 
             <button className="h-[32px] px-4 bg-[#007bff] hover:bg-[#0069d9] text-white text-[13px] font-medium rounded-[3px] transition-colors shadow-sm">

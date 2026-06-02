@@ -5,6 +5,30 @@ import { Share2, MessageCircle, Upload } from 'lucide-react';
 export function HsnWiseSummary() {
   const navigate = useNavigate();
 
+  const handleExportCSV = () => {
+    const csvContent = [
+      ['HSN SLAB', 'GST %', 'Sales Taxable Amount', 'Sales Tax', 'Sales Total', 'Purchase Taxable Amount', 'Purchase Tax', 'Purchase Total'],
+      ['Totals :', '', '0', '0', '0', '0', '0', '0']
+    ].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "hsn_wise_summary.csv";
+    link.click();
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: 'HSN-wise Summary',
+        text: 'Check out the HSN-wise Summary',
+        url: window.location.href,
+      }).catch(console.error);
+    } else {
+      alert('Sharing is not supported on this browser.');
+    }
+  };
+
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] p-4 flex flex-col relative pb-[80px]">
       
@@ -70,13 +94,22 @@ export function HsnWiseSummary() {
         >
           <span className="text-[16px] leading-none mt-[-2px]">&laquo;</span> Go back
         </button>
-        <button className="bg-[#28a745] hover:bg-[#218838] text-white text-[13px] font-medium px-3 py-1.5 rounded-[3px] flex items-center justify-center shadow-sm transition-colors">
+        <button 
+          onClick={handleShare}
+          className="bg-[#28a745] hover:bg-[#218838] text-white text-[13px] font-medium px-3 py-1.5 rounded-[3px] flex items-center justify-center shadow-sm transition-colors"
+        >
           <Share2 className="w-4 h-4" />
         </button>
-        <button className="bg-[#28a745] hover:bg-[#218838] text-white text-[13px] font-medium px-3 py-1.5 rounded-[3px] flex items-center justify-center shadow-sm transition-colors">
+        <button 
+          onClick={() => window.open('https://web.whatsapp.com/', '_blank')}
+          className="bg-[#28a745] hover:bg-[#218838] text-white text-[13px] font-medium px-3 py-1.5 rounded-[3px] flex items-center justify-center shadow-sm transition-colors"
+        >
           <MessageCircle className="w-4 h-4 fill-white" />
         </button>
-        <button className="bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 text-[13px] font-medium px-4 py-1.5 rounded-[3px] flex items-center justify-center gap-1.5 shadow-sm transition-colors">
+        <button 
+          onClick={handleExportCSV}
+          className="bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 text-[13px] font-medium px-4 py-1.5 rounded-[3px] flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+        >
           <Upload className="w-4 h-4" /> Export
         </button>
       </div>

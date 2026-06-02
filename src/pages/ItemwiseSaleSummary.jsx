@@ -5,6 +5,18 @@ import { Upload } from 'lucide-react';
 export function ItemwiseSaleSummary() {
   const navigate = useNavigate();
 
+  const handleExport = () => {
+    const csvContent = [
+      ['#', 'Item Description', 'Quantity', 'Total Amount', 'Total Discount'],
+      ['', 'Totals :', '', '0', '0']
+    ].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "itemwise_sale_summary.csv";
+    link.click();
+  };
+
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] p-3 flex flex-col relative pb-[70px]">
       <div className="bg-white rounded shadow-sm border border-gray-200 w-full overflow-hidden flex-1">
@@ -109,7 +121,7 @@ export function ItemwiseSaleSummary() {
           <WhatsappIcon className="w-4 h-4" />
         </button>
         <button 
-          onClick={() => alert('Exporting data...')}
+          onClick={handleExport}
           className="bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 text-[13px] font-bold px-3 py-1.5 rounded-[3px] flex items-center gap-1 shadow-sm transition-colors"
         >
           <Upload className="w-4 h-4" strokeWidth={2.5} /> Export
