@@ -58,6 +58,8 @@ import { EmployeeMasterModal } from './EmployeeMasterModal';
 import { ExpenseMasterModal } from './ExpenseMasterModal';
 import { IncomeMasterModal } from './IncomeMasterModal';
 import { PaymentMasterModal } from './PaymentMasterModal';
+import { ItemMasterModal } from './ItemMasterModal';
+import { OfferManagementModal } from './OfferManagementModal';
 // import { ProductMasterModal } from './ProductMasterModal';
 import { UnitCatalogMasterModal } from './UnitCatalogMasterModal';
 import { MessageTemplateModal } from './MessageTemplateModal';
@@ -239,6 +241,8 @@ export function Sidebar({ isOpen, onClose }) {
   const [isExpenseMasterModalOpen, setIsExpenseMasterModalOpen] = useState(false);
   const [isIncomeMasterModalOpen, setIsIncomeMasterModalOpen] = useState(false);
   const [isPaymentMasterModalOpen, setIsPaymentMasterModalOpen] = useState(false);
+  const [isItemMasterModalOpen, setIsItemMasterModalOpen] = useState(false);
+  const [isOfferManagementModalOpen, setIsOfferManagementModalOpen] = useState(false);
   const [isProductMasterModalOpen, setIsProductMasterModalOpen] = useState(false);
   const [isUnitCatalogMasterModalOpen, setIsUnitCatalogMasterModalOpen] = useState(false);
   const [isMessageTemplateModalOpen, setIsMessageTemplateModalOpen] = useState(false);
@@ -421,6 +425,10 @@ export function Sidebar({ isOpen, onClose }) {
                                   setIsIncomeMasterModalOpen(true);
                                 } else if (subitem.name === 'Payment Master') {
                                   setIsPaymentMasterModalOpen(true);
+                                } else if (subitem.name === 'Item Master') {
+                                  setIsItemMasterModalOpen(true);
+                                } else if (subitem.name === 'Offer Management') {
+                                  setIsOfferManagementModalOpen(true);
                                 } else if (subitem.name === 'Unit Catalog Master') {
                                   setIsUnitCatalogMasterModalOpen(true);
                                 } else if (subitem.name === 'Purchase') {
@@ -510,6 +518,14 @@ export function Sidebar({ isOpen, onClose }) {
     <PaymentMasterModal
       isOpen={isPaymentMasterModalOpen}
       onClose={() => setIsPaymentMasterModalOpen(false)}
+    />
+    <ItemMasterModal
+      isOpen={isItemMasterModalOpen}
+      onClose={() => setIsItemMasterModalOpen(false)}
+    />
+    <OfferManagementModal
+      isOpen={isOfferManagementModalOpen}
+      onClose={() => setIsOfferManagementModalOpen(false)}
     />
     {/* <ProductMasterModal
       isOpen={isProductMasterModalOpen}

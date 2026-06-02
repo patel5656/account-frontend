@@ -9,6 +9,7 @@ import {
   Edit, 
   Trash2
 } from 'lucide-react';
+import { WarehouseMasterModal } from '../components/WarehouseMasterModal';
 
 export function WarehouseMaster() {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ export function WarehouseMaster() {
   const [searchFilter, setSearchFilter] = useState('Warehouse Name');
   const [searchQuery, setSearchQuery] = useState('');
   
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
 
@@ -73,9 +75,7 @@ export function WarehouseMaster() {
               Export
             </button>
             <button 
-              onClick={() => {
-                alert("Please click the (+) plus icon next to 'Warehouse Master' in the sidebar to create a new warehouse.");
-              }}
+              onClick={() => setCreateModalOpen(true)}
               className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm"
             >
               <Plus className="w-4 h-4" strokeWidth={3} />
@@ -238,6 +238,9 @@ export function WarehouseMaster() {
           </div>
         </div>
       )}
+
+      {/* Create Modal */}
+      <WarehouseMasterModal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} />
 
     </div>
   );

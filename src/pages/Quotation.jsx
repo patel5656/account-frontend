@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   BarChart2, 
@@ -8,9 +8,13 @@ import {
   Search,
   ArrowDownAZ
 } from 'lucide-react';
+import { CollectionReportModal } from '../components/CollectionReportModal';
+import { LoadingSheetModal } from '../components/LoadingSheetModal';
 
 export function Quotation() {
   const navigate = useNavigate();
+  const [isCollectionReportModalOpen, setIsCollectionReportModalOpen] = useState(false);
+  const [isLoadingSheetModalOpen, setIsLoadingSheetModalOpen] = useState(false);
 
   return (
     <div className="bg-[#f8f9fa] min-h-[calc(100vh-45px)] flex flex-col p-3">
@@ -21,15 +25,24 @@ export function Quotation() {
           <h2 className="text-white text-[16px] font-medium tracking-wide">Quotation Summary</h2>
           
           <div className="flex flex-wrap items-center gap-2">
-            <button className="flex items-center gap-1.5 bg-[#6c757d] hover:bg-[#5a6268] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors">
+            <button 
+              onClick={() => setIsCollectionReportModalOpen(true)}
+              className="flex items-center gap-1.5 bg-[#6c757d] hover:bg-[#5a6268] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors"
+            >
               <BarChart2 className="w-4 h-4" strokeWidth={2.5} />
               Today's Collection
             </button>
-            <button className="flex items-center gap-1.5 bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors">
+            <button 
+              onClick={() => setIsLoadingSheetModalOpen(true)}
+              className="flex items-center gap-1.5 bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors"
+            >
               <Printer className="w-4 h-4" strokeWidth={2.5} />
               Loading Sheet
             </button>
-            <button className="flex items-center gap-1.5 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors">
+            <button 
+              onClick={() => navigate('/admin/quotation-invoice')}
+              className="flex items-center gap-1.5 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors"
+            >
               <Plus className="w-4 h-4" strokeWidth={3} />
               Create New
             </button>
@@ -109,6 +122,14 @@ export function Quotation() {
         </div>
 
       </div>
+      <CollectionReportModal 
+        isOpen={isCollectionReportModalOpen} 
+        onClose={() => setIsCollectionReportModalOpen(false)} 
+      />
+      <LoadingSheetModal
+        isOpen={isLoadingSheetModalOpen}
+        onClose={() => setIsLoadingSheetModalOpen(false)}
+      />
     </div>
   );
 }

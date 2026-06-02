@@ -25,13 +25,31 @@ export function BankDetails() {
   const [newBookName, setNewBookName] = useState('');
   const [newType, setNewType] = useState('CASH BOOK');
 
+  const [editBookName, setEditBookName] = useState('');
+  const [editType, setEditType] = useState('');
+  const [mergeDropdownOpen, setMergeDropdownOpen] = useState(false);
+
   const [searchFilter, setSearchFilter] = useState('Bank Name');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const [rows, setRows] = useState([
-    { id: 1, name: 'Cash Account', type: 'CASH BOOK', balance: 0 },
-    { id: 2, name: 'Other Account', type: 'NON-PAYMENT BOOK', balance: 0 }
-  ]);
+  const [rows, setRows] = useState(() => {
+    const saved = localStorage.getItem('bankDetailsRows');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Error parsing bank details from local storage', e);
+      }
+    }
+    return [
+      { id: 1, name: 'Cash Account', type: 'CASH BOOK', balance: 0 },
+      { id: 2, name: 'Other Account', type: 'NON-PAYMENT BOOK', balance: 0 }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('bankDetailsRows', JSON.stringify(rows));
+  }, [rows]);
 
   useEffect(() => {
     const handleBankAdded = (e) => {
@@ -65,6 +83,8 @@ export function BankDetails() {
 
   const handleEditClick = (row) => {
     setSelectedRow(row);
+    setEditBookName(row.name || '');
+    setEditType(row.type || 'CASH BOOK');
     setEditModalOpen(true);
   };
 
@@ -75,6 +95,47 @@ export function BankDetails() {
 
   const handleDeleteClick = (id) => {
     setRows(rows.filter(row => row.id !== id));
+  };
+
+  const handleUpdateSubmit = () => {
+    if (editBookName.trim() !== '' && selectedRow) {
+      setRows(rows.map(row => 
+        row.id === selectedRow.id 
+          ? { ...row, name: editBookName, type: editType } 
+          : row
+      ));
+      setEditModalOpen(false);
+    }
+  };
+
+  const handleExport = () => {
+    const headers = ['Bank Name', 'Address', 'Branch', 'IFSC Code', 'Account No', 'Book Type', 'Balance'];
+    const csvRows = [];
+    csvRows.push(headers.join(','));
+    
+    filteredRows.forEach(row => {
+      const rowData = [
+        `"${row.name || ''}"`,
+        `"${row.address || ''}"`,
+        `""`, // Branch
+        `""`, // IFSC
+        `""`, // Account No
+        `"${row.type || ''}"`,
+        `"${row.balance || 0}"`
+      ];
+      csvRows.push(rowData.join(','));
+    });
+    
+    const csvString = csvRows.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'bank_details.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -93,7 +154,10 @@ export function BankDetails() {
               <GitMerge className="w-4 h-4" />
               Merge
             </button>
-            <button className="flex items-center gap-1.5 bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm">
+            <button 
+              onClick={handleExport}
+              className="flex items-center gap-1.5 bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm"
+            >
               <Upload className="w-4 h-4" strokeWidth={2.5} />
               Export
             </button>
@@ -213,7 +277,8 @@ export function BankDetails() {
                   <label className="text-[13px] font-bold text-gray-800">Book Name</label>
                   <input 
                     type="text" 
-                    defaultValue={selectedRow?.name}
+                    value={editBookName}
+                    onChange={(e) => setEditBookName(e.target.value)}
                     className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 focus:outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)]"
                   />
                 </div>
@@ -230,8 +295,16 @@ export function BankDetails() {
                 
                 <div className="flex flex-col gap-2 w-[250px]">
                   <label className="text-[13px] font-bold text-gray-800">Type</label>
-                  <select className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-600 outline-none focus:border-[#4F46E5]">
-                    <option>{selectedRow?.type}</option>
+                  <select 
+                    value={editType}
+                    onChange={(e) => setEditType(e.target.value)}
+                    className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-600 outline-none focus:border-[#4F46E5]"
+                  >
+                    <option value="CASH BOOK">CASH BOOK</option>
+                    <option value="BANK BOOK">BANK BOOK</option>
+                    <option value="WALLET-BOOK">WALLET-BOOK</option>
+                    <option value="LOAN BOOK">LOAN BOOK</option>
+                    <option value="NON-PAYMENT BOOK">NON-PAYMENT BOOK</option>
                   </select>
                 </div>
               </div>
@@ -239,7 +312,10 @@ export function BankDetails() {
             
             {/* Modal Footer */}
             <div className="bg-[#f8f9fa] px-4 py-3 border-t border-gray-200 flex justify-end gap-2">
-              <button className="bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 px-4 py-1.5 rounded-[4px] text-[14px] font-bold transition-colors shadow-sm">
+              <button 
+                onClick={handleUpdateSubmit}
+                className="bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 px-4 py-1.5 rounded-[4px] text-[14px] font-bold transition-colors shadow-sm"
+              >
                 Update
               </button>
               <button 
@@ -278,9 +354,9 @@ export function BankDetails() {
 
       {/* Merge Modal (Bank Correction) */}
       {mergeModalOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-[4px] shadow-2xl w-[400px] overflow-hidden flex flex-col">
-            <div className="bg-[#4F46E5] px-4 py-3 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setMergeDropdownOpen(false)}>
+          <div className="bg-white rounded-[4px] shadow-2xl w-[400px] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="bg-[#4F46E5] px-4 py-3 flex items-center justify-between rounded-t-[4px]">
               <h3 className="text-white font-medium text-[15px]">Bank Correction</h3>
               <button onClick={() => setMergeModalOpen(false)} className="text-white hover:text-red-200 transition-colors">
                 <X className="w-6 h-6 font-bold text-[#dc3545]" strokeWidth={3} />
@@ -292,18 +368,54 @@ export function BankDetails() {
                 <label className="text-[13px] font-bold text-gray-800">Incorrect Bank Name</label>
                 <select className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-2 text-[14px] text-gray-500 outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold">
                   <option>Select Name</option>
+                  {rows.map(row => <option key={row.id}>{row.name}</option>)}
                 </select>
               </div>
               
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 relative">
                 <label className="text-[13px] font-bold text-gray-800">Correct Bank Name</label>
-                <select className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] text-gray-400 outline-none">
-                  <option>Select Name</option>
-                </select>
+                <div 
+                  onClick={() => setMergeDropdownOpen(!mergeDropdownOpen)}
+                  className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] text-gray-800 outline-none flex justify-between items-center cursor-pointer bg-white"
+                >
+                  <span className="text-gray-400">Select Name</span>
+                  <ChevronsUpDown className="w-4 h-4 text-gray-400" />
+                </div>
+                
+                {mergeDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-[4px] shadow-lg max-h-[250px] overflow-y-auto z-50">
+                    <div className="px-3 py-1.5 bg-[#add8e6] text-gray-500 text-sm font-bold border-b border-gray-200">Select Name</div>
+                    {rows.map(row => (
+                      <div 
+                        key={row.id} 
+                        className={`p-3 hover:bg-[#add8e6] cursor-pointer border-b border-gray-200 last:border-b-0 flex justify-between items-start transition-colors`}
+                        onClick={() => { setMergeDropdownOpen(false); }}
+                      >
+                        <div className="flex flex-col">
+                          <div className="font-bold text-[14px] text-gray-800">{row.name}</div>
+                          <div className={`text-[12px] mt-0.5 ${row.type === 'CASH BOOK' ? 'text-[#28a745]' : 'text-[#ffc107]'}`}>{row.type}</div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                           <span className="text-[13px] text-gray-800">{row.balance}</span>
+                           <div className="flex items-center gap-1.5 mt-1">
+                             <Edit 
+                               className="w-4 h-4 text-[#4F46E5] hover:text-blue-700" 
+                               onClick={(e) => { e.stopPropagation(); setMergeDropdownOpen(false); setMergeModalOpen(false); handleEditClick(row); }} 
+                             />
+                             <Trash2 
+                               className="w-4 h-4 text-[#dc3545] hover:text-red-700" 
+                               onClick={(e) => { e.stopPropagation(); handleDeleteClick(row.id); }} 
+                             />
+                           </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             
-            <div className="bg-[#f8f9fa] px-4 py-3 border-t border-gray-200 flex justify-end gap-2">
+            <div className="bg-[#f8f9fa] px-4 py-3 border-t border-gray-200 flex justify-end gap-2 rounded-b-[4px]">
               <button className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[4px] text-[14px] font-medium transition-colors shadow-sm">
                 Merge
               </button>

@@ -3,6 +3,28 @@ import { X } from 'lucide-react';
 
 export function PaymentMasterModal({ isOpen, onClose }) {
   const [isActive, setIsActive] = useState(true);
+  const [partyName, setPartyName] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
+  const [city, setCity] = useState('');
+
+  const handleSubmit = () => {
+    if (partyName.trim() !== '') {
+      window.dispatchEvent(new CustomEvent('paymentAdded', {
+        detail: {
+          id: Date.now(),
+          partyName,
+          mobileNumber,
+          city,
+          isActive
+        }
+      }));
+    }
+    setPartyName('');
+    setMobileNumber('');
+    setCity('');
+    setIsActive(true);
+    onClose();
+  };
 
   if (!isOpen) return null;
 
@@ -41,7 +63,9 @@ export function PaymentMasterModal({ isOpen, onClose }) {
               </div>
               <input 
                 type="text" 
-                placeholder="Enter Expense Name"
+                value={partyName}
+                onChange={(e) => setPartyName(e.target.value)}
+                placeholder="Enter Party Name"
                 className="w-full border border-[#4F46E5] bg-[#e8e5ff] placeholder-gray-500 rounded-[3px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5] shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold"
               />
             </div>
@@ -52,6 +76,8 @@ export function PaymentMasterModal({ isOpen, onClose }) {
                 <label className="text-[14px] font-bold text-gray-800">Mobile Number</label>
                 <input 
                   type="text" 
+                  value={mobileNumber}
+                  onChange={(e) => setMobileNumber(e.target.value)}
                   placeholder="Enter Mobile Number"
                   className="w-full border border-gray-300 rounded-[3px] px-3 py-[6px] text-[14px] outline-none focus:border-[#4F46E5]"
                 />
@@ -60,6 +86,8 @@ export function PaymentMasterModal({ isOpen, onClose }) {
                 <label className="text-[14px] font-bold text-gray-800">City</label>
                 <input 
                   type="text" 
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
                   placeholder="Enter City"
                   className="w-full border border-gray-300 rounded-[3px] px-3 py-[6px] text-[14px] outline-none focus:border-[#4F46E5]"
                 />
@@ -72,7 +100,7 @@ export function PaymentMasterModal({ isOpen, onClose }) {
         {/* Footer */}
         <div className="bg-white px-5 py-4 flex justify-end gap-2 border-t border-gray-100">
           <button 
-            onClick={onClose}
+            onClick={handleSubmit}
             className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-[7px] rounded-[3px] text-[14px] font-medium transition-colors shadow-sm"
           >
             Submit

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   X, 
@@ -15,6 +15,14 @@ export function PaymentMaster() {
   const [rows, setRows] = useState([]);
   const [searchFilter, setSearchFilter] = useState('Payment Head');
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const handlePaymentAdded = (e) => {
+      setRows(prev => [...prev, e.detail]);
+    };
+    window.addEventListener('paymentAdded', handlePaymentAdded);
+    return () => window.removeEventListener('paymentAdded', handlePaymentAdded);
+  }, []);
 
   const handleExport = () => {
     if (rows.length === 0) {

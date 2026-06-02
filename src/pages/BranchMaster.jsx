@@ -9,6 +9,7 @@ import {
   Edit, 
   Trash2
 } from 'lucide-react';
+import { BranchMasterModal } from '../components/BranchMasterModal';
 
 export function BranchMaster() {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ export function BranchMaster() {
   const [searchFilter, setSearchFilter] = useState('Branch Name');
   const [searchQuery, setSearchQuery] = useState('');
   
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
 
@@ -73,11 +75,7 @@ export function BranchMaster() {
               Export
             </button>
             <button 
-              onClick={() => {
-                // Trigger the modal from sidebar by dispatching a custom event or just let them use the + button
-                // For now, alert to use the + button to maintain simple state
-                alert("Please click the (+) plus icon next to 'Branch Master' in the sidebar to create a new branch.");
-              }}
+              onClick={() => setCreateModalOpen(true)}
               className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm"
             >
               <Plus className="w-4 h-4" strokeWidth={3} />
@@ -240,6 +238,9 @@ export function BranchMaster() {
           </div>
         </div>
       )}
+
+      {/* Create Modal */}
+      <BranchMasterModal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} />
 
     </div>
   );

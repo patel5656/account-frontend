@@ -4,8 +4,11 @@ import { X, Settings, Image as ImageIcon } from 'lucide-react';
 export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
   const [isActive, setIsActive] = useState(true);
   const [partyName, setPartyName] = useState('');
+  const [dueDays, setDueDays] = useState('7');
   const [mobileNumber, setMobileNumber] = useState('');
   const [city, setCity] = useState('');
+  const [partyTags, setPartyTags] = useState('');
+  const [drugLicense, setDrugLicense] = useState('');
   const [toggles, setToggles] = useState({
     moreInfo: false,
     wholeParty: false,
@@ -31,8 +34,11 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
       }));
     }
     setPartyName('');
+    setDueDays('7');
     setMobileNumber('');
     setCity('');
+    setPartyTags('');
+    setDrugLicense('');
     setIsActive(true);
     setToggles({ moreInfo: false, wholeParty: false, sezParty: false, focParty: false });
     onClose();
@@ -45,7 +51,7 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
       <div className="bg-white rounded-[3px] shadow-2xl w-full sm:max-w-[750px] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
         
         {/* Header */}
-        <div className="bg-[#4F46E5] flex items-center justify-between">
+        <div className="bg-[#17a2b8] flex items-center justify-between">
           <h2 className="text-[15px] text-white font-medium tracking-wide pl-4 py-2.5">Party Master</h2>
           <div className="flex items-center">
             <button className="text-white hover:text-gray-200 focus:outline-none transition-colors px-3">
@@ -64,18 +70,29 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
         <div className="p-6 bg-white">
           <div className="flex flex-col gap-4">
             
-            {/* Row 1: Party Name */}
+            {/* Row 1: Party Name, Active, Due Days */}
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
                 <label className="text-[14px] font-bold text-gray-800">Party Name</label>
-                <div className="flex flex-wrap items-center gap-2">
-                  <div 
-                    className={`w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${isActive ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}
-                    onClick={() => setIsActive(!isActive)}
-                  >
-                    <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${isActive ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className={`w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${isActive ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}
+                      onClick={() => setIsActive(!isActive)}
+                    >
+                      <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${isActive ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
+                    </div>
+                    <span className="text-[13px] font-bold text-gray-800 select-none">Active</span>
                   </div>
-                  <span className="text-[13px] font-bold text-gray-800 select-none">Active</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13px] font-bold text-gray-800">Due Days</span>
+                    <input 
+                      type="text" 
+                      value={dueDays}
+                      onChange={(e) => setDueDays(e.target.value)}
+                      className="w-[60px] border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] outline-none focus:border-[#4F46E5] text-center"
+                    />
+                  </div>
                 </div>
               </div>
               <input 
@@ -99,18 +116,58 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
                   className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
                 />
               </div>
-              <div className="flex-1 flex flex-col gap-1">
+              <div className="flex-1 flex flex-col gap-1 relative">
                 <label className="text-[14px] font-bold text-gray-800">City</label>
-                <input 
-                  type="text"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] font-medium"
-                />
+                <div className="relative">
+                  <select
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] appearance-none"
+                  >
+                    <option value=""></option>
+                    <option value="Delhi">Delhi</option>
+                    <option value="Mumbai">Mumbai</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                    <X className="w-3 h-3 text-gray-400 mr-1" />
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Row 3: Four Toggles */}
+            {/* Row 3: Party Tags */}
+            <div className="flex flex-col gap-1 relative">
+              <label className="text-[14px] font-bold text-gray-800">Party Tags</label>
+              <div className="relative">
+                <select
+                  value={partyTags}
+                  onChange={(e) => setPartyTags(e.target.value)}
+                  className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] appearance-none"
+                >
+                  <option value="">Enter Tags</option>
+                  <option value="Tag 1">Tag 1</option>
+                  <option value="Tag 2">Tag 2</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Row 4: drug liecence */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[14px] font-bold text-gray-800">drug liecence</label>
+              <input 
+                type="text" 
+                value={drugLicense}
+                onChange={(e) => setDrugLicense(e.target.value)}
+                placeholder="drug liecence"
+                className="w-1/2 border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+              />
+            </div>
+
+            {/* Row 5: Four Toggles */}
             <div className="flex justify-between items-center mt-4 px-2 sm:px-10">
               <div className="flex flex-col items-center gap-2">
                 <div 

@@ -101,6 +101,18 @@ export function TopNavbar({ toggleSidebar, isOpen }) {
     }
   };
 
+  const handleFullScreenToggle = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch((e) => {
+        console.error(e);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
+
   return (
     <>
       <header className={`bg-white border-b border-gray-200 h-[45px] fixed top-0 right-0 z-30 transition-all duration-300 ease-in-out flex items-center justify-between px-2 sm:px-3 ${isOpen ? 'left-0 md:left-[220px]' : 'left-0'}`}>
@@ -135,7 +147,7 @@ export function TopNavbar({ toggleSidebar, isOpen }) {
         <div className="hidden sm:flex items-center gap-[6px] sm:gap-[10px]">
           <IconButton icon={Bell} />
           <IconButton icon={Download} onClick={() => setIsImportModalOpen(true)} />
-          <IconButton icon={Maximize2} />
+          <IconButton icon={Maximize2} onClick={handleFullScreenToggle} />
           <IconButton icon={Settings} onClick={handleSettingsClick} />
           <IconButton icon={RefreshCw} onClick={() => window.location.reload()} />
         </div>

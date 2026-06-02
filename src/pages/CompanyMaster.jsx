@@ -10,14 +10,15 @@ import {
   Edit,
   Trash2
 } from 'lucide-react';
+import { PartyMasterModal } from '../components/PartyMasterModal';
 
 export function CompanyMaster() {
   const navigate = useNavigate();
   
   const [mergeModalOpen, setMergeModalOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [activeToggle, setActiveToggle] = useState(true);
-  const [newPartyName, setNewPartyName] = useState('');
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editRow, setEditRow] = useState(null);
   
   const [rows, setRows] = useState([]);
 
@@ -29,23 +30,49 @@ export function CompanyMaster() {
     return () => window.removeEventListener('partyAdded', handlePartyAdded);
   }, []);
 
-  const handleInternalSubmit = () => {
-    if (newPartyName.trim() !== '') {
-      setRows([...rows, { 
-        id: Date.now(), 
-        name: newPartyName, 
-        mobile: '', 
-        city: '', 
-        type: 'COMPANY', 
-        balance: 0 
-      }]);
+  const handleEditClick = (row) => {
+    setEditRow(row);
+    setEditModalOpen(true);
+  };
+
+  const handleEditSubmit = () => {
+    setRows(rows.map(r => r.id === editRow.id ? editRow : r));
+    setEditModalOpen(false);
+    setEditRow(null);
+  };
+
+  const handleDeleteClick = (id) => {
+    if (window.confirm('Are you sure you want to delete this party?')) {
+      setRows(rows.filter(r => r.id !== id));
     }
-    setNewPartyName('');
-    setCreateModalOpen(false);
   };
 
   const handleExport = () => {
-    alert("Exporting data...");
+    const headers = ['Party Name', 'Mobile No', 'City', 'Type', 'Balance'];
+    const csvRows = [];
+    csvRows.push(headers.join(','));
+    
+    rows.forEach(row => {
+      const rowData = [
+        `"${row.name || ''}"`,
+        `"${row.mobile || ''}"`,
+        `"${row.city || ''}"`,
+        `"${row.type || ''}"`,
+        `"${row.balance || 0}"`
+      ];
+      csvRows.push(rowData.join(','));
+    });
+    
+    const csvString = csvRows.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'company_master.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleWhatsApp = () => {
@@ -84,10 +111,7 @@ export function CompanyMaster() {
               Export
             </button>
             <button 
-              onClick={() => {
-                setActiveToggle(true);
-                setCreateModalOpen(true);
-              }}
+              onClick={() => setCreateModalOpen(true)}
               className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm"
             >
               <Plus className="w-4 h-4" strokeWidth={3} />
@@ -147,8 +171,8 @@ export function CompanyMaster() {
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.balance}</div>
                 <div className="py-2.5 px-3 flex flex-wrap items-center gap-1">
                   <ActionButton type="menu" />
-                  <ActionButton type="edit" />
-                  <ActionButton type="delete" onClick={() => setRows(rows.filter(r => r.id !== row.id))} />
+                  <ActionButton type="edit" onClick={() => handleEditClick(row)} />
+                  <ActionButton type="delete" onClick={() => handleDeleteClick(row.id)} />
                 </div>
               </div>
             ))}
@@ -202,56 +226,58 @@ export function CompanyMaster() {
       )}
 
       {/* Create New Modal (Company Master) */}
-      {createModalOpen && (
+      <PartyMasterModal 
+        isOpen={createModalOpen} 
+        onClose={() => setCreateModalOpen(false)} 
+        defaultType="COMPANY" 
+      />
+
+      {/* Edit Modal */}
+      {editModalOpen && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-[4px] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
+          <div className="bg-white rounded-[4px] shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
             <div className="bg-[#4F46E5] px-4 py-3 flex items-center justify-between">
-              <h3 className="text-white font-medium text-[15px]">Company Master</h3>
-              <button onClick={() => setCreateModalOpen(false)} className="text-white hover:text-red-200 transition-colors">
+              <h3 className="text-white font-medium text-[15px]">Edit Company</h3>
+              <button onClick={() => setEditModalOpen(false)} className="text-white hover:text-red-200 transition-colors">
                 <X className="w-6 h-6 font-bold text-[#dc3545]" strokeWidth={3} />
               </button>
             </div>
             
-            <div className="p-5">
-                <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto_auto] gap-4 sm:items-end mb-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[13px] font-bold text-gray-800">Party Name</label>
-                  <input 
-                    type="text" 
-                    value={newPartyName}
-                    onChange={(e) => setNewPartyName(e.target.value)}
-                    placeholder="Enter Party Name"
-                    className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 placeholder-gray-400 focus:outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold"
-                  />
-                </div>
-                
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <div 
-                    onClick={() => setActiveToggle(!activeToggle)}
-                    className={`w-10 h-5 rounded-full relative cursor-pointer transition-colors ${activeToggle ? 'bg-[#007bff]' : 'bg-gray-300'}`}
-                  >
-                    <div className={`absolute top-[2px] w-4 h-4 bg-white rounded-full transition-all shadow-sm ${activeToggle ? 'left-[22px]' : 'left-[2px]'}`} />
-                  </div>
-                  <span className="text-[13px] font-bold text-gray-800">Active</span>
-                </div>
-                
-                <div className="flex flex-col gap-2 w-full sm:w-[250px]">
-                  <label className="text-[13px] font-bold text-gray-800">Type</label>
-                  <select className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-600 outline-none focus:border-[#4F46E5]">
-                    <option>COMPANY</option>
-                  </select>
-                </div>
+            <div className="p-5 flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-[13px] font-bold text-gray-800">Party Name</label>
+                <input 
+                  type="text" 
+                  value={editRow?.name || ''}
+                  onChange={(e) => setEditRow({...editRow, name: e.target.value})}
+                  className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[13px] font-bold text-gray-800">Mobile No</label>
+                <input 
+                  type="text" 
+                  value={editRow?.mobile || ''}
+                  onChange={(e) => setEditRow({...editRow, mobile: e.target.value})}
+                  className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[13px] font-bold text-gray-800">City</label>
+                <input 
+                  type="text" 
+                  value={editRow?.city || ''}
+                  onChange={(e) => setEditRow({...editRow, city: e.target.value})}
+                  className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
+                />
               </div>
             </div>
             
             <div className="bg-[#f8f9fa] px-4 py-3 border-t border-gray-200 flex justify-end gap-2">
-              <button 
-                onClick={handleInternalSubmit}
-                className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[4px] text-[14px] font-medium transition-colors shadow-sm"
-              >
-                Submit
+              <button onClick={handleEditSubmit} className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[4px] text-[14px] font-medium transition-colors shadow-sm">
+                Update
               </button>
-              <button onClick={() => setCreateModalOpen(false)} className="bg-[#dc3545] hover:bg-[#c82333] text-white px-4 py-1.5 rounded-[4px] text-[14px] transition-colors shadow-sm">
+              <button onClick={() => setEditModalOpen(false)} className="bg-[#dc3545] hover:bg-[#c82333] text-white px-4 py-1.5 rounded-[4px] text-[14px] transition-colors shadow-sm">
                 Close
               </button>
             </div>

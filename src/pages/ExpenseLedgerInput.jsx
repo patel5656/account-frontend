@@ -142,14 +142,10 @@ export function ExpenseLedgerInput() {
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center">
                 <input 
-                  type="text" 
-                  readOnly
-                  value="23-05-2026"
-                  className="w-full h-[32px] border border-gray-300 border-r-0 rounded-l-[3px] px-2 text-[13px] outline-none text-gray-600"
+                  type="date" 
+                  defaultValue="2026-05-23"
+                  className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-600"
                 />
-                <div className="h-[32px] border border-gray-300 border-l-0 px-2 flex items-center justify-center rounded-r-[3px] text-gray-500">
-                  <Calendar className="w-4 h-4" />
-                </div>
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center">
                  <input type="text" placeholder="Enter Other Information" className="w-full h-[32px] px-2 text-[13px] outline-none text-center placeholder-gray-400" />

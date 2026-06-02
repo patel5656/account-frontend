@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   X, 
   Plus, 
   GitMerge, 
-  Upload
+  Upload,
+  ChevronsUpDown,
+  Menu,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { EmployeeMasterModal } from '../components/EmployeeMasterModal';
 
@@ -12,9 +16,27 @@ export function EmployeeMaster() {
   const navigate = useNavigate();
   const [mergeModalOpen, setMergeModalOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [rows, setRows] = useState([]);
+  const [editingRow, setEditingRow] = useState(null);
+  const [rows, setRows] = useState([
+    { id: 1, employeeName: 'kiann', mobileNumber: '1234512345', city: 'indore', designation: 'sudma nagar', salary: '1200' }
+  ]);
   const [searchFilter, setSearchFilter] = useState('Employee Name');
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const handleEmployeeAdded = (e) => {
+      setRows(prev => [...prev, e.detail]);
+    };
+    const handleEmployeeUpdated = (e) => {
+      setRows(prev => prev.map(r => r.id === e.detail.id ? e.detail : r));
+    };
+    window.addEventListener('employeeAdded', handleEmployeeAdded);
+    window.addEventListener('employeeUpdated', handleEmployeeUpdated);
+    return () => {
+      window.removeEventListener('employeeAdded', handleEmployeeAdded);
+      window.removeEventListener('employeeUpdated', handleEmployeeUpdated);
+    };
+  }, []);
 
   const handleExport = () => {
     if (rows.length === 0) {
@@ -89,7 +111,10 @@ export function EmployeeMaster() {
               Export
             </button>
             <button 
-              onClick={() => setCreateModalOpen(true)}
+              onClick={() => {
+                setEditingRow(null);
+                setCreateModalOpen(true);
+              }}
               className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm"
             >
               <Plus className="w-4 h-4" strokeWidth={3} />
@@ -105,7 +130,7 @@ export function EmployeeMaster() {
         </div>
 
         {/* Filter Bar */}
-        <div className="p-3 bg-white border-b border-gray-200 flex-1">
+        <div className="p-3 bg-white border-b border-gray-200">
           <div className="flex items-center w-full max-w-[600px]">
             <div className="flex items-center bg-white min-w-0 border border-gray-300 border-r-0 rounded-l-[3px] px-3 py-2 text-blue-500">
               <FilterIcon className="w-4 h-4" />
@@ -127,6 +152,51 @@ export function EmployeeMaster() {
               className="flex-1 min-w-0 border border-gray-300 border-l-0 rounded-r-[3px] px-3 py-2 text-[13px] outline-none bg-white text-gray-800 placeholder-gray-400"
             />
           </div>
+        </div>
+
+        {/* Data Table */}
+        <div className="flex-1 overflow-x-auto data-grid-scroll">
+          <div className="min-w-[1000px]">
+            {/* Table Header */}
+            <div className="grid grid-cols-[60px_200px_150px_150px_150px_150px_120px] border-b border-gray-200 bg-white">
+              <HeaderCell text="#" />
+              <HeaderCell text="Employee Name" />
+              <HeaderCell text="Mobile No" />
+              <HeaderCell text="City" />
+              <HeaderCell text="Designation" />
+              <HeaderCell text="Salary" />
+              <HeaderCell text="Action" />
+            </div>
+
+            {/* Rows */}
+            {rows.map((row, index) => (
+              <div key={row.id} className="grid grid-cols-[60px_200px_150px_150px_150px_150px_120px] border-b border-gray-200 hover:bg-gray-50 transition-colors bg-white">
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{index + 1}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.employeeName}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.mobileNumber}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.city}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.designation}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.salary}</div>
+                <div className="py-2.5 px-3 flex flex-wrap items-center gap-1">
+                  <ActionButton type="menu" />
+                  <ActionButton type="edit" onClick={() => {
+                    setEditingRow(row);
+                    setCreateModalOpen(true);
+                  }} />
+                  <ActionButton type="delete" onClick={() => {
+                    if (window.confirm('Are you sure you want to delete this employee?')) {
+                      setRows(rows.filter(r => r.id !== row.id));
+                    }
+                  }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-3 border-t border-gray-200 bg-white">
+          <span className="text-[12px] text-gray-500">{rows.length} total</span>
         </div>
 
       </div>
@@ -178,7 +248,11 @@ export function EmployeeMaster() {
 
       <EmployeeMasterModal 
         isOpen={createModalOpen} 
-        onClose={() => setCreateModalOpen(false)} 
+        onClose={() => {
+          setCreateModalOpen(false);
+          setEditingRow(null);
+        }} 
+        employee={editingRow}
       />
 
     </div>
@@ -190,3 +264,39 @@ const FilterIcon = ({ className }) => (
     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
   </svg>
 );
+
+const HeaderCell = ({ text }) => (
+  <div className="py-2 px-3 flex items-center justify-between cursor-pointer group hover:bg-gray-50">
+    <span className="text-[12px] font-bold text-gray-500 group-hover:text-gray-700">{text}</span>
+    <ChevronsUpDown className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500" />
+  </div>
+);
+
+const ActionButton = ({ type, onClick }) => {
+  const getStyle = () => {
+    switch (type) {
+      case 'menu': return 'bg-[#343a40] hover:bg-[#23272b]';
+      case 'edit': return 'bg-[#4F46E5] hover:bg-[#4338ca]';
+      case 'delete': return 'bg-[#dc3545] hover:bg-[#c82333]';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const getIcon = () => {
+    switch (type) {
+      case 'menu': return <Menu className="w-3.5 h-3.5 text-white" />;
+      case 'edit': return <Edit className="w-3.5 h-3.5 text-white" />;
+      case 'delete': return <Trash2 className="w-3.5 h-3.5 text-white" />;
+      default: return null;
+    }
+  };
+
+  return (
+    <button 
+      onClick={onClick}
+      className={`w-[26px] h-[26px] rounded-[3px] flex items-center justify-center transition-colors shadow-sm ${getStyle()}`}
+    >
+      {getIcon()}
+    </button>
+  );
+};

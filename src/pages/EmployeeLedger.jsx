@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Printer, Calendar, Paperclip, PlusSquare } from 'lucide-react';
+import { X, Printer, Calendar, Paperclip, PlusSquare, ChevronDown, ChevronUp, Edit2, Trash2 } from 'lucide-react';
 
 // Inline Youtube SVG
 const YoutubeIcon = ({ className }) => (
@@ -11,9 +11,45 @@ const YoutubeIcon = ({ className }) => (
 
 export function EmployeeLedger() {
   const navigate = useNavigate();
+  const fileInputRef = React.useRef(null);
+  const [entries, setEntries] = React.useState([]);
+  const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
+  const [employeeSearch, setEmployeeSearch] = React.useState("");
+  const dropdownRef = React.useRef(null);
+  
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleAddEntry = () => {
+    setEntries([...entries, { id: Date.now() }]);
+  };
+
+  const [employees, setEmployees] = React.useState([
+    { id: 1, name: 'raju', balance: '0', details: 'City : Mobile No:' }
+  ]);
+
+  const handleDeleteEmployee = (e, id) => {
+    e.stopPropagation();
+    if (window.confirm('Are you sure you want to delete this employee?')) {
+      setEmployees(employees.filter(emp => emp.id !== id));
+    }
+  };
+
+  const handleEditEmployee = (e, name) => {
+    e.stopPropagation();
+    alert(`Editing details for ${name}`);
+  };
 
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] flex flex-col p-3">
+      <input type="file" ref={fileInputRef} className="hidden" />
       <div className="bg-white rounded shadow-sm border border-gray-200 flex-1 flex flex-col overflow-hidden">
         
         {/* Header */}
@@ -47,9 +83,51 @@ export function EmployeeLedger() {
                <label className="text-[13px] font-bold text-gray-800">Employee Name</label>
                <span className="text-[13px] font-bold text-[#dc3545]">Account Balance : 0</span>
              </div>
-             <select className="w-full bg-[#add8e6] border border-[#add8e6] text-[#0056b3] rounded-[3px] px-3 py-1.5 text-[14px] outline-none font-medium">
-               <option>Select Name</option>
-             </select>
+             <div className="relative w-full" ref={dropdownRef}>
+               <div className="relative flex items-center cursor-pointer" onClick={() => setIsDropdownOpen(true)}>
+                 <input 
+                   type="text"
+                   value={employeeSearch}
+                   onChange={(e) => {
+                     setEmployeeSearch(e.target.value);
+                     setIsDropdownOpen(true);
+                   }}
+                   placeholder="Select Name"
+                   className="w-full bg-[#add8e6] border border-[#add8e6] text-[#0056b3] placeholder-[#0056b3] rounded-[3px] px-3 py-1.5 pr-10 text-[14px] outline-none font-medium cursor-pointer"
+                 />
+                 <div className="absolute right-2 flex items-center gap-1.5 text-[#0056b3]">
+                   <X className="w-3 h-3 hover:text-gray-800 cursor-pointer" onClick={(e) => { e.stopPropagation(); setEmployeeSearch(''); }} />
+                   {isDropdownOpen ? <ChevronUp className="w-4 h-4 cursor-pointer hover:text-gray-800" /> : <ChevronDown className="w-4 h-4 cursor-pointer hover:text-gray-800" />}
+                 </div>
+               </div>
+               
+               {isDropdownOpen && (
+                 <div className="absolute top-full left-0 w-full mt-0.5 bg-white border border-gray-300 rounded-[3px] shadow-xl z-50 max-h-[300px] overflow-y-auto">
+                   {employees.filter(emp => emp.name.toLowerCase().includes(employeeSearch.toLowerCase())).map((emp, index) => (
+                     <div 
+                       key={emp.id} 
+                       onClick={() => { setEmployeeSearch(emp.name); setIsDropdownOpen(false); }}
+                       className={`p-2 border-b border-gray-200 hover:bg-[#add8e6] cursor-pointer flex justify-between ${index === 0 ? 'bg-[#add8e6]' : 'bg-white'}`}
+                     >
+                       <div className="flex flex-col">
+                         <span className="font-bold text-[13px] text-gray-900">{emp.name}</span>
+                         <span className="text-[11px] text-gray-800 font-medium mt-0.5">{emp.details}</span>
+                       </div>
+                       <div className="flex flex-col items-end justify-between">
+                         <span className="text-[13px] text-gray-800 font-medium">{emp.balance}</span>
+                         <div className="flex gap-2 mt-1">
+                           <Edit2 className="w-3.5 h-3.5 text-[#17a2b8] hover:text-cyan-700" onClick={(e) => handleEditEmployee(e, emp.name)} />
+                           <Trash2 className="w-3.5 h-3.5 text-[#dc3545] hover:text-red-700" onClick={(e) => handleDeleteEmployee(e, emp.id)} />
+                         </div>
+                       </div>
+                     </div>
+                   ))}
+                   {employees.filter(emp => emp.name.toLowerCase().includes(employeeSearch.toLowerCase())).length === 0 && (
+                     <div className="p-3 text-center text-[12px] text-gray-500">No employees found</div>
+                   )}
+                 </div>
+               )}
+             </div>
           </div>
         </div>
 
@@ -86,6 +164,38 @@ export function EmployeeLedger() {
               </div>
             </div>
 
+            {/* Render added entries */}
+            {entries.map((entry, index) => (
+              <div key={entry.id} className="grid grid-cols-[50px_130px_1fr_100px_120px_100px_100px_80px] bg-white border-b border-gray-200">
+                <div className="border-r border-gray-200 flex items-center justify-center p-1 bg-gray-100 text-[13px]">
+                  {index + 1}
+                </div>
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
+                  23-05-2026
+                </div>
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
+                  Sample Information
+                </div>
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
+                  0
+                </div>
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
+                  0
+                </div>
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
+                  0
+                </div>
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
+                  0
+                </div>
+                <div className="p-1 flex items-center justify-center bg-gray-50">
+                  <button className="text-red-500 hover:text-red-700" onClick={() => setEntries(entries.filter(e => e.id !== entry.id))}>
+                    <X className="w-4 h-4" strokeWidth={2.5} />
+                  </button>
+                </div>
+              </div>
+            ))}
+
             {/* Input Row */}
             <div className="grid grid-cols-[50px_130px_1fr_100px_120px_100px_100px_80px] bg-white border-b border-gray-200">
               <div className="border-r border-gray-200 flex items-center justify-center p-1 bg-[#343a40]">
@@ -93,14 +203,10 @@ export function EmployeeLedger() {
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center">
                 <input 
-                  type="text" 
-                  readOnly
-                  value="23-05-2026"
-                  className="w-full h-[32px] border border-gray-300 border-r-0 rounded-l-[3px] px-2 text-[13px] outline-none text-gray-600"
+                  type="date" 
+                  defaultValue="2026-05-23"
+                  className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-600"
                 />
-                <div className="h-[32px] border border-gray-300 border-l-0 px-2 flex items-center justify-center rounded-r-[3px] text-gray-500">
-                  <Calendar className="w-4 h-4" />
-                </div>
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center">
                  <input type="text" placeholder="Enter Other Information" className="w-full h-[32px] px-2 text-[13px] outline-none text-center placeholder-gray-400" />
@@ -118,10 +224,10 @@ export function EmployeeLedger() {
                 <input type="text" value="0" className="w-full h-[32px] bg-transparent text-[13px] outline-none text-center" readOnly />
               </div>
               <div className="bg-[#343a40] flex items-center justify-center gap-1.5 p-1">
-                <button className="bg-white p-1 rounded-sm shadow-sm hover:bg-gray-100">
+                <button onClick={() => fileInputRef.current?.click()} className="bg-white p-1 rounded-sm shadow-sm hover:bg-gray-100">
                   <Paperclip className="w-4 h-4 text-gray-600" strokeWidth={2.5} />
                 </button>
-                <button className="text-[#28a745] hover:text-green-400">
+                <button onClick={handleAddEntry} className="text-[#28a745] hover:text-green-400">
                   <PlusSquare className="w-6 h-6" strokeWidth={2.5} />
                 </button>
               </div>
