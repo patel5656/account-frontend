@@ -113,6 +113,7 @@ const menuItems = [
     ]
   },
   { name: 'POS Billing', icon: Barcode, path: '/admin/pos' },
+  { name: 'Bill Book', icon: Book, path: '/admin/bill-book' },
   { 
     name: 'Account', 
     icon: Users, 
@@ -252,6 +253,7 @@ export function Sidebar({ isOpen, onClose }) {
   const [isBranchMasterModalOpen, setIsBranchMasterModalOpen] = useState(false);
   const [isWarehouseMasterModalOpen, setIsWarehouseMasterModalOpen] = useState(false);
   const { settings } = useSettings();
+  const [searchQuery, setSearchQuery] = useState('');
 
   const toggleSubmenu = (name, e) => {
     e.preventDefault();
@@ -287,6 +289,28 @@ export function Sidebar({ isOpen, onClose }) {
     return item;
   });
 
+  const filteredMenuItems = displayMenuItems.map(item => {
+    // If it's not a submenu item, just check its name
+    if (!item.hasSubmenu || !item.subitems) {
+      if (item.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return item;
+      }
+      return null;
+    }
+
+    // If it has a submenu, filter its subitems
+    const filteredSubitems = item.subitems.filter(sub => 
+      sub.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    // Keep the main item if its name matches OR it has matching subitems
+    if (item.name.toLowerCase().includes(searchQuery.toLowerCase()) || filteredSubitems.length > 0) {
+      return { ...item, subitems: filteredSubitems };
+    }
+
+    return null;
+  }).filter(Boolean);
+
   return (
     <>
       <aside
@@ -315,6 +339,8 @@ export function Sidebar({ isOpen, onClose }) {
           <input
             type="text"
             placeholder="Search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-[#232635] text-sm text-white rounded-[4px] pl-3 pr-8 py-1.5 focus:outline-none placeholder-[#71717A] border border-transparent focus:border-blue-500"
           />
           <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-white font-bold" />
@@ -324,7 +350,7 @@ export function Sidebar({ isOpen, onClose }) {
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         <nav className="flex flex-col gap-1 px-2">
-          {displayMenuItems.map((item) => (
+          {filteredMenuItems.map((item) => (
             <div key={item.name}>
               <NavLink
                 to={item.path}

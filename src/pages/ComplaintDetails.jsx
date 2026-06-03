@@ -98,13 +98,6 @@ export function ComplaintDetails() {
           </svg>
         </div>
 
-        {/* Green Alert Box */}
-        <div className="bg-[#5cb85c] text-white px-5 py-3 rounded-[3px] w-[350px] shadow-sm mb-8 mt-auto mx-auto border border-[#4cae4c]">
-          <p className="text-[13px] leading-[1.4] font-medium">
-            Thanks for Choosing OS-BOOKS. Your Invoice will be<br/>
-            Shortly Genrated. Thanks
-          </p>
-        </div>
       </div>
     </div>
   );

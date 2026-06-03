@@ -83,6 +83,7 @@ import { PosBilling } from './pages/PosBilling';
 import { BranchMaster } from './pages/BranchMaster';
 import { WarehouseMaster } from './pages/WarehouseMaster';
 import { GodownTransfer } from './pages/GodownTransfer';
+import { BillBook } from './pages/BillBook';
 
 import { SettingsProvider } from './context/SettingsContext';
 
@@ -192,6 +193,7 @@ function App() {
             <Route path="/tools/notification-permission" element={<NotificationPermission />} />
             <Route path="/tools/hard-refresh" element={<HardRefreshPage />} />
             <Route path="/admin/audit-logs" element={<AuditLogs />} />
+            <Route path="/admin/bill-book" element={<BillBook />} />
             <Route path="*" element={<Navigate to="/dashboard" />} />
           </Routes>
         </DashboardLayout>

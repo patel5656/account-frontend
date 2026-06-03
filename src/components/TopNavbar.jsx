@@ -130,10 +130,7 @@ export function TopNavbar({ toggleSidebar, isOpen }) {
       {/* Right side */}
       <div className="flex items-center gap-[6px] sm:gap-[10px] overflow-hidden">
         
-        {/* Search Icon */}
-        <button className="text-[#4F46E5] hover:text-[#4338CA] flex items-center pt-0.5 flex-shrink-0">
-          <Search className="w-4 h-4" strokeWidth={3} />
-        </button>
+
 
         {/* Validity Badge */}
         <div className="flex flex-wrap items-center gap-1 bg-[#dc3545] px-1.5 sm:px-2.5 py-0.5 rounded-full text-white flex-shrink-0">

@@ -66,15 +66,15 @@ export function Dashboard() {
           </button>
           
           <div className="flex flex-wrap items-center gap-1.5 ml-2 cursor-pointer" onClick={() => setIsPrivacyOn(!isPrivacyOn)}>
-            <div className={`w-8 h-[18px] rounded-full relative flex items-center transition-colors ${isPrivacyOn ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}>
-              <div className={`w-[14px] h-[14px] bg-white rounded-full absolute shadow-sm transition-transform ${isPrivacyOn ? 'translate-x-[16px]' : 'left-[2px]'}`}></div>
+            <div className={`w-8 h-[18px] rounded-full relative flex items-center transition-colors duration-200 ${isPrivacyOn ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}>
+              <div className={`w-[14px] h-[14px] bg-white rounded-full shadow-sm transition-transform duration-200 ease-in-out ${isPrivacyOn ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
             </div>
             <span className="text-[12px] font-bold text-gray-500 select-none">Privacy</span>
           </div>
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className={`p-4 space-y-4 transition-all duration-300 ${isPrivacyOn ? 'blur-[8px] pointer-events-none select-none' : ''}`}>
         {/* Top Stat Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard 

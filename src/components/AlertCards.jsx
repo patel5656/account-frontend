@@ -1,5 +1,5 @@
 import React from 'react';
-import { Hourglass, AlertTriangle, ShoppingCart, Bell, Package, ArrowRight } from 'lucide-react';
+import { Hourglass, AlertTriangle, ShoppingCart, Bell, Package, ArrowRight, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../utils';
 
@@ -44,16 +44,22 @@ export function AlertCards() {
       path: "/tools/service-reminder",
     },
     {
-      title: "Low Stock",
-      number: "0",
-      subtitle: "Low Stock Items",
-      icon: Package,
+      title: "Day Book Summary",
+      metrics: [
+        { label: 'Receipts', value: '₹0' },
+        { label: 'Payments', value: '₹0' },
+        { label: 'Cash In', value: '₹0' },
+        { label: 'Cash Out', value: '₹0' },
+        { label: 'Balance', value: '₹0' },
+        { label: 'Txns', value: '0' },
+      ],
+      icon: FileText,
       theme: "green",
       bgClass: "bg-green-50 border-green-100",
       textClass: "text-green-600",
       btnClass: "bg-green-100 text-green-700 hover:bg-green-200",
-      watermark: Package,
-      path: "/admin/stock-details",
+      watermark: FileText,
+      path: "/admin/day_book_summary",
     }
   ];
 
@@ -80,9 +86,22 @@ export function AlertCards() {
           </div>
 
           {/* Body */}
-          <div className="flex flex-col mb-4 relative z-10">
-            <h3 className="text-3xl font-bold text-gray-900 leading-none mb-1">{card.number}</h3>
-            <p className="text-[11px] text-gray-600 font-medium">{card.subtitle}</p>
+          <div className="flex flex-col mb-4 relative z-10 h-[40px] justify-center">
+            {card.metrics ? (
+              <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                {card.metrics.map((m, i) => (
+                  <div key={i} className="flex justify-between items-center text-[10px]">
+                    <span className="text-gray-600 font-medium">{m.label}:</span>
+                    <span className="font-bold text-gray-900">{m.value}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <>
+                <h3 className="text-3xl font-bold text-gray-900 leading-none mb-1">{card.number}</h3>
+                <p className="text-[11px] text-gray-600 font-medium">{card.subtitle}</p>
+              </>
+            )}
           </div>
 
           {/* Footer Button */}

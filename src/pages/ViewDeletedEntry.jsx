@@ -3,6 +3,9 @@ import { cn } from '../utils';
 
 export function ViewDeletedEntry() {
   const [searchByActive, setSearchByActive] = useState(false);
+  const [dateFilter, setDateFilter] = useState('Today');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   return (
     <div className="bg-white min-h-[calc(100vh-60px)] flex flex-col p-4">
@@ -43,19 +46,51 @@ export function ViewDeletedEntry() {
               </div>
             </div>
 
-            {/* Date */}
             <div className="flex flex-col gap-1.5 w-full sm:w-auto">
               <div className="flex justify-between items-center w-full sm:w-[250px]">
                 <label className="text-[13px] font-bold text-gray-800">Date</label>
                 <span className="text-[12px] font-bold text-[#007bff]">(25-May-2026)</span>
               </div>
-              <select className="w-full sm:w-[250px] h-[30px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-800 bg-white appearance-none">
-                <option>Today</option>
+              <select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="w-full sm:w-[250px] h-[30px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-800 bg-white"
+              >
+                <option value="Today">Today</option>
+                <option value="Yesterday">Yesterday</option>
+                <option value="This Week">This Week</option>
+                <option value="Last Week">Last Week</option>
+                <option value="This Month">This Month</option>
+                <option value="Last Month">Last Month</option>
+                <option value="This Quarter">This Quarter</option>
+                <option value="This Year">This Year</option>
+                <option value="Custom">Custom</option>
               </select>
-              <div className="relative -mt-6 right-2 pointer-events-none flex justify-end">
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"></path></svg>
-              </div>
             </div>
+
+            {/* Custom Date Range */}
+            {dateFilter === 'Custom' && (
+              <div className="flex items-end gap-2">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[13px] font-bold text-gray-800">From</label>
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="h-[30px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-800 bg-white"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[13px] font-bold text-gray-800">To</label>
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="h-[30px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-800 bg-white"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Search Button */}
             <button className="bg-[#007bff] hover:bg-[#0069d9] text-white px-4 h-[30px] rounded-[3px] text-[13px] font-medium transition-colors">
