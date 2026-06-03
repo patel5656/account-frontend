@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   Menu, 
   Search, 
@@ -20,6 +21,29 @@ export function TopNavbar({ toggleSidebar, isOpen }) {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const location = useLocation();
+  const { i18n } = useTranslation();
+
+  const changeLanguage = (e) => {
+    const lang = e.target.value;
+    i18n.changeLanguage(lang);
+    localStorage.setItem('i18nextLng', lang);
+    
+    if (lang === 'en') {
+      document.cookie = "googtrans=/en/en; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+      document.cookie = `googtrans=/en/en; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 UTC;`;
+    } else {
+      document.cookie = `googtrans=/en/${lang}; path=/`;
+      document.cookie = `googtrans=/en/${lang}; path=/; domain=${window.location.hostname}`;
+    }
+
+    const googleSelect = document.querySelector('.goog-te-combo');
+    if (googleSelect) {
+      googleSelect.value = lang;
+      googleSelect.dispatchEvent(new Event('change'));
+    } else {
+      window.location.reload();
+    }
+  };
 
   const disabledSettingsRoutes = [
     // Masters
@@ -160,6 +184,28 @@ export function TopNavbar({ toggleSidebar, isOpen }) {
           <Printer className="w-4 h-4" strokeWidth={2.5} />
           <span className="text-[13px] font-medium hidden md:block">Print</span>
         </button>
+
+        {/* Language Switcher */}
+        <div className="flex items-center border-l border-gray-200 pl-1 sm:pl-2">
+          <select 
+            value={(i18n.language || 'en').substring(0, 2)} 
+            onChange={changeLanguage}
+            className="notranslate text-[13px] font-medium text-gray-600 bg-transparent border-none focus:ring-0 cursor-pointer outline-none uppercase appearance-none hover:text-gray-900 transition-colors text-center"
+            style={{ textAlign: 'center', textAlignLast: 'center' }}
+            translate="no"
+          >
+            <option value="en" style={{ textAlign: 'center' }}>EN</option>
+            <option value="hi" style={{ textAlign: 'center' }}>HI</option>
+            <option value="gu" style={{ textAlign: 'center' }}>GU</option>
+            <option value="mr" style={{ textAlign: 'center' }}>MR</option>
+            <option value="pa" style={{ textAlign: 'center' }}>PA</option>
+            <option value="ta" style={{ textAlign: 'center' }}>TA</option>
+            <option value="te" style={{ textAlign: 'center' }}>TE</option>
+            <option value="bn" style={{ textAlign: 'center' }}>BN</option>
+            <option value="kn" style={{ textAlign: 'center' }}>KN</option>
+            <option value="ml" style={{ textAlign: 'center' }}>ML</option>
+          </select>
+        </div>
 
         {/* User Profile */}
         <button className="flex items-center gap-1 sm:gap-2 pl-1 sm:pl-2 border-l border-gray-200 flex-shrink-0">

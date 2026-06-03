@@ -1,9 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { X, Printer, Calendar, Paperclip, Plus, Filter } from 'lucide-react';
 
 export function PaymentLedger() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const fileInputRef = React.useRef(null);
   const [entries, setEntries] = React.useState([]);
 
@@ -18,7 +20,7 @@ export function PaymentLedger() {
         
         {/* Header */}
         <div className="bg-[#4F46E5] px-4 py-2 flex items-center justify-between">
-          <h2 className="text-white text-[16px] font-medium tracking-wide">Payment Ledger</h2>
+          <h2 className="text-white text-[16px] font-medium tracking-wide">{t('payment_ledger.title')}</h2>
           
           <div className="flex flex-wrap items-center gap-2">
             <button 
@@ -26,14 +28,14 @@ export function PaymentLedger() {
               className="flex items-center gap-1.5 bg-white text-gray-800 px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors"
             >
               <Filter className="w-4 h-4" />
-              Filter
+              {t('payment_ledger.filter')}
             </button>
             <button 
               onClick={() => window.print()}
               className="flex items-center gap-1.5 bg-[#6c757d] hover:bg-[#5a6268] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors"
             >
               <Printer className="w-4 h-4" />
-              Print
+              {t('payment_ledger.print')}
             </button>
             <button 
               onClick={() => navigate('/dashboard')}
@@ -48,11 +50,11 @@ export function PaymentLedger() {
         <div className="p-3 border-b border-gray-200">
           <div className="flex flex-col gap-1 w-full max-w-[min(92vw,500px)]">
              <div className="flex justify-between items-center px-1">
-               <label className="text-[13px] font-bold text-gray-800">Party Name</label>
-               <span className="text-[13px] font-bold text-[#dc3545]">Account Balance : 0</span>
+               <label className="text-[13px] font-bold text-gray-800">{t('payment_ledger.party_name')}</label>
+               <span className="text-[13px] font-bold text-[#dc3545]">{t('payment_ledger.account_balance')} 0</span>
              </div>
              <select className="w-full bg-[#add8e6] border border-[#add8e6] text-[#0056b3] rounded-[3px] px-3 py-1.5 text-[14px] outline-none font-medium">
-               <option>Select Name</option>
+               <option>{t('payment_ledger.select_name')}</option>
              </select>
           </div>
         </div>
@@ -66,25 +68,25 @@ export function PaymentLedger() {
                 #
               </div>
               <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center">
-                Date
+                {t('payment_ledger.date')}
               </div>
               <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center">
-                Other Information
+                {t('payment_ledger.other_information')}
               </div>
               <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center">
-                Payment In
+                {t('payment_ledger.payment_in')}
               </div>
               <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center">
-                Payment Out
+                {t('payment_ledger.payment_out')}
               </div>
               <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center">
-                Dis.
+                {t('payment_ledger.discount')}
               </div>
               <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center">
-                Balance
+                {t('payment_ledger.balance')}
               </div>
               <div className="py-2.5 text-[13px] font-bold flex items-center justify-center">
-                Action
+                {t('payment_ledger.action')}
               </div>
             </div>
 
@@ -160,7 +162,7 @@ export function PaymentLedger() {
             {/* Total Row */}
             <div className="grid grid-cols-[50px_130px_1fr_120px_120px_100px_100px_80px] bg-white border-b border-gray-200 mt-auto">
               <div className="col-span-3 border-r border-gray-200 p-2 flex items-center justify-center">
-                 <span className="text-[13px] font-bold text-gray-800">Total :</span>
+                 <span className="text-[13px] font-bold text-gray-800">{t('payment_ledger.total')}</span>
               </div>
               <div className="border-r border-gray-200 p-2 flex items-center justify-center">
                  <span className="text-[13px] font-bold text-[#0056b3]">0</span>

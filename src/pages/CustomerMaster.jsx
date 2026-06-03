@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   X, 
   Plus, 
@@ -17,6 +18,7 @@ import { PartyMasterModal } from '../components/PartyMasterModal';
 
 export function CustomerMaster() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -126,7 +128,7 @@ export function CustomerMaster() {
         
         {/* Header */}
         <div className="bg-[#4F46E5] px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <h2 className="text-white text-[16px] font-medium tracking-wide">Customer Master Details</h2>
+          <h2 className="text-white text-[16px] font-medium tracking-wide">{t('customer_master.title')}</h2>
           
           <div className="flex flex-wrap items-center gap-2">
             <button 
@@ -134,7 +136,7 @@ export function CustomerMaster() {
               className="flex items-center gap-1.5 bg-white text-gray-800 px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm"
             >
               <GitMerge className="w-4 h-4" />
-              Merge
+              {t('customer_master.merge')}
             </button>
             <button className="flex items-center justify-center bg-[#28a745] hover:bg-[#218838] text-white p-1.5 rounded-[3px] transition-colors shadow-sm">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -146,14 +148,14 @@ export function CustomerMaster() {
               className="flex items-center gap-1.5 bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm"
             >
               <Upload className="w-4 h-4" strokeWidth={2.5} />
-              Export
+              {t('customer_master.export')}
             </button>
             <button 
               onClick={() => setCreateModalOpen(true)}
               className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm"
             >
               <Plus className="w-4 h-4" strokeWidth={3} />
-              Create New
+              {t('customer_master.create_new')}
             </button>
             <button 
               onClick={() => navigate('/dashboard')}
@@ -196,14 +198,14 @@ export function CustomerMaster() {
             {/* Table Header */}
             <div className="grid grid-cols-[40px_150px_1fr_120px_120px_100px_120px_100px_120px] border-b border-gray-200">
               <HeaderCell text="#" noSort />
-              <HeaderCell text="Customer Name" />
-              <HeaderCell text="Address" />
-              <HeaderCell text="GSTIN" />
-              <HeaderCell text="Mobile No" />
-              <HeaderCell text="Balance" />
-              <HeaderCell text="Party Tags" />
-              <HeaderCell text="Msg Sent" />
-              <HeaderCell text="Action" />
+              <HeaderCell text={t('customer_master.customer_name')} />
+              <HeaderCell text={t('customer_master.address')} />
+              <HeaderCell text={t('customer_master.gstin')} />
+              <HeaderCell text={t('customer_master.mobile_no')} />
+              <HeaderCell text={t('customer_master.balance')} />
+              <HeaderCell text={t('customer_master.party_tags')} />
+              <HeaderCell text={t('customer_master.msg_sent')} />
+              <HeaderCell text={t('customer_master.action')} />
             </div>
 
             {/* Rows */}

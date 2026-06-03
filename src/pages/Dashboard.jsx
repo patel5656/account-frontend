@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   Contact, 
   PenTool, 
@@ -27,6 +28,7 @@ import { CollectionReportModal } from '../components/CollectionReportModal';
 
 export function Dashboard() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPrivacyOn, setIsPrivacyOn] = useState(false);
   const [selectedDate, setSelectedDate] = useState('2026-05-23');
@@ -35,7 +37,7 @@ export function Dashboard() {
     <div className="flex flex-col">
       {/* Secondary Header */}
       <div className="bg-[#f8f9fa] border-b border-gray-200 px-3 sm:px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <h2 className="text-[18px] sm:text-[20px] text-gray-700 font-normal">Dashboard</h2>
+        <h2 className="text-[18px] sm:text-[20px] text-gray-700 font-normal">{t('dashboard_page.title')}</h2>
         
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <YoutubeIcon className="w-6 h-6 text-[#ff0000] flex-shrink-0" />
@@ -69,7 +71,7 @@ export function Dashboard() {
             <div className={`w-8 h-[18px] rounded-full relative flex items-center transition-colors duration-200 ${isPrivacyOn ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}>
               <div className={`w-[14px] h-[14px] bg-white rounded-full shadow-sm transition-transform duration-200 ease-in-out ${isPrivacyOn ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
             </div>
-            <span className="text-[12px] font-bold text-gray-500 select-none">Privacy</span>
+            <span className="text-[12px] font-bold text-gray-500 select-none">{t('dashboard_page.privacy')}</span>
           </div>
         </div>
       </div>
@@ -78,7 +80,7 @@ export function Dashboard() {
         {/* Top Stat Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard 
-            title="Today's Sale" 
+            title={t('dashboard_page.todays_sale')}
             amount="0" 
             color="teal" 
             showEye={true}
@@ -87,7 +89,7 @@ export function Dashboard() {
             onMoreInfoClick={() => navigate('/admin/invoice-details/customer_sale')}
           />
           <StatCard 
-            title="Today Purchase" 
+            title={t('dashboard_page.today_purchase')} 
             amount="0" 
             color="yellow" 
             showEye={false}
@@ -95,7 +97,7 @@ export function Dashboard() {
             onMoreInfoClick={() => navigate('/admin/purchase')}
           />
           <StatCard 
-            title="Current Stock Status" 
+            title={t('dashboard_page.current_stock_status')}
             amount="0" 
             color="yellow" 
             showEye={false}
@@ -103,7 +105,7 @@ export function Dashboard() {
             onMoreInfoClick={() => navigate('/admin/stock-details')}
           />
           <StatCard 
-            title="Today's Expenses" 
+            title={t('dashboard_page.todays_expenses')}
             amount="0" 
             color="red" 
             showEye={false}
@@ -115,7 +117,7 @@ export function Dashboard() {
         {/* Right Side Summary Cards Moved Below Top Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <SummaryCard 
-            title="Customer Outstanding" 
+            title={t('dashboard_page.customer_outstanding')}
             amount="0" 
             color="green" 
             icon={Contact} 
@@ -123,7 +125,7 @@ export function Dashboard() {
             onMoreInfoClick={() => navigate('/admin/party_outstanding/customer_outstanding')}
           />
           <SummaryCard 
-            title="Company Outstanding" 
+            title={t('dashboard_page.company_outstanding')}
             amount="0" 
             color="blue" 
             icon={PenTool} 
@@ -131,7 +133,7 @@ export function Dashboard() {
             onMoreInfoClick={() => navigate('/admin/party_outstanding/company_outstanding')}
           />
           <SummaryCard 
-            title="All Accounts Balance" 
+            title={t('dashboard_page.all_accounts_balance')}
             amount="0" 
             color="green" 
             icon={Contact} 
@@ -139,7 +141,7 @@ export function Dashboard() {
             onMoreInfoClick={() => navigate('/admin/allbookbalance')}
           />
           <SummaryCard 
-            title="Recycle Bin" 
+            title={t('dashboard_page.recycle_bin')}
             amount="0"
             color="red" 
             icon={Trash2} 

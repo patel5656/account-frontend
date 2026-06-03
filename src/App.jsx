@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { Dashboard } from './pages/Dashboard';
@@ -88,6 +88,15 @@ import { BillBook } from './pages/BillBook';
 import { SettingsProvider } from './context/SettingsContext';
 
 function App() {
+  useEffect(() => {
+    const savedLang = localStorage.getItem('i18nextLng') || 'en';
+    const lang = savedLang.substring(0, 2);
+    if (lang !== 'en') {
+      document.cookie = `googtrans=/en/${lang}; path=/`;
+      document.cookie = `googtrans=/en/${lang}; path=/; domain=${window.location.hostname}`;
+    }
+  }, []);
+
   return (
     <SettingsProvider>
       <Router>

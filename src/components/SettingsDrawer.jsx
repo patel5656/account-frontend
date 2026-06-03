@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link2, ChevronUp, Edit, Trash2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../utils';
 import { useSettings } from '../context/SettingsContext';
 
@@ -726,6 +727,8 @@ export function SettingsDrawer({ isOpen, onClose }) {
 }
 
 function ToggleSetting({ label, defaultChecked = false, checked, onChange }) {
+  const { t } = useTranslation();
+  const labelText = typeof label === 'string' ? t(`settings.${label}`, label) : label;
   return (
     <label className="flex items-start gap-3 cursor-pointer group">
       <div className="relative mt-0.5 shrink-0">
@@ -739,7 +742,7 @@ function ToggleSetting({ label, defaultChecked = false, checked, onChange }) {
         <div className="w-9 h-[18px] bg-gray-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-[#0d6efd]"></div>
       </div>
       <span className="text-white text-[13px] font-bold tracking-wide select-none group-hover:text-gray-200">
-        {label}
+        {labelText}
       </span>
     </label>
   );

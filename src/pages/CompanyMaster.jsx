@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   X, 
   Plus, 
@@ -13,7 +14,7 @@ import {
 import { PartyMasterModal } from '../components/PartyMasterModal';
 
 export function CompanyMaster() {
-  const navigate = useNavigate();
+  const { t } = useTranslation();
   
   const [mergeModalOpen, setMergeModalOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -85,15 +86,14 @@ export function CompanyMaster() {
         
         {/* Header */}
         <div className="bg-[#4F46E5] px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <h2 className="text-white text-[16px] font-medium tracking-wide">Comapany Master Details</h2>
+          <h2 className="text-white text-[16px] font-medium tracking-wide">{t('company_master.title')}</h2>
           
           <div className="flex flex-wrap items-center gap-2">
             <button 
               onClick={() => setMergeModalOpen(true)}
               className="flex items-center gap-1.5 bg-white text-gray-800 px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm"
             >
-              <GitMerge className="w-4 h-4" />
-              Merge
+              <GitMerge className="w-4 h-4" />{t('company_master.merge')}
             </button>
             <button 
               onClick={handleWhatsApp}
@@ -107,15 +107,13 @@ export function CompanyMaster() {
               onClick={handleExport}
               className="flex items-center gap-1.5 bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm"
             >
-              <Upload className="w-4 h-4" strokeWidth={2.5} />
-              Export
+              <Upload className="w-4 h-4" strokeWidth={2.5} />{t('company_master.export')}
             </button>
             <button 
               onClick={() => setCreateModalOpen(true)}
               className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm"
             >
-              <Plus className="w-4 h-4" strokeWidth={3} />
-              Create New
+              <Plus className="w-4 h-4" strokeWidth={3} />{t('company_master.create_new')}
             </button>
             <button 
               onClick={() => navigate('/dashboard')}
@@ -133,7 +131,7 @@ export function CompanyMaster() {
               <FilterIcon className="w-4 h-4" />
             </div>
             <select className="min-w-0 border border-gray-300 border-l-0 px-3 py-2 text-[13px] outline-none bg-white text-gray-600 w-full">
-              <option>Party Name</option>
+              <option>{t('company_master.party_name')}</option>
               <option>City</option>
               <option>Mobile No</option>
               <option>Party Tags</option>
@@ -152,12 +150,12 @@ export function CompanyMaster() {
             {/* Table Header */}
             <div className="grid grid-cols-[60px_200px_150px_150px_150px_150px_120px] border-b border-gray-200 bg-white">
               <HeaderCell text="#" />
-              <HeaderCell text="Party Name" />
-              <HeaderCell text="Mobile No" />
-              <HeaderCell text="City" />
-              <HeaderCell text="Type" />
-              <HeaderCell text="Balance" />
-              <HeaderCell text="Action" />
+              <HeaderCell text={t('company_master.party_name')} />
+              <HeaderCell text={t('company_master.mobile_no')} />
+              <HeaderCell text={t('company_master.city')} />
+              <HeaderCell text={t('company_master.type')} />
+              <HeaderCell text={t('company_master.balance')} />
+              <HeaderCell text={t('company_master.action')} />
             </div>
 
             {/* Rows */}
@@ -191,7 +189,7 @@ export function CompanyMaster() {
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-[4px] shadow-2xl w-full max-w-[400px] mx-4 overflow-hidden flex flex-col">
             <div className="bg-[#4F46E5] px-4 py-3 flex items-center justify-between">
-              <h3 className="text-white font-medium text-[15px]">Company Correction</h3>
+              <h3 className="text-white font-medium text-[15px]">{t('company_master.company_correction')}</h3>
               <button onClick={() => setMergeModalOpen(false)} className="text-white hover:text-red-200 transition-colors">
                 <X className="w-6 h-6 font-bold text-[#dc3545]" strokeWidth={3} />
               </button>
@@ -199,26 +197,26 @@ export function CompanyMaster() {
             
             <div className="p-5 flex flex-col gap-4">
               <div className="flex flex-col gap-1">
-                <label className="text-[13px] font-bold text-gray-800">Incorrect Party Name</label>
+                <label className="text-[13px] font-bold text-gray-800">{t('company_master.incorrect_name')}</label>
                 <select className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-2 text-[14px] text-gray-500 outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold">
-                  <option>Select Name</option>
+                  <option>{t('company_master.select_name')}</option>
                 </select>
               </div>
               
               <div className="flex flex-col gap-1">
-                <label className="text-[13px] font-bold text-gray-800">Correct Party Name</label>
+                <label className="text-[13px] font-bold text-gray-800">{t('company_master.correct_name')}</label>
                 <select className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] text-gray-400 outline-none">
-                  <option>Select Name</option>
+                  <option>{t('company_master.select_name')}</option>
                 </select>
               </div>
             </div>
             
             <div className="bg-[#f8f9fa] px-4 py-3 border-t border-gray-200 flex justify-end gap-2">
               <button className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[4px] text-[14px] font-medium transition-colors shadow-sm">
-                Merge
+                {t('company_master.merge')}
               </button>
               <button onClick={() => setMergeModalOpen(false)} className="bg-[#dc3545] hover:bg-[#c82333] text-white px-4 py-1.5 rounded-[4px] text-[14px] transition-colors shadow-sm">
-                Close
+                {t('company_master.close')}
               </button>
             </div>
           </div>
@@ -237,7 +235,7 @@ export function CompanyMaster() {
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-[4px] shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
             <div className="bg-[#4F46E5] px-4 py-3 flex items-center justify-between">
-              <h3 className="text-white font-medium text-[15px]">Edit Company</h3>
+              <h3 className="text-white font-medium text-[15px]">{t('company_master.edit_company')}</h3>
               <button onClick={() => setEditModalOpen(false)} className="text-white hover:text-red-200 transition-colors">
                 <X className="w-6 h-6 font-bold text-[#dc3545]" strokeWidth={3} />
               </button>
@@ -275,10 +273,10 @@ export function CompanyMaster() {
             
             <div className="bg-[#f8f9fa] px-4 py-3 border-t border-gray-200 flex justify-end gap-2">
               <button onClick={handleEditSubmit} className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[4px] text-[14px] font-medium transition-colors shadow-sm">
-                Update
+                {t('company_master.update')}
               </button>
               <button onClick={() => setEditModalOpen(false)} className="bg-[#dc3545] hover:bg-[#c82333] text-white px-4 py-1.5 rounded-[4px] text-[14px] transition-colors shadow-sm">
-                Close
+                {t('company_master.close')}
               </button>
             </div>
           </div>

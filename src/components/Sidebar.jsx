@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../utils';
 import {
   LayoutDashboard,
@@ -233,6 +234,7 @@ const menuItems = [
 
 export function Sidebar({ isOpen, onClose }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [openSubmenus, setOpenSubmenus] = useState({});
   const [isBankMasterModalOpen, setIsBankMasterModalOpen] = useState(false);
   const [isCompanyMasterModalOpen, setIsCompanyMasterModalOpen] = useState(false);
@@ -368,7 +370,7 @@ export function Sidebar({ isOpen, onClose }) {
               >
                 <div className="flex flex-wrap items-center gap-3">
                   <item.icon className="w-[18px] h-[18px] text-white" strokeWidth={2.5} />
-                  <span className="tracking-wide">{item.name}</span>
+                  <span className="tracking-wide">{t(`sidebar.${item.name}`, item.name)}</span>
                 </div>
                 {item.hasSubmenu && (
                    <ChevronLeft 
@@ -422,7 +424,7 @@ export function Sidebar({ isOpen, onClose }) {
                               <Circle className="w-4 h-4 mt-[2px]" strokeWidth={isActive ? 2.5 : 2} />
                             )}
                             <div className="flex flex-col">
-                              <span className={isActive ? "font-medium" : ""}>{subitem.name}</span>
+                              <span className={isActive ? "font-medium" : ""}>{t(`sidebar_sub.${subitem.name}`, subitem.name)}</span>
                               {subitem.subtitle && <span className="text-[10px] opacity-70 leading-none mt-1">{subitem.subtitle}</span>}
                             </div>
                           </div>
