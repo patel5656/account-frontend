@@ -20,6 +20,7 @@ export function CompanyMaster() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editRow, setEditRow] = useState(null);
+  const [selectedRow, setSelectedRow] = useState(null);
   
   const [rows, setRows] = useState([]);
 
@@ -77,7 +78,17 @@ export function CompanyMaster() {
   };
 
   const handleWhatsApp = () => {
-    alert("Opening WhatsApp...");
+    if (!selectedRow) {
+      alert("Please select a company first by clicking on their row.");
+      return;
+    }
+    const mobile = (selectedRow.mobile || '').replace(/\D/g, '');
+    if (!mobile || mobile.length < 10) {
+      alert("Selected company does not have a valid mobile number.");
+      return;
+    }
+    const formattedMobile = mobile.startsWith('91') && mobile.length > 10 ? mobile : `91${mobile}`;
+    window.open(`https://wa.me/${formattedMobile}`, '_blank');
   };
 
   return (
@@ -160,14 +171,18 @@ export function CompanyMaster() {
 
             {/* Rows */}
             {rows.map((row, index) => (
-              <div key={row.id} className="grid grid-cols-[60px_200px_150px_150px_150px_150px_120px] border-b border-gray-200 hover:bg-gray-50 transition-colors bg-white">
+              <div 
+                key={row.id} 
+                onClick={() => setSelectedRow(row)}
+                className={`grid grid-cols-[60px_200px_150px_150px_150px_150px_120px] border-b border-gray-200 hover:bg-indigo-50/50 cursor-pointer transition-colors bg-white ${selectedRow?.id === row.id ? 'bg-indigo-50/70 font-semibold' : ''}`}
+              >
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{index + 1}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.name}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.mobile}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.city}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.type}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.balance}</div>
-                <div className="py-2.5 px-3 flex flex-wrap items-center gap-1">
+                <div className="py-2.5 px-3 flex flex-wrap items-center gap-1" onClick={(e) => e.stopPropagation()}>
                   <ActionButton type="menu" />
                   <ActionButton type="edit" onClick={() => handleEditClick(row)} />
                   <ActionButton type="delete" onClick={() => handleDeleteClick(row.id)} />

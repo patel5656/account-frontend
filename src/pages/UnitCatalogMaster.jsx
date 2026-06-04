@@ -108,7 +108,12 @@ export function UnitCatalogMaster() {
               Print
             </button>
             <button 
-              onClick={() => window.location.reload()}
+              onClick={() => {
+                try {
+                  sessionStorage.clear();
+                } catch (e) {}
+                window.location.reload(true);
+              }}
               className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-800 px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors shadow-sm"
             >
               <RefreshCw className="w-4 h-4" />

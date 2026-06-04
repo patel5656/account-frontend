@@ -20,7 +20,15 @@ export function BomMaster() {
           <h2 className="text-white text-[16px] font-medium tracking-wide">BOM Master Details</h2>
           
           <div className="flex flex-wrap items-center gap-2">
-            <button className="flex items-center gap-1.5 bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm">
+            <button 
+              onClick={() => {
+                try {
+                  sessionStorage.clear();
+                } catch (e) {}
+                window.location.reload(true);
+              }}
+              className="flex items-center gap-1.5 bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm"
+            >
               <RefreshCw className="w-4 h-4" />
               Sync
             </button>

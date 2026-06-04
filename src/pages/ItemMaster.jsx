@@ -86,13 +86,6 @@ export function ItemMaster() {
                 BOM List
               </button>
             </div>
-            
-            <div className="flex flex-wrap items-center gap-2">
-              <button className="flex items-center gap-1.5 bg-[#17a2b8] hover:bg-[#138496] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm">
-                <BarcodeIcon className="w-4 h-4" />
-                Scan Barcode
-              </button>
-            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row items-center w-full max-w-full gap-2">
@@ -189,10 +182,6 @@ export function ItemMaster() {
                         </button>
                         <button title="Stock Transfer" className="p-1 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-[3px] transition-colors">
                           <ArrowRightLeftIcon className="w-4 h-4" />
-                        </button>
-                        <div className="w-[1px] h-3 bg-gray-300 mx-0.5"></div>
-                        <button title="Print Barcode" className="p-1 text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded-[3px] transition-colors">
-                          <BarcodeIcon className="w-4 h-4" />
                         </button>
                         <button title="Online Store Sync" className={`p-1 rounded-[3px] transition-colors ${row.synced ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:text-green-600 hover:bg-green-50'}`}>
                           <GlobeIcon className="w-4 h-4" />

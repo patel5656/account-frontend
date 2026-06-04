@@ -122,6 +122,20 @@ export function CustomerMaster() {
     document.body.removeChild(link);
   };
 
+  const handleWhatsApp = () => {
+    if (!selectedRow) {
+      alert("Please select a customer first by clicking on their row.");
+      return;
+    }
+    const mobile = (selectedRow.mobileNo || '').replace(/\D/g, '');
+    if (!mobile || mobile.length < 10) {
+      alert("Selected customer does not have a valid mobile number.");
+      return;
+    }
+    const formattedMobile = mobile.startsWith('91') && mobile.length > 10 ? mobile : `91${mobile}`;
+    window.open(`https://wa.me/${formattedMobile}`, '_blank');
+  };
+
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] flex flex-col p-3 relative">
       <div className="bg-white rounded shadow-sm border border-gray-200 flex-1 flex flex-col overflow-hidden">
@@ -138,7 +152,10 @@ export function CustomerMaster() {
               <GitMerge className="w-4 h-4" />
               {t('customer_master.merge')}
             </button>
-            <button className="flex items-center justify-center bg-[#28a745] hover:bg-[#218838] text-white p-1.5 rounded-[3px] transition-colors shadow-sm">
+            <button 
+              onClick={handleWhatsApp}
+              className="flex items-center justify-center bg-[#28a745] hover:bg-[#218838] text-white p-1.5 rounded-[3px] transition-colors shadow-sm"
+            >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
               </svg>
@@ -211,7 +228,11 @@ export function CustomerMaster() {
             {/* Rows */}
             {filteredRows.length > 0 ? (
               filteredRows.map((row, index) => (
-                <div key={row.id} className="grid grid-cols-[40px_150px_1fr_120px_120px_100px_120px_100px_120px] border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                <div 
+                  key={row.id} 
+                  onClick={() => setSelectedRow(row)}
+                  className={`grid grid-cols-[40px_150px_1fr_120px_120px_100px_120px_100px_120px] border-b border-gray-200 hover:bg-indigo-50/50 cursor-pointer transition-colors ${selectedRow?.id === row.id ? 'bg-indigo-50/70 font-semibold' : 'bg-white'}`}
+                >
                   <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{index + 1}</div>
                   <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.customerName}</div>
                   <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.address}</div>
@@ -224,7 +245,7 @@ export function CustomerMaster() {
                       {row.msgSent}
                     </div>
                   </div>
-                  <div className="py-2.5 px-3 flex flex-wrap items-center gap-1">
+                  <div className="py-2.5 px-3 flex flex-wrap items-center gap-1" onClick={(e) => e.stopPropagation()}>
                     <ActionButton type="calendar" onClick={() => handleViewClick(row)} />
                     <ActionButton type="edit" onClick={() => handleEditClick(row)} />
                     <ActionButton type="delete" onClick={() => handleDeleteClick(row.id)} />

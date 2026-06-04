@@ -47,7 +47,7 @@ export function DashboardLayout({ children }) {
         <TopNavbar toggleSidebar={toggleSidebar} isOpen={sidebarOpen} />
         
         {/* Main scrollable content area */}
-        <main className="flex-1 mt-[45px] pb-24 overflow-x-hidden">
+        <main className={`flex-1 pt-[45px] overflow-x-hidden ${location.pathname === '/dashboard' ? 'pb-24' : 'pb-0'}`}>
           {children}
         </main>
         

@@ -137,6 +137,15 @@ export function TopNavbar({ toggleSidebar, isOpen }) {
     }
   };
 
+  const handleRefresh = () => {
+    try {
+      sessionStorage.clear();
+    } catch (e) {
+      console.error(e);
+    }
+    window.location.reload(true);
+  };
+
   return (
     <>
       <header className={`bg-white border-b border-gray-200 h-[45px] fixed top-0 right-0 z-30 transition-all duration-300 ease-in-out flex items-center justify-between px-2 sm:px-3 ${isOpen ? 'left-0 md:left-[220px]' : 'left-0'}`}>
@@ -152,10 +161,7 @@ export function TopNavbar({ toggleSidebar, isOpen }) {
       </div>
 
       {/* Right side */}
-      <div className="flex items-center gap-[6px] sm:gap-[10px] overflow-hidden">
-        
-
-
+      <div className="flex items-center gap-[4px] sm:gap-[10px] overflow-hidden flex-1 justify-end">
         {/* Validity Badge */}
         <div className="flex flex-wrap items-center gap-1 bg-[#dc3545] px-1.5 sm:px-2.5 py-0.5 rounded-full text-white flex-shrink-0">
           <span className="text-[9px] sm:text-[11px] font-medium tracking-wide whitespace-nowrap">
@@ -170,13 +176,13 @@ export function TopNavbar({ toggleSidebar, isOpen }) {
           <IconButton icon={Download} onClick={() => setIsImportModalOpen(true)} />
           <IconButton icon={Maximize2} onClick={handleFullScreenToggle} />
           <IconButton icon={Settings} onClick={handleSettingsClick} />
-          <IconButton icon={RefreshCw} onClick={() => window.location.reload()} />
+          <IconButton icon={RefreshCw} onClick={handleRefresh} />
         </div>
         
         {/* Always visible: Settings + Refresh on mobile */}
         <div className="flex sm:hidden items-center gap-[6px]">
           <IconButton icon={Settings} onClick={handleSettingsClick} />
-          <IconButton icon={RefreshCw} onClick={() => window.location.reload()} />
+          <IconButton icon={RefreshCw} onClick={handleRefresh} />
         </div>
         
         {/* Print Button */}

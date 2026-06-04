@@ -31,6 +31,8 @@ const FilterIcon = ({ className }) => (
 export function GodownTransfer() {
   const navigate = useNavigate();
 
+  const today = new Date().toISOString().split('T')[0];
+  const [date, setDate] = useState(today);
   const [items, setItems] = useState([]);
   const [productName, setProductName] = useState('');
   const [transferQty, setTransferQty] = useState('');
@@ -123,14 +125,18 @@ export function GodownTransfer() {
              </div>
              <div className="flex items-center justify-end w-full sm:max-w-[320px]">
                <label className="text-[13px] font-bold text-gray-800 w-[80px] text-right mr-2">Date :</label>
-               <div className="flex-1 flex items-center">
+               <div className="flex-1 flex items-center relative">
                  <input 
-                   type="text" 
-                   readOnly
-                   value="26-05-2026"
-                   className="w-full min-w-0 border border-gray-300 border-r-0 rounded-l-[3px] px-3 py-1 text-[13px] bg-white text-gray-600 outline-none"
+                   type="date"
+                   value={date}
+                   onChange={(e) => setDate(e.target.value)}
+                   id="transfer-date-input"
+                   className="w-full min-w-0 border border-gray-300 border-r-0 rounded-l-[3px] px-3 py-1 text-[13px] bg-white text-gray-600 outline-none focus:border-[#4F46E5] cursor-pointer"
                  />
-                 <div className="min-w-0 border border-gray-300 border-l-0 px-2 py-1 rounded-r-[3px] bg-white text-gray-500">
+                 <div
+                   className="min-w-0 border border-gray-300 border-l-0 px-2 py-1.5 rounded-r-[3px] bg-white text-gray-500 cursor-pointer hover:bg-gray-50"
+                   onClick={() => document.getElementById('transfer-date-input').showPicker()}
+                 >
                    <Calendar className="w-4 h-4" />
                  </div>
                </div>
@@ -276,12 +282,25 @@ export function GodownTransfer() {
         </div>
         
         <div className="flex items-center justify-center gap-1.5 flex-1 max-w-[400px] mx-auto">
-          <button className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] transition-colors">
+          <button 
+            onClick={() => {
+              if (items.length === 0) {
+                alert('Please add items to transfer');
+                return;
+              }
+              alert('Stock transferred successfully!');
+              setItems([]);
+            }}
+            className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] transition-colors"
+          >
             <Check className="w-4 h-4" strokeWidth={3} />
             Transfer Stock
           </button>
           
-          <button className="flex items-center gap-1 bg-[#4F46E5] hover:bg-[#4338ca] text-white px-3 py-1.5 rounded-[3px] text-[13px] transition-colors">
+          <button 
+            onClick={() => window.print()}
+            className="flex items-center gap-1 bg-[#4F46E5] hover:bg-[#4338ca] text-white px-3 py-1.5 rounded-[3px] text-[13px] transition-colors"
+          >
             <Printer className="w-4 h-4" strokeWidth={3} />
             Print Challan
           </button>

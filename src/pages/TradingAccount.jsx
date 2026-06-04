@@ -1,8 +1,73 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export function TradingAccount() {
   const navigate = useNavigate();
+
+  const [fromDate, setFromDate] = useState('2026-05-24');
+  const [toDate, setToDate] = useState('2026-05-24');
+  const [reportDates, setReportDates] = useState({ from: '2026-05-24', to: '2026-05-24' });
+  const [reportData, setReportData] = useState({
+    sales: 0,
+    salesReturn: 0,
+    openingStock: 0,
+    closingStock: 0,
+    purchase: 0,
+    purchaseReturn: 0,
+    hasLoaded: false
+  });
+
+  const formatDateLabel = (dateStr) => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-');
+    const date = new Date(year, parseInt(month) - 1, parseInt(day));
+    const dayStr = parseInt(day);
+    const monthName = date.toLocaleString('default', { month: 'short' });
+    const yearNum = date.getFullYear();
+    return `${dayStr}-${monthName}-${yearNum}`;
+  };
+
+  const handleShowReport = () => {
+    const d1 = new Date(fromDate);
+    const d2 = new Date(toDate);
+    
+    if (d1 > d2) {
+      alert("From Date cannot be greater than To Date.");
+      return;
+    }
+
+    setReportDates({ from: fromDate, to: toDate });
+    
+    const timeDiff = Math.abs(d2.getTime() - d1.getTime());
+    const daysCount = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+    
+    // Generate dynamic mock accounting values based on the number of days selected
+    const sales = daysCount * 4500;
+    const salesReturn = Math.round(sales * 0.04);
+    const openingStock = 8500;
+    const closingStock = 12500;
+    const purchase = daysCount * 2500;
+    const purchaseReturn = Math.round(purchase * 0.03);
+    
+    setReportData({
+      sales,
+      salesReturn,
+      openingStock,
+      closingStock,
+      purchase,
+      purchaseReturn,
+      hasLoaded: true
+    });
+  };
+
+  const netSale = reportData.sales - reportData.salesReturn;
+  const netPurchase = reportData.purchase - reportData.purchaseReturn;
+  
+  const totalLeft = netSale + reportData.closingStock;
+  const totalRightWithoutProfit = reportData.openingStock + netPurchase;
+  const grossProfit = totalLeft - totalRightWithoutProfit;
+  
+  const totalRight = totalRightWithoutProfit + grossProfit;
 
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] p-3 flex flex-col relative pb-[70px]">
@@ -19,7 +84,8 @@ export function TradingAccount() {
               <div className="relative">
                 <input 
                   type="date" 
-                  defaultValue="2026-05-24"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
                   className="h-[32px] w-[140px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-600 bg-white"
                 />
               </div>
@@ -30,7 +96,8 @@ export function TradingAccount() {
               <div className="relative">
                 <input 
                   type="date" 
-                  defaultValue="2026-05-24"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
                   className="h-[32px] w-[140px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-600 bg-white"
                 />
               </div>
@@ -38,13 +105,18 @@ export function TradingAccount() {
 
             <div className="flex flex-col justify-end h-full">
                <div className="h-[21px]"></div> {/* Spacer to align button with inputs */}
-               <button className="h-[32px] px-4 bg-[#007bff] hover:bg-[#0069d9] text-white text-[13px] font-medium rounded-[3px] transition-colors shadow-sm">
+               <button 
+                 onClick={handleShowReport}
+                 className="h-[32px] px-4 bg-[#007bff] hover:bg-[#0069d9] text-white text-[13px] font-medium rounded-[3px] transition-colors shadow-sm"
+               >
                  Show Report
                </button>
             </div>
           </div>
 
-          <p className="text-[14px] font-bold text-[#4F46E5]">(From: 24-May-2026 - To: 24-May-2026)</p>
+          <p className="text-[14px] font-bold text-[#4F46E5]">
+            (From: {formatDateLabel(reportDates.from)} - To: {formatDateLabel(reportDates.to)})
+          </p>
         </div>
 
         {/* Two-Column Ledger Table */}
@@ -64,38 +136,38 @@ export function TradingAccount() {
               <tr className="border-b border-gray-200">
                 <td className="py-4 px-4 align-top">
                   <div className="font-bold text-[14px] text-gray-900 mb-1">Net Sale</div>
-                  <div className="text-[12px] text-gray-500">Sales : 0</div>
-                  <div className="text-[12px] text-gray-500">Sales Return : 0</div>
+                  <div className="text-[12px] text-gray-500">Sales : {reportData.sales}</div>
+                  <div className="text-[12px] text-gray-500">Sales Return : {reportData.salesReturn}</div>
                 </td>
-                <td className="py-4 px-4 align-top text-center font-bold text-[13px] border-r border-gray-200">0</td>
+                <td className="py-4 px-4 align-top text-center font-bold text-[13px] border-r border-gray-200">{netSale}</td>
                 <td className="py-4 px-4 align-top">
                   <div className="font-bold text-[14px] text-gray-900">Opening Stock</div>
                 </td>
-                <td className="py-4 px-4 align-top text-center font-bold text-[13px]">0</td>
+                <td className="py-4 px-4 align-top text-center font-bold text-[13px]">{reportData.openingStock}</td>
               </tr>
               {/* Row 2 */}
               <tr className="border-b border-gray-200">
                 <td className="py-4 px-4 align-top">
                   <div className="font-bold text-[14px] text-gray-900">Closing Stock</div>
                 </td>
-                <td className="py-4 px-4 align-top text-center font-bold text-[13px] border-r border-gray-200">0</td>
+                <td className="py-4 px-4 align-top text-center font-bold text-[13px] border-r border-gray-200">{reportData.closingStock}</td>
                 <td className="py-4 px-4 align-top">
                   <div className="font-bold text-[14px] text-gray-900 mb-1">Net Purchase</div>
-                  <div className="text-[12px] text-gray-500">Purchase : 0</div>
-                  <div className="text-[12px] text-gray-500">Purchase Return : 0</div>
+                  <div className="text-[12px] text-gray-500">Purchase : {reportData.purchase}</div>
+                  <div className="text-[12px] text-gray-500">Purchase Return : {reportData.purchaseReturn}</div>
                 </td>
-                <td className="py-4 px-4 align-top text-center font-bold text-[13px]">0</td>
+                <td className="py-4 px-4 align-top text-center font-bold text-[13px]">{netPurchase}</td>
               </tr>
               {/* TOTAL Row */}
               <tr>
                 <td className="py-4 px-4 align-middle">
                   <div className="font-bold text-[14px] text-gray-900 uppercase">TOTAL</div>
                 </td>
-                <td className="py-4 px-4 align-middle text-center font-bold text-[13px] border-r border-gray-200">0</td>
+                <td className="py-4 px-4 align-middle text-center font-bold text-[13px] border-r border-gray-200">{totalLeft}</td>
                 <td className="py-4 px-4 align-middle">
                   <div className="font-bold text-[14px] text-gray-900 uppercase">TOTAL</div>
                 </td>
-                <td className="py-4 px-4 align-middle text-center font-bold text-[13px]">0</td>
+                <td className="py-4 px-4 align-middle text-center font-bold text-[13px]">{totalRight}</td>
               </tr>
             </tbody>
           </table>
@@ -105,14 +177,14 @@ export function TradingAccount() {
         {/* Gross Profit Badge */}
         <div className="flex justify-center mb-4">
           <div className="bg-[#28a745] text-white px-4 py-2 font-medium text-[14px] rounded shadow-sm inline-block">
-            GROSS Profit : 0
+            GROSS Profit : {grossProfit}
           </div>
         </div>
 
       </div>
 
       {/* Footer Button */}
-      <div className="sticky bottom-0 left-0 right-0 bg-white/90 border-t border-gray-200 p-3 flex justify-end">
+        <div className="fixed bottom-0 left-0 md:left-[220px] right-0 bg-white/90 border-t border-gray-200 p-3 flex justify-end z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
         <button 
           onClick={() => navigate(-1)}
           className="bg-[#007bff] hover:bg-[#0069d9] text-white text-[13px] font-medium px-4 py-1.5 rounded-[3px] flex items-center justify-center gap-1 shadow-sm transition-colors"

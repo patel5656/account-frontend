@@ -9,19 +9,52 @@ const YoutubeIcon = ({ className }) => (
   </svg>
 );
 
-const days = [
-  '1-May-26 (Fri)', '2-May-26 (Sat)', '3-May-26 (Sun)', '4-May-26 (Mon)', '5-May-26 (Tue)',
-  '6-May-26 (Wed)', '7-May-26 (Thu)', '8-May-26 (Fri)', '9-May-26 (Sat)', '10-May-26 (Sun)',
-  '11-May-26 (Mon)', '12-May-26 (Tue)', '13-May-26 (Wed)', '14-May-26 (Thu)', '15-May-26 (Fri)',
-  '16-May-26 (Sat)', '17-May-26 (Sun)', '18-May-26 (Mon)', '19-May-26 (Tue)', '20-May-26 (Wed)',
-  '21-May-26 (Thu)', '22-May-26 (Fri)', '23-May-26 (Sat)', '24-May-26 (Sun)', '25-May-26 (Mon)',
-  '26-May-26 (Tue)', '27-May-26 (Wed)', '28-May-26 (Thu)', '29-May-26 (Fri)', '30-May-26 (Sat)',
-  '31-May-26 (Sun)'
-];
-
 export function EmployeeAttendance() {
   const navigate = useNavigate();
   const [isEmployeeMasterOpen, setIsEmployeeMasterOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState('2026-05');
+  const monthInputRef = React.useRef(null);
+
+  const getDaysInMonth = (monthStr) => {
+    if (!monthStr) return [];
+    const [yearStr, monthStrPart] = monthStr.split('-');
+    const year = parseInt(yearStr);
+    const monthIndex = parseInt(monthStrPart) - 1;
+    
+    const date = new Date(year, monthIndex, 1);
+    const daysArray = [];
+    
+    while (date.getMonth() === monthIndex) {
+      const dayNum = date.getDate();
+      const monthName = date.toLocaleString('default', { month: 'short' });
+      const yearShort = String(date.getFullYear()).slice(-2);
+      const dayOfWeek = date.toLocaleString('default', { weekday: 'short' });
+      
+      daysArray.push(`${dayNum}-${monthName}-${yearShort} (${dayOfWeek})`);
+      date.setDate(date.getDate() + 1);
+    }
+    return daysArray;
+  };
+
+  const formatMonthDisplay = (monthStr) => {
+    if (!monthStr) return '';
+    const [year, month] = monthStr.split('-');
+    const date = new Date(year, parseInt(month) - 1, 1);
+    const monthName = date.toLocaleString('default', { month: 'long' });
+    return `${monthName}, ${year}`;
+  };
+
+  const handleCalendarClick = () => {
+    if (monthInputRef.current) {
+      if (typeof monthInputRef.current.showPicker === 'function') {
+        monthInputRef.current.showPicker();
+      } else {
+        monthInputRef.current.click();
+      }
+    }
+  };
+
+  const days = getDaysInMonth(selectedMonth);
 
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] flex flex-col p-3">
@@ -55,16 +88,38 @@ export function EmployeeAttendance() {
         <div className="px-4 py-3 border-b border-gray-200">
           <div className="flex flex-col gap-1 w-[250px]">
              <label className="text-[13px] font-bold text-gray-800">Attendance Month</label>
-             <div className="flex items-center border border-gray-300 rounded-[3px] overflow-hidden focus-within:border-[#4F46E5]">
+             <div 
+               onClick={handleCalendarClick}
+               className="flex items-center border border-gray-300 rounded-[3px] overflow-hidden focus-within:border-[#4F46E5] cursor-pointer"
+             >
                 <input 
                   type="text" 
                   readOnly
-                  value="May, 2026"
-                  className="w-full h-[32px] px-2 text-[13px] outline-none text-gray-600 bg-white"
+                  value={formatMonthDisplay(selectedMonth)}
+                  className="w-full h-[32px] px-2 text-[13px] outline-none text-gray-600 bg-white cursor-pointer"
                 />
-                <div className="h-[32px] px-2 flex items-center justify-center text-gray-500 bg-white border-l border-gray-300">
+                <input 
+                  type="month"
+                  ref={monthInputRef}
+                  value={selectedMonth}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setSelectedMonth(e.target.value);
+                    }
+                  }}
+                  className="absolute opacity-0 pointer-events-none"
+                  style={{ width: 0, height: 0 }}
+                />
+                <button 
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCalendarClick();
+                  }}
+                  className="h-[32px] px-2 flex items-center justify-center text-gray-500 bg-white border-l border-gray-300 hover:bg-gray-50"
+                >
                   <Calendar className="w-4 h-4" />
-                </div>
+                </button>
              </div>
           </div>
         </div>
