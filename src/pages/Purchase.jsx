@@ -22,10 +22,11 @@ import {
   Building,
   Upload
 } from 'lucide-react';
-
+import { useSettings } from '../context/SettingsContext';
 export function Purchase() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { formatAmount, currentCurrency } = useSettings();
   const isPurchaseOrder = location.pathname.includes('company_purchase_order');
   const pageTitle = isPurchaseOrder ? 'Purchase Order Summary' : 'Purchase Invoice Summary';
   const [companyToggle, setCompanyToggle] = useState(false);
@@ -146,15 +147,15 @@ export function Purchase() {
         <div className="bg-[#343a40] text-white flex flex-col sm:grid sm:grid-cols-3 text-center border-b border-gray-600 py-1.5">
            <div className="flex flex-col items-center justify-center">
              <span className="font-bold text-[13px] tracking-wide">TOTAL AMT:</span>
-             <span className="font-bold text-[14px]">0</span>
+             <span className="font-bold text-[14px]">{formatAmount(0)}</span>
            </div>
            <div className="flex flex-col items-center justify-center">
              <span className="font-bold text-[13px] tracking-wide">TOTAL PAID:</span>
-             <span className="font-bold text-[14px]">0</span>
+             <span className="font-bold text-[14px]">{formatAmount(0)}</span>
            </div>
            <div className="flex flex-col items-center justify-center">
              <span className="font-bold text-[13px] tracking-wide">BALANCE:</span>
-             <span className="font-bold text-[14px]">0</span>
+             <span className="font-bold text-[14px]">{formatAmount(0)}</span>
            </div>
         </div>
 
@@ -217,7 +218,7 @@ export function Purchase() {
                     <BarChart2 className="w-4 h-4" strokeWidth={3} />
                     <span className="font-bold text-[13px]">Today's Sales</span>
                   </div>
-                  <span className="text-[18px] font-bold leading-none">0</span>
+                  <span className="text-[18px] font-bold leading-none">{formatAmount(0)}</span>
                 </div>
                 {/* Cash Sales */}
                 <div className="bg-[#28a745] rounded-[4px] p-2 text-white flex flex-col justify-center shadow-sm">
@@ -225,7 +226,7 @@ export function Purchase() {
                     <Coins className="w-4 h-4" strokeWidth={3} />
                     <span className="font-bold text-[13px]">Cash Sales</span>
                   </div>
-                  <span className="text-[18px] font-bold leading-none">0</span>
+                  <span className="text-[18px] font-bold leading-none">{formatAmount(0)}</span>
                 </div>
                 {/* Credit Sales */}
                 <div className="bg-[#dc3545] rounded-[4px] p-2 text-white flex flex-col justify-center shadow-sm">
@@ -233,7 +234,7 @@ export function Purchase() {
                     <BadgeDollarSign className="w-4 h-4" strokeWidth={3} />
                     <span className="font-bold text-[13px]">Credit Sales</span>
                   </div>
-                  <span className="text-[18px] font-bold leading-none">0</span>
+                  <span className="text-[18px] font-bold leading-none">{formatAmount(0)}</span>
                 </div>
               </div>
 
@@ -251,7 +252,7 @@ export function Purchase() {
                         <Layers className="w-4 h-4 text-[#28a745]" />
                         Total Cash Sale
                       </div>
-                      <span className="font-bold text-black">₹0</span>
+                      <span className="font-bold text-black">{formatAmount(0)}</span>
                     </div>
                     <div className="border-b border-gray-100"></div>
                     <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
@@ -259,7 +260,7 @@ export function Purchase() {
                         <Users className="w-4 h-4 text-[#28a745]" />
                         Total Credit Recovery
                       </div>
-                      <span className="font-bold text-black">₹0</span>
+                      <span className="font-bold text-black">{formatAmount(0)}</span>
                     </div>
                     <div className="border-b border-gray-100"></div>
                     <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
@@ -267,7 +268,7 @@ export function Purchase() {
                         <Banknote className="w-4 h-4 text-[#28a745]" />
                         Total Other Income
                       </div>
-                      <span className="font-bold text-black">₹0</span>
+                      <span className="font-bold text-black">{formatAmount(0)}</span>
                     </div>
                     <div className="border-b border-gray-100"></div>
                     <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
@@ -275,12 +276,12 @@ export function Purchase() {
                         <Download className="w-4 h-4 text-[#28a745]" />
                         Total Payment In
                       </div>
-                      <span className="font-bold text-black">₹0</span>
+                      <span className="font-bold text-black">{formatAmount(0)}</span>
                     </div>
                   </div>
                   <div className="bg-[#28a745] text-white font-bold text-[13px] px-3 py-2 flex justify-between items-center mt-auto">
                     <span>TOTAL MONEY IN</span>
-                    <span>₹0</span>
+                    <span>{formatAmount(0)}</span>
                   </div>
                 </div>
 
@@ -296,7 +297,7 @@ export function Purchase() {
                         <Building className="w-4 h-4 text-[#dc3545]" />
                         Total Company Paid
                       </div>
-                      <span className="font-bold text-black">₹0</span>
+                      <span className="font-bold text-black">{formatAmount(0)}</span>
                     </div>
                     <div className="border-b border-gray-100"></div>
                     <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
@@ -304,7 +305,7 @@ export function Purchase() {
                         <Users className="w-4 h-4 text-[#dc3545]" />
                         Total Employee Paid
                       </div>
-                      <span className="font-bold text-black">₹0</span>
+                      <span className="font-bold text-black">{formatAmount(0)}</span>
                     </div>
                     <div className="border-b border-gray-100"></div>
                     <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
@@ -312,7 +313,7 @@ export function Purchase() {
                         <FileText className="w-4 h-4 text-[#dc3545]" />
                         Total Expenses Paid
                       </div>
-                      <span className="font-bold text-black">₹0</span>
+                      <span className="font-bold text-black">{formatAmount(0)}</span>
                     </div>
                     <div className="border-b border-gray-100"></div>
                     <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
@@ -320,12 +321,12 @@ export function Purchase() {
                         <Upload className="w-4 h-4 text-[#dc3545]" />
                         Total Payment Out
                       </div>
-                      <span className="font-bold text-black">₹0</span>
+                      <span className="font-bold text-black">{formatAmount(0)}</span>
                     </div>
                   </div>
                   <div className="bg-[#dc3545] text-white font-bold text-[13px] px-3 py-2 flex justify-between items-center mt-auto">
                     <span>TOTAL MONEY OUT</span>
-                    <span>₹0</span>
+                    <span>{formatAmount(0)}</span>
                   </div>
                 </div>
               </div>
@@ -337,10 +338,10 @@ export function Purchase() {
                     <Calculator className="w-5 h-5" strokeWidth={2.5} />
                     <span className="font-bold text-[14px] uppercase">NET COLLECTION</span>
                   </div>
-                  <span className="text-[10.5px] font-medium opacity-90 mt-0.5">(Total Money In ₹0 - Total Money Out ₹0)</span>
+                  <span className="text-[10.5px] font-medium opacity-90 mt-0.5">(Total Money In {formatAmount(0)} - Total Money Out {formatAmount(0)})</span>
                 </div>
                 <div className="font-bold text-[20px]">
-                  ₹0
+                  {formatAmount(0)}
                 </div>
               </div>
 
@@ -362,7 +363,7 @@ export function Purchase() {
                         <span className="text-[#28a745] font-bold text-[10px]">Cash (Balance)</span>
                       </div>
                     </div>
-                    <span className="text-[#007bff] font-bold text-[14px]">-₹22,020</span>
+                    <span className="text-[#007bff] font-bold text-[14px]">{formatAmount(-22020)}</span>
                   </div>
                   
                   <div className="bg-[#17a2b8] p-3 flex items-center justify-between text-white">
@@ -371,9 +372,9 @@ export function Purchase() {
                         <Building className="w-4 h-4" strokeWidth={2.5} />
                         <span className="font-bold text-[13px]">Total Cash & Bank Balance</span>
                       </div>
-                      <span className="text-[10.5px] font-medium mt-0.5 opacity-90">Cash -₹22,020 + Bank ₹0</span>
+                      <span className="text-[10.5px] font-medium mt-0.5 opacity-90">Cash {formatAmount(-22020)} + Bank {formatAmount(0)}</span>
                     </div>
-                    <span className="font-bold text-[16px]">-₹22,020</span>
+                    <span className="font-bold text-[16px]">{formatAmount(-22020)}</span>
                   </div>
                 </div>
               </div>

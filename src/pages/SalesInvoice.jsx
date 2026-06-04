@@ -20,6 +20,7 @@ import { cn } from '../utils';
 import { useAuditLog } from '../context/AuditLogContext';
 import { ImportInvoiceAIModal } from '../components/ImportInvoiceAIModal';
 import { HoldInvoiceModal } from '../components/HoldInvoiceModal';
+import { useSettings } from '../context/SettingsContext';
 
 // Inline Youtube SVG to avoid lucide-react export issues
 const YoutubeIcon = ({ className }) => (
@@ -32,6 +33,7 @@ export function SalesInvoice() {
   const navigate = useNavigate();
   const location = useLocation();
   const { addLog } = useAuditLog();
+  const { formatAmount, currentCurrency } = useSettings();
   
   const isReturn = location.pathname.includes('sales-return-invoice');
   const isQuotation = location.pathname.includes('quotation-invoice');
@@ -190,7 +192,7 @@ export function SalesInvoice() {
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <label className="text-[13px] font-bold text-gray-800">Customer Name</label>
-              <span className="text-[13px] font-bold text-[#dc3545] invisible md:visible absolute md:static left-1/2 -translate-x-1/2 top-4">Due Amount : 0</span>
+              <span className="text-[13px] font-bold text-[#dc3545] invisible md:visible absolute md:static left-1/2 -translate-x-1/2 top-4">Due Amount : {formatAmount(0)}</span>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex-1 flex items-center relative">
@@ -366,14 +368,14 @@ export function SalesInvoice() {
                    onChange={(e) => setDisc1(Number(e.target.value))}
                    className="w-[60%] border border-blue-200 rounded-l-[3px] px-1 text-[13px] outline-none border-r-0 text-center text-blue-800 bg-blue-50" 
                  />
-                 <select 
-                   value={disc1Type}
-                   onChange={(e) => setDisc1Type(e.target.value)}
-                   className="w-[40%] border border-blue-200 rounded-r-[3px] px-0 text-[12px] outline-none bg-blue-100 text-blue-800 appearance-none text-center"
-                 >
-                   <option value="%">%</option>
-                   <option value="₹">₹</option>
-                 </select>
+                  <select 
+                    value={disc1Type}
+                    onChange={(e) => setDisc1Type(e.target.value)}
+                    className="w-[40%] border border-blue-200 rounded-r-[3px] px-0 text-[12px] outline-none bg-blue-100 text-blue-800 appearance-none text-center"
+                  >
+                    <option value="%">%</option>
+                    <option value={currentCurrency.symbol}>{currentCurrency.symbol}</option>
+                  </select>
               </div>
 
               {/* Disc 2 */}
@@ -384,14 +386,14 @@ export function SalesInvoice() {
                    onChange={(e) => setDisc2(Number(e.target.value))}
                    className="w-[60%] border border-blue-200 rounded-l-[3px] px-1 text-[13px] outline-none border-r-0 text-center text-blue-800 bg-blue-50" 
                  />
-                 <select 
-                   value={disc2Type}
-                   onChange={(e) => setDisc2Type(e.target.value)}
-                   className="w-[40%] border border-blue-200 rounded-r-[3px] px-0 text-[12px] outline-none bg-blue-100 text-blue-800 appearance-none text-center"
-                 >
-                   <option value="%">%</option>
-                   <option value="₹">₹</option>
-                 </select>
+                  <select 
+                    value={disc2Type}
+                    onChange={(e) => setDisc2Type(e.target.value)}
+                    className="w-[40%] border border-blue-200 rounded-r-[3px] px-0 text-[12px] outline-none bg-blue-100 text-blue-800 appearance-none text-center"
+                  >
+                    <option value="%">%</option>
+                    <option value={currentCurrency.symbol}>{currentCurrency.symbol}</option>
+                  </select>
               </div>
 
               <div className="border-r border-gray-200 p-1 flex items-center justify-end pr-2 text-[13px] font-bold text-gray-800 bg-gray-50">
@@ -426,15 +428,15 @@ export function SalesInvoice() {
               </div>
               <div className="border border-gray-200 bg-[#f8f9fa] rounded-[3px] p-2 flex flex-col items-center justify-center text-center">
                 <span className="text-[12px] font-bold text-gray-700">Taxable</span>
-                <span className="text-[14px] font-bold text-[#28a745]">{finalAmount.toFixed(2)}</span>
+                <span className="text-[14px] font-bold text-[#28a745]">{formatAmount(finalAmount)}</span>
               </div>
               <div className="border border-gray-200 bg-[#f8f9fa] rounded-[3px] p-2 flex flex-col items-center justify-center text-center">
                 <span className="text-[12px] font-bold text-gray-700">CGST</span>
-                <span className="text-[14px] font-bold text-[#007bff]">0</span>
+                <span className="text-[14px] font-bold text-[#007bff]">{formatAmount(0)}</span>
               </div>
               <div className="border border-gray-200 bg-[#f8f9fa] rounded-[3px] p-2 flex flex-col items-center justify-center text-center">
                 <span className="text-[12px] font-bold text-gray-700">SGST</span>
-                <span className="text-[14px] font-bold text-[#007bff]">0</span>
+                <span className="text-[14px] font-bold text-[#007bff]">{formatAmount(0)}</span>
               </div>
             </div>
 
@@ -460,7 +462,7 @@ export function SalesInvoice() {
              <div className="flex items-center justify-between">
                <span className="text-[13px] font-bold text-gray-800">Subtotal:</span>
                <div className="w-[200px] bg-[#e9ecef] min-w-0 border border-gray-300 rounded-[3px] px-3 py-1 text-[13px] text-gray-800 font-bold text-right">
-                 {baseAmount.toFixed(2)}
+                 {formatAmount(baseAmount)}
                </div>
              </div>
 
@@ -495,7 +497,7 @@ export function SalesInvoice() {
              <div className="flex items-center justify-between mt-1">
                <span className="text-[13px] font-bold text-gray-800">Final Amount:</span>
                <div className="w-[200px] bg-[#e9ecef] min-w-0 border border-gray-300 rounded-[3px] px-3 py-1 text-[14px] text-[#28a745] font-bold text-right shadow-sm border-[#28a745]">
-                 {finalCalculatedAmount.toFixed(2)}
+                 {formatAmount(finalCalculatedAmount)}
                </div>
              </div>
           </div>
@@ -507,7 +509,7 @@ export function SalesInvoice() {
       <div className="fixed bottom-0 left-0 md:left-[220px] right-0 bg-[#343a40] z-40 px-2 sm:px-4 py-2 invoice-bottom-bar shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
         <div className="flex flex-wrap items-center gap-1 text-[12px] font-bold">
           <span className="text-white">Last Invoice Total:</span>
-          <span className="text-[#ffc107]">0</span>
+          <span className="text-[#ffc107]">{formatAmount(0)}</span>
         </div>
         
         <div className="flex items-center justify-center gap-1.5 flex-1 max-w-[400px] mx-auto flex-wrap">

@@ -20,10 +20,12 @@ import {
   FileText
 } from 'lucide-react';
 import { cn } from '../utils';
+import { useSettings } from '../context/SettingsContext';
 
 export function SalesInvoiceSummary() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { formatAmount, currentCurrency } = useSettings();
   const [collectionModalOpen, setCollectionModalOpen] = useState(false);
   const [loadingSheetModalOpen, setLoadingSheetModalOpen] = useState(false);
   const [reportDate, setReportDate] = useState("2026-05-27");
@@ -150,15 +152,15 @@ export function SalesInvoiceSummary() {
         <div className="bg-[#343a40] text-white flex flex-col sm:grid sm:grid-cols-3 text-center py-2 px-4 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)]">
           <div className="flex flex-col items-center border-r border-gray-600">
             <span className="text-[15px] font-bold tracking-wider">TOTAL AMT:</span>
-            <span className="text-[18px] font-bold leading-none mt-0.5">0</span>
+            <span className="text-[18px] font-bold leading-none mt-0.5">{formatAmount(0)}</span>
           </div>
           <div className="flex flex-col items-center border-r border-gray-600">
             <span className="text-[15px] font-bold tracking-wider">TOTAL PAID:</span>
-            <span className="text-[18px] font-bold leading-none mt-0.5">0</span>
+            <span className="text-[18px] font-bold leading-none mt-0.5">{formatAmount(0)}</span>
           </div>
           <div className="flex flex-col items-center">
             <span className="text-[15px] font-bold tracking-wider">BALANCE:</span>
-            <span className="text-[18px] font-bold leading-none mt-0.5">0</span>
+            <span className="text-[18px] font-bold leading-none mt-0.5">{formatAmount(0)}</span>
           </div>
         </div>
 
@@ -239,7 +241,7 @@ export function SalesInvoiceSummary() {
                     <BarChart2 className="w-4 h-4" strokeWidth={3} />
                     <span className="font-bold text-[14px]">Today's Sales</span>
                   </div>
-                  <span className="text-[18px] font-bold">0</span>
+                  <span className="text-[18px] font-bold">{formatAmount(0)}</span>
                 </div>
                 
                 <div className="bg-[#28a745] rounded-[4px] p-3 text-white flex flex-col shadow-sm">
@@ -247,7 +249,7 @@ export function SalesInvoiceSummary() {
                     <Banknote className="w-4 h-4" strokeWidth={3} />
                     <span className="font-bold text-[14px]">Cash Sales</span>
                   </div>
-                  <span className="text-[18px] font-bold">0</span>
+                  <span className="text-[18px] font-bold">{formatAmount(0)}</span>
                 </div>
                 
                 <div className="bg-[#dc3545] rounded-[4px] p-3 text-white flex flex-col shadow-sm">
@@ -255,7 +257,7 @@ export function SalesInvoiceSummary() {
                     <Layers className="w-4 h-4" strokeWidth={3} />
                     <span className="font-bold text-[14px]">Credit Sales</span>
                   </div>
-                  <span className="text-[18px] font-bold">0</span>
+                  <span className="text-[18px] font-bold">{formatAmount(0)}</span>
                 </div>
               </div>
 
@@ -275,34 +277,34 @@ export function SalesInvoiceSummary() {
                          <Banknote className="w-4 h-4 text-[#28a745]" />
                          <span>Total Cash Sale</span>
                        </div>
-                       <span className="font-bold text-gray-800">₹0</span>
+                       <span className="font-bold text-gray-800">{formatAmount(0)}</span>
                     </div>
                     <div className="flex items-center justify-between py-1 border-b border-gray-100">
                        <div className="flex items-center gap-2">
                          <Banknote className="w-4 h-4 text-[#28a745]" />
                          <span>Total Credit Recovery</span>
                        </div>
-                       <span className="font-bold text-gray-800">₹0</span>
+                       <span className="font-bold text-gray-800">{formatAmount(0)}</span>
                     </div>
                     <div className="flex items-center justify-between py-1 border-b border-gray-100">
                        <div className="flex items-center gap-2">
                          <Banknote className="w-4 h-4 text-[#28a745]" />
                          <span>Total Other Income</span>
                        </div>
-                       <span className="font-bold text-gray-800">₹0</span>
+                       <span className="font-bold text-gray-800">{formatAmount(0)}</span>
                     </div>
                     <div className="flex items-center justify-between py-1">
                        <div className="flex items-center gap-2">
                          <Download className="w-4 h-4 text-[#28a745]" />
                          <span>Total Payment In</span>
                        </div>
-                       <span className="font-bold text-gray-800">₹0</span>
+                       <span className="font-bold text-gray-800">{formatAmount(0)}</span>
                     </div>
                   </div>
                   
                   <div className="bg-[#28a745] text-white px-3 py-2.5 flex items-center justify-between mt-auto">
                     <span className="font-bold text-[14px] uppercase tracking-wide">Total Money In</span>
-                    <span className="font-bold text-[15px]">₹0</span>
+                    <span className="font-bold text-[15px]">{formatAmount(0)}</span>
                   </div>
                 </div>
 
@@ -319,34 +321,34 @@ export function SalesInvoiceSummary() {
                          <Building className="w-4 h-4 text-[#dc3545]" />
                          <span>Total Company Paid</span>
                        </div>
-                       <span className="font-bold text-gray-800">₹0</span>
+                       <span className="font-bold text-gray-800">{formatAmount(0)}</span>
                     </div>
                     <div className="flex items-center justify-between py-1 border-b border-gray-100">
                        <div className="flex items-center gap-2">
                          <Users className="w-4 h-4 text-[#dc3545]" />
                          <span>Total Employee Paid</span>
                        </div>
-                       <span className="font-bold text-gray-800">₹0</span>
+                       <span className="font-bold text-gray-800">{formatAmount(0)}</span>
                     </div>
                     <div className="flex items-center justify-between py-1 border-b border-gray-100">
                        <div className="flex items-center gap-2">
                          <FileText className="w-4 h-4 text-[#dc3545]" />
                          <span>Total Expenses Paid</span>
                        </div>
-                       <span className="font-bold text-gray-800">₹0</span>
+                       <span className="font-bold text-gray-800">{formatAmount(0)}</span>
                     </div>
                     <div className="flex items-center justify-between py-1">
                        <div className="flex items-center gap-2">
                          <Upload className="w-4 h-4 text-[#dc3545]" />
                          <span>Total Payment Out</span>
                        </div>
-                       <span className="font-bold text-gray-800">₹0</span>
+                       <span className="font-bold text-gray-800">{formatAmount(0)}</span>
                     </div>
                   </div>
                   
                   <div className="bg-[#dc3545] text-white px-3 py-2.5 flex items-center justify-between mt-auto">
                     <span className="font-bold text-[14px] uppercase tracking-wide">Total Money Out</span>
-                    <span className="font-bold text-[15px]">₹0</span>
+                    <span className="font-bold text-[15px]">{formatAmount(0)}</span>
                   </div>
                 </div>
 
@@ -359,10 +361,10 @@ export function SalesInvoiceSummary() {
                     <Calculator className="w-5 h-5 opacity-90" />
                     <span className="font-bold text-[16px] tracking-wide uppercase">Net Collection</span>
                   </div>
-                  <span className="text-[12px] opacity-90 mt-0.5">(Total Money In ₹0 - Total Money Out ₹0)</span>
+                  <span className="text-[12px] opacity-90 mt-0.5">(Total Money In {formatAmount(0)} - Total Money Out {formatAmount(0)})</span>
                 </div>
                 <div className="font-bold text-[22px]">
-                  ₹0
+                  {formatAmount(0)}
                 </div>
               </div>
 
@@ -384,7 +386,7 @@ export function SalesInvoiceSummary() {
                         <span className="text-[13px] font-bold text-[#28a745]">Cash (Balance)</span>
                       </div>
                     </div>
-                    <span className="font-bold text-[16px] text-[#007bff]">-₹22,020</span>
+                    <span className="font-bold text-[16px] text-[#007bff]">{formatAmount(-22020)}</span>
                   </div>
                   
                   <div className="bg-[#17a2b8] text-white p-3 flex items-center justify-between">
@@ -393,9 +395,9 @@ export function SalesInvoiceSummary() {
                         <Building className="w-4 h-4" strokeWidth={2} />
                         <span className="font-bold text-[15px]">Total Cash & Bank Balance</span>
                       </div>
-                      <span className="text-[13px] opacity-90 mt-1">Cash -₹22,020 + Bank ₹0</span>
+                      <span className="text-[13px] opacity-90 mt-1">Cash {formatAmount(-22020)} + Bank {formatAmount(0)}</span>
                     </div>
-                    <span className="font-bold text-[16px]">-₹22,020</span>
+                    <span className="font-bold text-[16px]">{formatAmount(-22020)}</span>
                   </div>
                 </div>
               </div>

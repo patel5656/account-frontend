@@ -8,6 +8,7 @@ import {
 import { ItemMasterModal } from '../components/ItemMasterModal';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { useSettings } from '../context/SettingsContext';
 
 // Sample stock data enriched with sku and purchase price
 const INITIAL_ROWS = [
@@ -21,6 +22,7 @@ const INITIAL_ROWS = [
 
 export function StockDetails() {
   const navigate = useNavigate();
+  const { formatAmount, currentCurrency } = useSettings();
   const [viewMode, setViewMode] = useState('item'); // 'item' or 'brand'
   const [rows, setRows] = useState(INITIAL_ROWS);
   const [selected, setSelected] = useState(new Set());
@@ -185,7 +187,7 @@ export function StockDetails() {
   
   const handleExportCSV = () => {
     if (viewMode === 'brand') {
-      const headers = ['Brand Name', 'Total Items', 'Available Qty', 'Total Value (₹)', 'Low Stock', 'Out of Stock'];
+      const headers = ['Brand Name', 'Total Items', 'Available Qty', `Total Value (${currentCurrency.symbol})`, 'Low Stock', 'Out of Stock'];
       const csvRows = [headers.join(',')];
       brandList.forEach(b => {
         csvRows.push([`"${b.name}"`, b.items.length, b.totalQty, b.totalValue, b.lowStockCount, b.outOfStockCount].join(','));
@@ -246,7 +248,7 @@ export function StockDetails() {
           </div>
           <div style={{ flex: 1, border: '1px solid #ddd', padding: '8px', textAlign: 'center', borderRadius: '4px' }}>
             <div style={{ fontSize: '10px', color: '#666' }}>Total Stock Value</div>
-            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#4F46E5' }}>₹{grandTotal.toLocaleString('en-IN')}</div>
+            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#4F46E5' }}>{formatAmount(grandTotal)}</div>
           </div>
         </div>
 
@@ -256,7 +258,7 @@ export function StockDetails() {
               <div key={b.name} style={{ marginBottom: '15px', border: '1px solid #ccc', borderRadius: '4px', overflow: 'hidden' }}>
                 <div style={{ background: '#f4f6f9', padding: '8px 10px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', borderBottom: '1px solid #ccc' }}>
                   <span>{b.name}</span>
-                  <span>Qty: {b.totalQty} | Value: ₹{b.totalValue.toLocaleString('en-IN')}</span>
+                  <span>Qty: {b.totalQty} | Value: {formatAmount(b.totalValue)}</span>
                 </div>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
                   <thead>
@@ -277,10 +279,10 @@ export function StockDetails() {
                           <div style={{ color: '#666', fontSize: '9px' }}>{item.sku}</div>
                         </td>
                         <td style={{ borderBottom: '1px solid #eee', padding: '4px 8px', textAlign: 'center' }}>{item.unit}</td>
-                        <td style={{ borderBottom: '1px solid #eee', padding: '4px 8px', textAlign: 'right' }}>₹{item.purchasePrice}</td>
-                        <td style={{ borderBottom: '1px solid #eee', padding: '4px 8px', textAlign: 'right' }}>₹{item.sale}</td>
+                        <td style={{ borderBottom: '1px solid #eee', padding: '4px 8px', textAlign: 'right' }}>{formatAmount(item.purchasePrice)}</td>
+                        <td style={{ borderBottom: '1px solid #eee', padding: '4px 8px', textAlign: 'right' }}>{formatAmount(item.sale)}</td>
                         <td style={{ borderBottom: '1px solid #eee', padding: '4px 8px', textAlign: 'right' }}>{item.stock}</td>
-                        <td style={{ borderBottom: '1px solid #eee', padding: '4px 8px', textAlign: 'right' }}>₹{(item.stock * item.sale).toLocaleString('en-IN')}</td>
+                        <td style={{ borderBottom: '1px solid #eee', padding: '4px 8px', textAlign: 'right' }}>{formatAmount(item.stock * item.sale)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -298,7 +300,7 @@ export function StockDetails() {
                 <th style={{ border: '1px solid #ccc', padding: '5px', textAlign: 'right' }}>Pur. Price</th>
                 <th style={{ border: '1px solid #ccc', padding: '5px', textAlign: 'right' }}>Sale Price</th>
                 <th style={{ border: '1px solid #ccc', padding: '5px', textAlign: 'right' }}>Qty</th>
-                <th style={{ border: '1px solid #ccc', padding: '5px', textAlign: 'right' }}>Value (₹)</th>
+                <th style={{ border: '1px solid #ccc', padding: '5px', textAlign: 'right' }}>Value ({currentCurrency.symbol})</th>
               </tr>
             </thead>
             <tbody>
@@ -310,10 +312,10 @@ export function StockDetails() {
                   </td>
                   <td style={{ border: '1px solid #ddd', padding: '4px' }}>{r.brandName}</td>
                   <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'center' }}>{r.unit}</td>
-                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'right' }}>₹{r.purchasePrice}</td>
-                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'right' }}>₹{r.sale}</td>
+                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'right' }}>{formatAmount(r.purchasePrice)}</td>
+                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'right' }}>{formatAmount(r.sale)}</td>
                   <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'right' }}>{r.stock}</td>
-                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'right' }}>{(r.stock * r.sale).toLocaleString('en-IN')}</td>
+                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'right' }}>{formatAmount(r.stock * r.sale)}</td>
                 </tr>
               ))}
             </tbody>
@@ -401,7 +403,7 @@ export function StockDetails() {
             <div className="font-bold text-[13px]">TOTAL ITEMS : {filtered.length}</div>
             <div className="font-bold text-[13px]">TOTAL STOCK : {totalStockQty}</div>
             <div className="font-bold text-[13px] text-red-400">LOW/OUT STOCK : {filtered.filter(r => r.stock < 10).length}</div>
-            <div className="font-bold text-[13px] text-green-400">STOCK VALUE : ₹{grandTotal.toLocaleString('en-IN')}</div>
+            <div className="font-bold text-[13px] text-green-400">STOCK VALUE : {formatAmount(grandTotal)}</div>
           </div>
 
           {/* Data Table */}
@@ -427,7 +429,7 @@ export function StockDetails() {
                           <div className="flex-1 grid grid-cols-5 text-[13px]">
                             <div className="text-gray-600"><span className="font-medium text-gray-800">{b.items.length}</span> Items</div>
                             <div className="text-gray-600"><span className="font-bold text-green-700">{b.totalQty}</span> in Stock</div>
-                            <div className="text-gray-600"><span className="font-bold text-gray-800">₹{b.totalValue.toLocaleString('en-IN')}</span> Value</div>
+                            <div className="text-gray-600"><span className="font-bold text-gray-800">{formatAmount(b.totalValue)}</span> Value</div>
                             <div className="text-gray-600">{b.lowStockCount > 0 ? <span className="text-yellow-600 font-bold">{b.lowStockCount} Low</span> : '-'}</div>
                             <div className="text-gray-600">{b.outOfStockCount > 0 ? <span className="text-red-600 font-bold">{b.outOfStockCount} Out</span> : '-'}</div>
                           </div>
@@ -455,14 +457,14 @@ export function StockDetails() {
                                       <div className="text-gray-500 text-[10px] font-mono">{item.sku}</div>
                                     </td>
                                     <td className="py-2 px-3 text-gray-600">{item.category}</td>
-                                    <td className="py-2 px-3 text-right text-gray-600">₹{item.purchasePrice}</td>
-                                    <td className="py-2 px-3 text-right font-bold text-gray-800">₹{item.sale}</td>
+                                    <td className="py-2 px-3 text-right text-gray-600">{formatAmount(item.purchasePrice)}</td>
+                                    <td className="py-2 px-3 text-right font-bold text-gray-800">{formatAmount(item.sale)}</td>
                                     <td className="py-2 px-3 text-right">
                                       {item.stock === 0 ? <span className="text-red-600 font-bold">Out of Stock</span> :
                                        item.stock < 10 ? <span className="text-yellow-600 font-bold">{item.stock}</span> : 
                                        <span className="text-green-700 font-bold">{item.stock}</span>}
                                     </td>
-                                    <td className="py-2 px-3 text-right font-bold text-[#4F46E5]">₹{(item.stock * item.sale).toLocaleString('en-IN')}</td>
+                                    <td className="py-2 px-3 text-right font-bold text-[#4F46E5]">{formatAmount(item.stock * item.sale)}</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -501,8 +503,8 @@ export function StockDetails() {
                       </td>
                       <td className="py-2 px-3 text-gray-700">{r.brandName}</td>
                       <td className="py-2 px-3 text-gray-600">{r.category}</td>
-                      <td className="py-2 px-3 text-right text-gray-600">₹{r.purchasePrice}</td>
-                      <td className="py-2 px-3 text-right font-bold text-gray-800">₹{r.sale}</td>
+                      <td className="py-2 px-3 text-right text-gray-600">{formatAmount(r.purchasePrice)}</td>
+                      <td className="py-2 px-3 text-right font-bold text-gray-800">{formatAmount(r.sale)}</td>
                       <td className="py-2 px-3 text-right font-bold">
                         {r.stock === 0 ? <span className="text-red-600">0</span> : r.stock < 10 ? <span className="text-yellow-600 flex justify-end items-center gap-1"><AlertCircle className="w-3.5 h-3.5"/>{r.stock}</span> : r.stock}
                       </td>
@@ -543,7 +545,7 @@ export function StockDetails() {
               <div className="grid grid-cols-3 gap-4 mb-6">
                 <div className="border border-gray-200 rounded p-3 text-center bg-gray-50"><div className="text-[11px] text-gray-500">Total Items</div><div className="text-[16px] font-bold text-gray-800">{filtered.length}</div></div>
                 <div className="border border-gray-200 rounded p-3 text-center bg-gray-50"><div className="text-[11px] text-gray-500">Total Stock Qty</div><div className="text-[16px] font-bold text-green-700">{totalStockQty}</div></div>
-                <div className="border border-gray-200 rounded p-3 text-center bg-gray-50"><div className="text-[11px] text-gray-500">Total Stock Value</div><div className="text-[16px] font-bold text-[#4F46E5]">₹{grandTotal.toLocaleString('en-IN')}</div></div>
+                <div className="border border-gray-200 rounded p-3 text-center bg-gray-50"><div className="text-[11px] text-gray-500">Total Stock Value</div><div className="text-[16px] font-bold text-[#4F46E5]">{formatAmount(grandTotal)}</div></div>
               </div>
 
               {viewMode === 'brand' ? (
@@ -552,7 +554,7 @@ export function StockDetails() {
                     <div key={b.name} className="mb-5 border border-gray-300 rounded overflow-hidden">
                       <div className="bg-gray-100 px-3 py-2 flex justify-between font-bold border-b border-gray-300 text-[13px]">
                         <span>{b.name}</span>
-                        <span className="text-gray-600">Qty: {b.totalQty} | Value: ₹{b.totalValue.toLocaleString('en-IN')}</span>
+                        <span className="text-gray-600">Qty: {b.totalQty} | Value: {formatAmount(b.totalValue)}</span>
                       </div>
                       <table className="w-full text-left text-[11px]">
                         <thead>
@@ -562,7 +564,7 @@ export function StockDetails() {
                             <th className="py-1.5 px-3 border-b border-gray-200 text-right">Pur. Price</th>
                             <th className="py-1.5 px-3 border-b border-gray-200 text-right">Sale Price</th>
                             <th className="py-1.5 px-3 border-b border-gray-200 text-right">Qty</th>
-                            <th className="py-1.5 px-3 border-b border-gray-200 text-right">Value (₹)</th>
+                            <th className="py-1.5 px-3 border-b border-gray-200 text-right">Value ({currentCurrency.symbol})</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -570,10 +572,10 @@ export function StockDetails() {
                             <tr key={item.id} className="border-b border-gray-100 last:border-0">
                               <td className="py-1.5 px-3"><strong>{item.productName}</strong> <span className="text-gray-400">({item.sku})</span></td>
                               <td className="py-1.5 px-3 text-center">{item.unit}</td>
-                              <td className="py-1.5 px-3 text-right">₹{item.purchasePrice}</td>
-                              <td className="py-1.5 px-3 text-right font-bold">₹{item.sale}</td>
+                              <td className="py-1.5 px-3 text-right">{formatAmount(item.purchasePrice)}</td>
+                              <td className="py-1.5 px-3 text-right font-bold">{formatAmount(item.sale)}</td>
                               <td className="py-1.5 px-3 text-right font-bold">{item.stock}</td>
-                              <td className="py-1.5 px-3 text-right font-bold text-[#4F46E5]">{(item.stock * item.sale).toLocaleString('en-IN')}</td>
+                              <td className="py-1.5 px-3 text-right font-bold text-[#4F46E5]">{formatAmount(item.stock * item.sale)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -590,7 +592,7 @@ export function StockDetails() {
                       <th className="border border-gray-500 py-2 px-3 text-right">Purchase</th>
                       <th className="border border-gray-500 py-2 px-3 text-right">Sale</th>
                       <th className="border border-gray-500 py-2 px-3 text-right">Qty</th>
-                      <th className="border border-gray-500 py-2 px-3 text-right">Value (₹)</th>
+                      <th className="border border-gray-500 py-2 px-3 text-right">Value ({currentCurrency.symbol})</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -598,10 +600,10 @@ export function StockDetails() {
                       <tr key={r.id} className={i % 2 === 1 ? 'bg-gray-50' : ''}>
                         <td className="border border-gray-200 py-1.5 px-3"><strong>{r.productName}</strong> <div className="text-[10px] text-gray-500 font-mono">{r.sku}</div></td>
                         <td className="border border-gray-200 py-1.5 px-3">{r.brandName}</td>
-                        <td className="border border-gray-200 py-1.5 px-3 text-right">₹{r.purchasePrice}</td>
-                        <td className="border border-gray-200 py-1.5 px-3 text-right font-bold">₹{r.sale}</td>
+                        <td className="border border-gray-200 py-1.5 px-3 text-right">{formatAmount(r.purchasePrice)}</td>
+                        <td className="border border-gray-200 py-1.5 px-3 text-right font-bold">{formatAmount(r.sale)}</td>
                         <td className="border border-gray-200 py-1.5 px-3 text-right font-bold">{r.stock}</td>
-                        <td className="border border-gray-200 py-1.5 px-3 text-right font-bold text-[#4F46E5]">{(r.stock * r.sale).toLocaleString('en-IN')}</td>
+                        <td className="border border-gray-200 py-1.5 px-3 text-right font-bold text-[#4F46E5]">{formatAmount(r.stock * r.sale)}</td>
                       </tr>
                     ))}
                   </tbody>

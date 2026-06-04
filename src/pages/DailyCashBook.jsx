@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { X, Plus, Upload, Printer, FileDown, Eye, Search, Edit2, Trash2, Calendar, FileText } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { useSettings } from '../context/SettingsContext';
 
 // Sample daily cash book data (Rojmel)
 const INITIAL_ROWS = [
@@ -15,6 +16,7 @@ const INITIAL_ROWS = [
 
 export function DailyCashBook() {
   const navigate = useNavigate();
+  const { formatAmount, currentCurrency } = useSettings();
   const [rows, setRows] = useState(INITIAL_ROWS);
   const [search, setSearch] = useState('');
   const [dateFilter, setDateFilter] = useState('Today');
@@ -133,7 +135,7 @@ export function DailyCashBook() {
   };
   
   const handleExportCSV = () => {
-    const headers = ['Date', 'Voucher No', 'Particulars', 'Account Name', 'Payment Type', 'Cash In (₹)', 'Cash Out (₹)', 'Balance (₹)'];
+    const headers = ['Date', 'Voucher No', 'Particulars', 'Account Name', 'Payment Type', `Cash In (${currentCurrency.symbol})`, `Cash Out (${currentCurrency.symbol})`, `Balance (${currentCurrency.symbol})`];
     const csvRows = [headers.join(',')];
     csvRows.push(['-', '-', '"Opening Balance"', '-', '-', '-', '-', openingBalance].join(','));
     rowsWithBalance.forEach(r => {
@@ -169,19 +171,19 @@ export function DailyCashBook() {
         <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
           <div style={{ flex: 1, border: '1px solid #ddd', padding: '8px', textAlign: 'center', borderRadius: '4px' }}>
             <div style={{ fontSize: '10px', color: '#666' }}>Opening Balance</div>
-            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#4F46E5' }}>₹{openingBalance.toLocaleString('en-IN')}</div>
+            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#4F46E5' }}>{formatAmount(openingBalance)}</div>
           </div>
           <div style={{ flex: 1, border: '1px solid #ddd', padding: '8px', textAlign: 'center', borderRadius: '4px' }}>
             <div style={{ fontSize: '10px', color: '#666' }}>Total Cash In (Income)</div>
-            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#28a745' }}>₹{totalIncome.toLocaleString('en-IN')}</div>
+            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#28a745' }}>{formatAmount(totalIncome)}</div>
           </div>
           <div style={{ flex: 1, border: '1px solid #ddd', padding: '8px', textAlign: 'center', borderRadius: '4px' }}>
             <div style={{ fontSize: '10px', color: '#666' }}>Total Cash Out (Expense)</div>
-            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#dc3545' }}>₹{totalExpense.toLocaleString('en-IN')}</div>
+            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#dc3545' }}>{formatAmount(totalExpense)}</div>
           </div>
           <div style={{ flex: 1, border: '1px solid #ddd', padding: '8px', textAlign: 'center', borderRadius: '4px' }}>
             <div style={{ fontSize: '10px', color: '#666' }}>Closing Balance</div>
-            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#4F46E5' }}>₹{closingBalance.toLocaleString('en-IN')}</div>
+            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#4F46E5' }}>{formatAmount(closingBalance)}</div>
           </div>
         </div>
 
@@ -192,9 +194,9 @@ export function DailyCashBook() {
               <th style={{ border: '1px solid #ccc', padding: '5px', textAlign: 'left' }}>Voucher No</th>
               <th style={{ border: '1px solid #ccc', padding: '5px', textAlign: 'left' }}>Particulars</th>
               <th style={{ border: '1px solid #ccc', padding: '5px', textAlign: 'left' }}>Account</th>
-              <th style={{ border: '1px solid #ccc', padding: '5px', textAlign: 'right' }}>Cash In (₹)</th>
-              <th style={{ border: '1px solid #ccc', padding: '5px', textAlign: 'right' }}>Cash Out (₹)</th>
-              <th style={{ border: '1px solid #ccc', padding: '5px', textAlign: 'right' }}>Balance (₹)</th>
+              <th style={{ border: '1px solid #ccc', padding: '5px', textAlign: 'right' }}>Cash In ({currentCurrency.symbol})</th>
+              <th style={{ border: '1px solid #ccc', padding: '5px', textAlign: 'right' }}>Cash Out ({currentCurrency.symbol})</th>
+              <th style={{ border: '1px solid #ccc', padding: '5px', textAlign: 'right' }}>Balance ({currentCurrency.symbol})</th>
             </tr>
           </thead>
           <tbody>
@@ -202,7 +204,7 @@ export function DailyCashBook() {
               <td style={{ border: '1px solid #ddd', padding: '5px' }} colSpan={4}><strong className="text-[#4F46E5]">Opening Balance</strong></td>
               <td style={{ border: '1px solid #ddd', padding: '5px' }}></td>
               <td style={{ border: '1px solid #ddd', padding: '5px' }}></td>
-              <td style={{ border: '1px solid #ddd', padding: '5px', textAlign: 'right', fontWeight: 'bold' }}>{openingBalance.toLocaleString('en-IN')}</td>
+              <td style={{ border: '1px solid #ddd', padding: '5px', textAlign: 'right', fontWeight: 'bold' }}>{formatAmount(openingBalance)}</td>
             </tr>
             {rowsWithBalance.map((r, i) => (
               <tr key={r.id} style={{ background: i % 2 === 1 ? '#f9f9f9' : '#fff' }}>
@@ -210,16 +212,16 @@ export function DailyCashBook() {
                 <td style={{ border: '1px solid #ddd', padding: '4px' }}>{r.voucherNo}</td>
                 <td style={{ border: '1px solid #ddd', padding: '4px' }}>{r.particular}</td>
                 <td style={{ border: '1px solid #ddd', padding: '4px' }}>{r.accountName}</td>
-                <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'right', color: '#28a745' }}>{r.cashIn > 0 ? r.cashIn.toLocaleString('en-IN') : '-'}</td>
-                <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'right', color: '#dc3545' }}>{r.cashOut > 0 ? r.cashOut.toLocaleString('en-IN') : '-'}</td>
-                <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'right', fontWeight: 'bold' }}>{r.balance.toLocaleString('en-IN')}</td>
+                <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'right', color: '#28a745' }}>{r.cashIn > 0 ? formatAmount(r.cashIn) : '-'}</td>
+                <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'right', color: '#dc3545' }}>{r.cashOut > 0 ? formatAmount(r.cashOut) : '-'}</td>
+                <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'right', fontWeight: 'bold' }}>{formatAmount(r.balance)}</td>
               </tr>
             ))}
             <tr style={{ background: '#343a40', color: '#fff', fontWeight: 'bold' }}>
               <td style={{ border: '1px solid #555', padding: '5px' }} colSpan={4}>CLOSING BALANCE</td>
-              <td style={{ border: '1px solid #555', padding: '5px', textAlign: 'right' }}>{totalIncome.toLocaleString('en-IN')}</td>
-              <td style={{ border: '1px solid #555', padding: '5px', textAlign: 'right' }}>{totalExpense.toLocaleString('en-IN')}</td>
-              <td style={{ border: '1px solid #555', padding: '5px', textAlign: 'right' }}>{closingBalance.toLocaleString('en-IN')}</td>
+              <td style={{ border: '1px solid #555', padding: '5px', textAlign: 'right' }}>{formatAmount(totalIncome)}</td>
+              <td style={{ border: '1px solid #555', padding: '5px', textAlign: 'right' }}>{formatAmount(totalExpense)}</td>
+              <td style={{ border: '1px solid #555', padding: '5px', textAlign: 'right' }}>{formatAmount(closingBalance)}</td>
             </tr>
           </tbody>
         </table>
@@ -286,19 +288,19 @@ export function DailyCashBook() {
           <div className="grid grid-cols-2 sm:grid-cols-4 border-b border-gray-200">
             <div className="bg-blue-50/50 p-3 border-r border-gray-200">
               <div className="text-[11px] text-gray-500 font-medium">OPENING BALANCE</div>
-              <div className="text-[18px] font-bold text-[#4F46E5] mt-0.5">₹{openingBalance.toLocaleString('en-IN')}</div>
+              <div className="text-[18px] font-bold text-[#4F46E5] mt-0.5">{formatAmount(openingBalance)}</div>
             </div>
             <div className="bg-green-50/50 p-3 border-r border-gray-200">
               <div className="text-[11px] text-gray-500 font-medium">TOTAL CASH IN (INCOME)</div>
-              <div className="text-[18px] font-bold text-green-700 mt-0.5">₹{totalIncome.toLocaleString('en-IN')}</div>
+              <div className="text-[18px] font-bold text-green-700 mt-0.5">{formatAmount(totalIncome)}</div>
             </div>
             <div className="bg-red-50/50 p-3 border-r border-gray-200">
               <div className="text-[11px] text-gray-500 font-medium">TOTAL CASH OUT (EXPENSE)</div>
-              <div className="text-[18px] font-bold text-red-600 mt-0.5">₹{totalExpense.toLocaleString('en-IN')}</div>
+              <div className="text-[18px] font-bold text-red-600 mt-0.5">{formatAmount(totalExpense)}</div>
             </div>
             <div className="bg-indigo-50/50 p-3">
               <div className="text-[11px] text-gray-500 font-medium">CLOSING BALANCE</div>
-              <div className="text-[18px] font-bold text-[#4F46E5] mt-0.5">₹{closingBalance.toLocaleString('en-IN')}</div>
+              <div className="text-[18px] font-bold text-[#4F46E5] mt-0.5">{formatAmount(closingBalance)}</div>
             </div>
           </div>
 
@@ -311,9 +313,9 @@ export function DailyCashBook() {
                   <th className="py-2.5 px-3 font-medium border-r border-gray-600">Voucher No</th>
                   <th className="py-2.5 px-3 font-medium border-r border-gray-600">Particulars / Description</th>
                   <th className="py-2.5 px-3 font-medium border-r border-gray-600">Account Name</th>
-                  <th className="py-2.5 px-3 font-medium border-r border-gray-600 text-right">Cash In (₹)</th>
-                  <th className="py-2.5 px-3 font-medium border-r border-gray-600 text-right">Cash Out (₹)</th>
-                  <th className="py-2.5 px-3 font-medium border-r border-gray-600 text-right">Balance (₹)</th>
+                  <th className="py-2.5 px-3 font-medium border-r border-gray-600 text-right">Cash In ({currentCurrency.symbol})</th>
+                  <th className="py-2.5 px-3 font-medium border-r border-gray-600 text-right">Cash Out ({currentCurrency.symbol})</th>
+                  <th className="py-2.5 px-3 font-medium border-r border-gray-600 text-right">Balance ({currentCurrency.symbol})</th>
                   <th className="py-2.5 px-3 font-medium text-center w-16">Action</th>
                 </tr>
               </thead>
@@ -325,7 +327,7 @@ export function DailyCashBook() {
                   <td className="py-2 px-3"></td>
                   <td className="py-2 px-3"></td>
                   <td className="py-2 px-3"></td>
-                  <td className="py-2 px-3 text-right font-bold text-[#4F46E5]">₹{openingBalance.toLocaleString('en-IN')}</td>
+                  <td className="py-2 px-3 text-right font-bold text-[#4F46E5]">{formatAmount(openingBalance)}</td>
                   <td className="py-2 px-3"></td>
                 </tr>
                 {rowsWithBalance.length === 0 ? (
@@ -336,9 +338,9 @@ export function DailyCashBook() {
                     <td className="py-2 px-3"><span className="text-gray-500 font-mono text-[11px] bg-gray-100 px-1.5 py-0.5 rounded">{r.voucherNo}</span></td>
                     <td className="py-2 px-3 text-gray-800 font-medium">{r.particular}</td>
                     <td className="py-2 px-3 text-gray-600">{r.accountName}</td>
-                    <td className="py-2 px-3 text-right font-bold text-green-700">{r.cashIn > 0 ? r.cashIn.toLocaleString('en-IN') : <span className="text-gray-300">-</span>}</td>
-                    <td className="py-2 px-3 text-right font-bold text-red-600">{r.cashOut > 0 ? r.cashOut.toLocaleString('en-IN') : <span className="text-gray-300">-</span>}</td>
-                    <td className="py-2 px-3 text-right font-bold text-gray-800 bg-gray-50/50 border-l border-gray-100">{r.balance.toLocaleString('en-IN')}</td>
+                    <td className="py-2 px-3 text-right font-bold text-green-700">{r.cashIn > 0 ? formatAmount(r.cashIn) : <span className="text-gray-300">-</span>}</td>
+                    <td className="py-2 px-3 text-right font-bold text-red-600">{r.cashOut > 0 ? formatAmount(r.cashOut) : <span className="text-gray-300">-</span>}</td>
+                    <td className="py-2 px-3 text-right font-bold text-gray-800 bg-gray-50/50 border-l border-gray-100">{formatAmount(r.balance)}</td>
                     <td className="py-2 px-3 text-center">
                       <button onClick={() => { setDeleteTargetId(r.id); setShowDeleteConfirm(true); }} className="text-red-500 hover:text-red-700 p-1 bg-red-50 hover:bg-red-100 rounded transition-colors"><Trash2 className="w-4 h-4" /></button>
                     </td>
@@ -375,7 +377,7 @@ export function DailyCashBook() {
                   <input type="text" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-[#4F46E5]"/>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[12px] font-bold text-gray-700">Amount (₹) *</label>
+                  <label className="text-[12px] font-bold text-gray-700">Amount ({currentCurrency.symbol}) *</label>
                   <input type="number" placeholder="0.00" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} className="border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] font-bold"/>
                 </div>
               </div>
@@ -431,19 +433,19 @@ export function DailyCashBook() {
               <div className="grid grid-cols-4 gap-3 mb-5">
                 <div className="border border-gray-200 rounded-[3px] p-3 text-center bg-gray-50">
                   <div className="text-[11px] text-gray-500">Opening Balance</div>
-                  <div className="text-[14px] font-bold text-[#4F46E5] mt-0.5">₹{openingBalance.toLocaleString('en-IN')}</div>
+                  <div className="text-[14px] font-bold text-[#4F46E5] mt-0.5">{formatAmount(openingBalance)}</div>
                 </div>
                 <div className="border border-gray-200 rounded-[3px] p-3 text-center bg-gray-50">
                   <div className="text-[11px] text-gray-500">Total Cash In</div>
-                  <div className="text-[14px] font-bold text-green-700 mt-0.5">₹{totalIncome.toLocaleString('en-IN')}</div>
+                  <div className="text-[14px] font-bold text-green-700 mt-0.5">{formatAmount(totalIncome)}</div>
                 </div>
                 <div className="border border-gray-200 rounded-[3px] p-3 text-center bg-gray-50">
                   <div className="text-[11px] text-gray-500">Total Cash Out</div>
-                  <div className="text-[14px] font-bold text-red-600 mt-0.5">₹{totalExpense.toLocaleString('en-IN')}</div>
+                  <div className="text-[14px] font-bold text-red-600 mt-0.5">{formatAmount(totalExpense)}</div>
                 </div>
                 <div className="border border-gray-200 rounded-[3px] p-3 text-center bg-gray-50">
                   <div className="text-[11px] text-gray-500">Closing Balance</div>
-                  <div className="text-[14px] font-bold text-[#4F46E5] mt-0.5">₹{closingBalance.toLocaleString('en-IN')}</div>
+                  <div className="text-[14px] font-bold text-[#4F46E5] mt-0.5">{formatAmount(closingBalance)}</div>
                 </div>
               </div>
               <table className="w-full border-collapse text-[11px]">
@@ -463,7 +465,7 @@ export function DailyCashBook() {
                     <td className="border border-gray-200 py-1.5 px-2" colSpan={4}><strong>Opening Balance</strong></td>
                     <td className="border border-gray-200 py-1.5 px-2"></td>
                     <td className="border border-gray-200 py-1.5 px-2"></td>
-                    <td className="border border-gray-200 py-1.5 px-2 text-right font-bold text-[#4F46E5]">₹{openingBalance.toLocaleString('en-IN')}</td>
+                    <td className="border border-gray-200 py-1.5 px-2 text-right font-bold text-[#4F46E5]">{formatAmount(openingBalance)}</td>
                   </tr>
                   {rowsWithBalance.map((r, i) => (
                     <tr key={r.id} className={i % 2 === 1 ? 'bg-gray-50' : ''}>
@@ -471,16 +473,16 @@ export function DailyCashBook() {
                       <td className="border border-gray-200 py-1.5 px-2 font-mono text-[10px]">{r.voucherNo}</td>
                       <td className="border border-gray-200 py-1.5 px-2">{r.particular}</td>
                       <td className="border border-gray-200 py-1.5 px-2">{r.accountName}</td>
-                      <td className="border border-gray-200 py-1.5 px-2 text-right text-green-700 font-bold">{r.cashIn > 0 ? `₹${r.cashIn.toLocaleString('en-IN')}` : '-'}</td>
-                      <td className="border border-gray-200 py-1.5 px-2 text-right text-red-600 font-bold">{r.cashOut > 0 ? `₹${r.cashOut.toLocaleString('en-IN')}` : '-'}</td>
-                      <td className="border border-gray-200 py-1.5 px-2 text-right font-bold">₹{r.balance.toLocaleString('en-IN')}</td>
+                      <td className="border border-gray-200 py-1.5 px-2 text-right text-green-700 font-bold">{r.cashIn > 0 ? formatAmount(r.cashIn) : '-'}</td>
+                      <td className="border border-gray-200 py-1.5 px-2 text-right text-red-600 font-bold">{r.cashOut > 0 ? formatAmount(r.cashOut) : '-'}</td>
+                      <td className="border border-gray-200 py-1.5 px-2 text-right font-bold">{formatAmount(r.balance)}</td>
                     </tr>
                   ))}
                   <tr className="bg-[#343a40] text-white font-bold">
                     <td className="border border-gray-600 py-2 px-2" colSpan={4}>CLOSING BALANCE</td>
-                    <td className="border border-gray-600 py-2 px-2 text-right text-green-300">₹{totalIncome.toLocaleString('en-IN')}</td>
-                    <td className="border border-gray-600 py-2 px-2 text-right text-red-300">₹{totalExpense.toLocaleString('en-IN')}</td>
-                    <td className="border border-gray-600 py-2 px-2 text-right">₹{closingBalance.toLocaleString('en-IN')}</td>
+                    <td className="border border-gray-600 py-2 px-2 text-right text-green-300">{formatAmount(totalIncome)}</td>
+                    <td className="border border-gray-600 py-2 px-2 text-right text-red-300">{formatAmount(totalExpense)}</td>
+                    <td className="border border-gray-600 py-2 px-2 text-right">{formatAmount(closingBalance)}</td>
                   </tr>
                 </tbody>
               </table>

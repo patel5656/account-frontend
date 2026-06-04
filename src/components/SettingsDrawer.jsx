@@ -7,7 +7,7 @@ import { useSettings } from '../context/SettingsContext';
 
 export function SettingsDrawer({ isOpen, onClose }) {
   const location = useLocation();
-  const { settings, toggleSetting } = useSettings();
+  const { settings, toggleSetting, updateSetting } = useSettings();
   if (!isOpen) return null;
 
   const isLedgerRoute = location.pathname.includes('/party-ledger/');
@@ -683,9 +683,15 @@ export function SettingsDrawer({ isOpen, onClose }) {
           <div className="space-y-4 mb-4">
             <div>
               <label className="block text-white text-[12.5px] font-bold mb-1.5">Currency Setting</label>
-              <select className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50">
-                <option>en-IN</option>
-                <option>en-US</option>
+              <select 
+                value={settings.currency || 'INR'}
+                onChange={(e) => updateSetting('currency', e.target.value)}
+                className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50"
+              >
+                <option value="INR">INR (₹ - Indian Rupee)</option>
+                <option value="USD">USD ($ - US Dollar)</option>
+                <option value="EUR">EUR (€ - Euro)</option>
+                <option value="GBP">GBP (£ - British Pound)</option>
               </select>
             </div>
             

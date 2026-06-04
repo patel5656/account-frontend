@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Plus, Calendar, FileDown, Printer, CheckSquare, Square, Edit2, Trash2 } from 'lucide-react';
+import { useSettings } from '../context/SettingsContext';
 
 const SAMPLE_COMPANIES = [
   { id: 1, name: 'ABC Suppliers Pvt Ltd', invoiceNo: 'PUR-2011', dueAmount: 45000, balance: 45000, dueDate: '05-05-2026', status: 'Overdue' },
@@ -12,6 +13,7 @@ const SAMPLE_COMPANIES = [
 
 export function CompanyOutstanding() {
   const navigate = useNavigate();
+  const { formatAmount, currentCurrency } = useSettings();
   const [rows, setRows] = useState(SAMPLE_COMPANIES);
   const [selected, setSelected] = useState(new Set());
   const [search, setSearch] = useState('');
@@ -150,7 +152,7 @@ export function CompanyOutstanding() {
         {/* Grand Total */}
         <div className="bg-[#343a40] text-white text-center border-b border-gray-600 py-2">
           <div className="font-bold text-[14px]">
-            GRAND TOTAL PAYABLE : ₹{grandTotal.toLocaleString('en-IN')}
+            GRAND TOTAL PAYABLE : {formatAmount(grandTotal)}
             <span className="ml-3 text-[12px] font-normal text-gray-300">
               ({rows.filter(c => c.status !== 'Paid').length} pending payments)
             </span>
@@ -189,9 +191,9 @@ export function CompanyOutstanding() {
                   <td className="py-2.5 px-3 text-gray-500">{idx + 1}</td>
                   <td className="py-2.5 px-3 font-bold text-[#4F46E5]">{c.name}</td>
                   <td className="py-2.5 px-3 text-gray-700 font-mono text-[12px]">{c.invoiceNo}</td>
-                  <td className="py-2.5 px-3 text-right font-bold text-red-600">₹{c.dueAmount.toLocaleString('en-IN')}</td>
+                  <td className="py-2.5 px-3 text-right font-bold text-red-600">{formatAmount(c.dueAmount)}</td>
                   <td className="py-2.5 px-3 text-right font-bold">
-                    {c.status === 'Paid' ? <span className="text-green-600">₹0</span> : `₹${c.balance.toLocaleString('en-IN')}`}
+                    {c.status === 'Paid' ? <span className="text-green-600">{formatAmount(0)}</span> : formatAmount(c.balance)}
                   </td>
                   <td className="py-2.5 px-3 text-gray-600">{c.dueDate}</td>
                   <td className="py-2.5 px-3 text-center">

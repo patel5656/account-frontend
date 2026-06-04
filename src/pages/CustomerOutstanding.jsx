@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Plus, Calendar, FileDown, Printer, MessageCircle, Send, CheckSquare, Square, Edit2, Trash2, RefreshCw, AlertCircle, Filter } from 'lucide-react';
 import { WhatsAppReminderModal } from '../components/WhatsAppReminderModal';
+import { useSettings } from '../context/SettingsContext';
 
 const SAMPLE_CUSTOMERS = [
   { id: 1, name: 'Ramesh Traders', invoiceNo: 'INV-1025', dueAmount: 12500, balance: 12500, dueDate: '10-05-2026', mobile: '9876543210', status: 'Overdue' },
@@ -13,6 +14,7 @@ const SAMPLE_CUSTOMERS = [
 
 export function CustomerOutstanding() {
   const navigate = useNavigate();
+  const { formatAmount, currentCurrency } = useSettings();
   const [rows, setRows] = useState(SAMPLE_CUSTOMERS);
   const [selected, setSelected] = useState(new Set());
   const [search, setSearch] = useState('');
@@ -87,7 +89,7 @@ export function CustomerOutstanding() {
     if (validCustomers.length === 0) { alert('No customers with valid mobile numbers.'); return; }
     alert(`Opening WhatsApp for ${validCustomers.length} customers. Allow popups!`);
     validCustomers.forEach((c, i) => {
-      const msg = `Dear ${c.name},\n\nYour payment of ₹${c.balance.toLocaleString('en-IN')} against Invoice #${c.invoiceNo} is pending.\n\nKindly make the payment at the earliest.\n\nThank You,\nOs Books`;
+      const msg = `Dear ${c.name},\n\nYour payment of ${formatAmount(c.balance)} against Invoice #${c.invoiceNo} is pending.\n\nKindly make the payment at the earliest.\n\nThank You,\nOs Books`;
       setTimeout(() => window.open(`https://wa.me/91${c.mobile.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank'), i * 600);
     });
   };
@@ -184,7 +186,7 @@ export function CustomerOutstanding() {
         {/* Grand Total */}
         <div className="bg-[#343a40] text-white text-center border-b border-gray-600 py-2">
           <div className="font-bold text-[14px]">
-            GRAND TOTAL OUTSTANDING : ₹{grandTotal.toLocaleString('en-IN')}
+            GRAND TOTAL OUTSTANDING : {formatAmount(grandTotal)}
             <span className="ml-3 text-[12px] font-normal text-gray-300">
               ({unpaidCustomers.length} pending | {rows.filter(c => /^[6-9]\d{9}$/.test((c.mobile || '').replace(/\D/g, ''))).length} with valid mobile)
             </span>
@@ -227,9 +229,9 @@ export function CustomerOutstanding() {
                     <td className="py-2.5 px-3 text-gray-500">{idx + 1}</td>
                     <td className="py-2.5 px-3 font-bold text-[#4F46E5]">{c.name}</td>
                     <td className="py-2.5 px-3 text-gray-700 font-mono text-[12px]">{c.invoiceNo}</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-red-600">₹{c.dueAmount.toLocaleString('en-IN')}</td>
+                    <td className="py-2.5 px-3 text-right font-bold text-red-600">{formatAmount(c.dueAmount)}</td>
                     <td className="py-2.5 px-3 text-right font-bold">
-                      {c.status === 'Paid' ? <span className="text-green-600">₹0</span> : `₹${c.balance.toLocaleString('en-IN')}`}
+                      {c.status === 'Paid' ? <span className="text-green-600">{formatAmount(0)}</span> : formatAmount(c.balance)}
                     </td>
                     <td className="py-2.5 px-3 text-gray-600">{c.dueDate}</td>
                     <td className="py-2.5 px-3 text-gray-600 font-mono text-[12px]">
@@ -241,7 +243,7 @@ export function CustomerOutstanding() {
                     <td className="py-2.5 px-3 text-center">
                       {c.status !== 'Paid' ? (
                         <button
-                          onClick={() => setWaModal({ open: true, customer: { ...c, dueAmount: c.dueAmount.toLocaleString('en-IN'), balance: c.balance.toLocaleString('en-IN') } })}
+                          onClick={() => setWaModal({ open: true, customer: { ...c, dueAmount: formatAmount(c.dueAmount), balance: formatAmount(c.balance) } })}
                           disabled={!hasValidMobile}
                           className={`flex items-center gap-1 mx-auto px-3 py-1 rounded-[3px] text-[12px] font-bold transition-colors ${hasValidMobile ? 'bg-[#25D366] hover:bg-[#1da851] text-white shadow-sm' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
                           <MessageCircle className="w-3.5 h-3.5" strokeWidth={2.5} /> Send

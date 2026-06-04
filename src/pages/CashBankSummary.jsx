@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Plus, Upload, Printer, FileDown, Eye, Calendar, Filter } from 'lucide-react';
+import { useSettings } from '../context/SettingsContext';
 
 // Sample data for demo
 const SAMPLE_DATA = {
@@ -41,6 +42,7 @@ const DATE_RANGES = ['Last 7 Days', 'Last 15 Days', 'Last 30 Days', 'This Month'
 export function CashBankSummary() {
   const navigate = useNavigate();
   const printRef = useRef();
+  const { formatAmount, currentCurrency } = useSettings();
 
   const [selectedAccount, setSelectedAccount] = useState('Main Cash');
   const [dateRange, setDateRange] = useState('Last 7 Days');
@@ -80,7 +82,7 @@ export function CashBankSummary() {
 
   // CSV export
   const handleExport = () => {
-    const headers = ['S.NO.', 'Date', 'Description', 'Payment In (₹)', 'Payment Out (₹)', 'Balance (₹)'];
+    const headers = ['S.NO.', 'Date', 'Description', `Payment In (${currentCurrency.symbol})`, `Payment Out (${currentCurrency.symbol})`, `Balance (${currentCurrency.symbol})`];
     const csvRows = [headers.join(',')];
     csvRows.push(['', '', `Opening Balance`, '', '', accountData.openingBalance].join(','));
     txWithBalance.forEach((tx, i) => {
@@ -123,10 +125,10 @@ export function CashBankSummary() {
         {/* Summary boxes */}
         <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
           {[
-            { label: 'Opening Balance', value: `₹${accountData.openingBalance.toLocaleString('en-IN')}`, color: '#4F46E5' },
-            { label: 'Total Credit (In)', value: `₹${totalIn.toLocaleString('en-IN')}`, color: '#28a745' },
-            { label: 'Total Debit (Out)', value: `₹${totalOut.toLocaleString('en-IN')}`, color: '#dc3545' },
-            { label: 'Closing Balance', value: `₹${closingBalance.toLocaleString('en-IN')}`, color: '#4F46E5' },
+            { label: 'Opening Balance', value: formatAmount(accountData.openingBalance), color: '#4F46E5' },
+            { label: 'Total Credit (In)', value: formatAmount(totalIn), color: '#28a745' },
+            { label: 'Total Debit (Out)', value: formatAmount(totalOut), color: '#dc3545' },
+            { label: 'Closing Balance', value: formatAmount(closingBalance), color: '#4F46E5' },
           ].map(b => (
             <div key={b.label} style={{ flex: 1, border: `1px solid #ddd`, padding: '6px 8px', borderRadius: '3px', textAlign: 'center' }}>
               <div style={{ fontSize: '10px', color: '#666' }}>{b.label}</div>
@@ -142,9 +144,9 @@ export function CashBankSummary() {
               <th style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'center' }}>S.No.</th>
               <th style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'center' }}>Date</th>
               <th style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'left' }}>Description</th>
-              <th style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'right' }}>Credit (₹)</th>
-              <th style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'right' }}>Debit (₹)</th>
-              <th style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'right' }}>Balance (₹)</th>
+              <th style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'right' }}>Credit ({currentCurrency.symbol})</th>
+              <th style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'right' }}>Debit ({currentCurrency.symbol})</th>
+              <th style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'right' }}>Balance ({currentCurrency.symbol})</th>
             </tr>
           </thead>
           <tbody>
@@ -154,24 +156,24 @@ export function CashBankSummary() {
               <td style={{ border: '1px solid #ddd', padding: '4px 8px', fontWeight: 'bold', color: '#4F46E5' }}>Opening Balance</td>
               <td style={{ border: '1px solid #ddd', padding: '4px 8px' }}></td>
               <td style={{ border: '1px solid #ddd', padding: '4px 8px' }}></td>
-              <td style={{ border: '1px solid #ddd', padding: '4px 8px', textAlign: 'right', fontWeight: 'bold' }}>{accountData.openingBalance.toLocaleString('en-IN')}</td>
+              <td style={{ border: '1px solid #ddd', padding: '4px 8px', textAlign: 'right', fontWeight: 'bold' }}>{formatAmount(accountData.openingBalance)}</td>
             </tr>
             {txWithBalance.map((tx, i) => (
               <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9f9' }}>
                 <td style={{ border: '1px solid #ddd', padding: '4px 8px', textAlign: 'center' }}>{i + 1}</td>
                 <td style={{ border: '1px solid #ddd', padding: '4px 8px', textAlign: 'center' }}>{tx.date}</td>
                 <td style={{ border: '1px solid #ddd', padding: '4px 8px' }}>{tx.info}</td>
-                <td style={{ border: '1px solid #ddd', padding: '4px 8px', textAlign: 'right', color: '#28a745', fontWeight: tx.paymentIn > 0 ? 'bold' : 'normal' }}>{tx.paymentIn > 0 ? tx.paymentIn.toLocaleString('en-IN') : '-'}</td>
-                <td style={{ border: '1px solid #ddd', padding: '4px 8px', textAlign: 'right', color: '#dc3545', fontWeight: tx.paymentOut > 0 ? 'bold' : 'normal' }}>{tx.paymentOut > 0 ? tx.paymentOut.toLocaleString('en-IN') : '-'}</td>
-                <td style={{ border: '1px solid #ddd', padding: '4px 8px', textAlign: 'right' }}>{tx.balance.toLocaleString('en-IN')}</td>
+                <td style={{ border: '1px solid #ddd', padding: '4px 8px', textAlign: 'right', color: '#28a745', fontWeight: tx.paymentIn > 0 ? 'bold' : 'normal' }}>{tx.paymentIn > 0 ? formatAmount(tx.paymentIn) : '-'}</td>
+                <td style={{ border: '1px solid #ddd', padding: '4px 8px', textAlign: 'right', color: '#dc3545', fontWeight: tx.paymentOut > 0 ? 'bold' : 'normal' }}>{tx.paymentOut > 0 ? formatAmount(tx.paymentOut) : '-'}</td>
+                <td style={{ border: '1px solid #ddd', padding: '4px 8px', textAlign: 'right' }}>{formatAmount(tx.balance)}</td>
               </tr>
             ))}
             <tr style={{ background: '#343a40', color: '#fff', fontWeight: 'bold' }}>
               <td style={{ border: '1px solid #555', padding: '5px 8px' }} colSpan={2}></td>
               <td style={{ border: '1px solid #555', padding: '5px 8px' }}>CLOSING BALANCE TOTAL</td>
-              <td style={{ border: '1px solid #555', padding: '5px 8px', textAlign: 'right' }}>{totalIn.toLocaleString('en-IN')}</td>
-              <td style={{ border: '1px solid #555', padding: '5px 8px', textAlign: 'right' }}>{totalOut.toLocaleString('en-IN')}</td>
-              <td style={{ border: '1px solid #555', padding: '5px 8px', textAlign: 'right' }}>{closingBalance.toLocaleString('en-IN')}</td>
+              <td style={{ border: '1px solid #555', padding: '5px 8px', textAlign: 'right' }}>{formatAmount(totalIn)}</td>
+              <td style={{ border: '1px solid #555', padding: '5px 8px', textAlign: 'right' }}>{formatAmount(totalOut)}</td>
+              <td style={{ border: '1px solid #555', padding: '5px 8px', textAlign: 'right' }}>{formatAmount(closingBalance)}</td>
             </tr>
           </tbody>
         </table>
@@ -232,7 +234,7 @@ export function CashBankSummary() {
                 <div className="flex justify-between items-end px-1">
                   <label className="text-[13px] font-bold text-gray-800">Cash / Bank Account</label>
                   <span className="text-[13px] font-bold text-[#28a745]">
-                    Balance: ₹{closingBalance.toLocaleString('en-IN')}
+                    Balance: {formatAmount(closingBalance)}
                   </span>
                 </div>
                 <select
@@ -263,10 +265,10 @@ export function CashBankSummary() {
           {/* Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-0 border-b border-gray-200">
             {[
-              { label: 'Opening Balance', value: `₹${accountData.openingBalance.toLocaleString('en-IN')}`, bg: 'bg-blue-50', text: 'text-[#4F46E5]' },
-              { label: 'Total Credit (In)', value: `₹${totalIn.toLocaleString('en-IN')}`, bg: 'bg-green-50', text: 'text-green-700' },
-              { label: 'Total Debit (Out)', value: `₹${totalOut.toLocaleString('en-IN')}`, bg: 'bg-red-50', text: 'text-red-600' },
-              { label: 'Closing Balance', value: `₹${closingBalance.toLocaleString('en-IN')}`, bg: 'bg-indigo-50', text: 'text-[#4F46E5]' },
+              { label: 'Opening Balance', value: formatAmount(accountData.openingBalance), bg: 'bg-blue-50', text: 'text-[#4F46E5]' },
+              { label: 'Total Credit (In)', value: formatAmount(totalIn), bg: 'bg-green-50', text: 'text-green-700' },
+              { label: 'Total Debit (Out)', value: formatAmount(totalOut), bg: 'bg-red-50', text: 'text-red-600' },
+              { label: 'Closing Balance', value: formatAmount(closingBalance), bg: 'bg-indigo-50', text: 'text-[#4F46E5]' },
             ].map((card, i) => (
               <div key={i} className={`${card.bg} px-4 py-3 border-r border-gray-200 last:border-r-0`}>
                 <div className="text-[11px] text-gray-500 font-medium">{card.label}</div>
@@ -283,9 +285,9 @@ export function CashBankSummary() {
                   <th className="border border-gray-500 text-[13px] font-bold text-white py-2 px-3 text-center w-14">S.No.</th>
                   <th className="border border-gray-500 text-[13px] font-bold text-white py-2 px-3 text-center w-28">Date</th>
                   <th className="border border-gray-500 text-[13px] font-bold text-white py-2 px-3 text-left">Description</th>
-                  <th className="border border-gray-500 text-[13px] font-bold text-white py-2 px-3 text-right w-28">Credit (₹)</th>
-                  <th className="border border-gray-500 text-[13px] font-bold text-white py-2 px-3 text-right w-28">Debit (₹)</th>
-                  <th className="border border-gray-500 text-[13px] font-bold text-white py-2 px-3 text-right w-28">Balance (₹)</th>
+                  <th className="border border-gray-500 text-[13px] font-bold text-white py-2 px-3 text-right w-28">Credit ({currentCurrency.symbol})</th>
+                  <th className="border border-gray-500 text-[13px] font-bold text-white py-2 px-3 text-right w-28">Debit ({currentCurrency.symbol})</th>
+                  <th className="border border-gray-500 text-[13px] font-bold text-white py-2 px-3 text-right w-28">Balance ({currentCurrency.symbol})</th>
                 </tr>
               </thead>
               <tbody>
@@ -299,7 +301,7 @@ export function CashBankSummary() {
                   <td className="border border-gray-200 py-2 px-3"></td>
                   <td className="border border-gray-200 py-2 px-3"></td>
                   <td className="border border-gray-200 py-2 px-3 text-right">
-                    <span className="text-[#4F46E5] font-bold text-[13px]">{accountData.openingBalance.toLocaleString('en-IN')}</span>
+                    <span className="text-[#4F46E5] font-bold text-[13px]">{formatAmount(accountData.openingBalance)}</span>
                   </td>
                 </tr>
 
@@ -310,13 +312,13 @@ export function CashBankSummary() {
                     <td className="border border-gray-200 py-2 px-3 text-center text-gray-700 font-mono text-[12px]">{tx.date}</td>
                     <td className="border border-gray-200 py-2 px-3 text-gray-700">{tx.info}</td>
                     <td className="border border-gray-200 py-2 px-3 text-right font-bold text-green-700">
-                      {tx.paymentIn > 0 ? tx.paymentIn.toLocaleString('en-IN') : <span className="text-gray-300">—</span>}
+                      {tx.paymentIn > 0 ? formatAmount(tx.paymentIn) : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="border border-gray-200 py-2 px-3 text-right font-bold text-red-600">
-                      {tx.paymentOut > 0 ? tx.paymentOut.toLocaleString('en-IN') : <span className="text-gray-300">—</span>}
+                      {tx.paymentOut > 0 ? formatAmount(tx.paymentOut) : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="border border-gray-200 py-2 px-3 text-right font-bold text-gray-800">
-                      {tx.balance.toLocaleString('en-IN')}
+                      {formatAmount(tx.balance)}
                     </td>
                   </tr>
                 ))}
@@ -325,9 +327,9 @@ export function CashBankSummary() {
                 <tr className="bg-[#343a40] text-white font-bold text-[13px]">
                   <td className="border border-gray-600 py-2 px-3" colSpan={2}></td>
                   <td className="border border-gray-600 py-2 px-3">CLOSING BALANCE</td>
-                  <td className="border border-gray-600 py-2 px-3 text-right text-green-300">{totalIn.toLocaleString('en-IN')}</td>
-                  <td className="border border-gray-600 py-2 px-3 text-right text-red-300">{totalOut.toLocaleString('en-IN')}</td>
-                  <td className="border border-gray-600 py-2 px-3 text-right">{closingBalance.toLocaleString('en-IN')}</td>
+                  <td className="border border-gray-600 py-2 px-3 text-right text-green-300">{formatAmount(totalIn)}</td>
+                  <td className="border border-gray-600 py-2 px-3 text-right text-red-300">{formatAmount(totalOut)}</td>
+                  <td className="border border-gray-600 py-2 px-3 text-right">{formatAmount(closingBalance)}</td>
                 </tr>
               </tbody>
             </table>
@@ -369,10 +371,10 @@ export function CashBankSummary() {
               {/* Summary cards */}
               <div className="grid grid-cols-4 gap-3 mb-5">
                 {[
-                  { label: 'Opening Balance', value: `₹${accountData.openingBalance.toLocaleString('en-IN')}`, cls: 'text-[#4F46E5]' },
-                  { label: 'Total Credit', value: `₹${totalIn.toLocaleString('en-IN')}`, cls: 'text-green-700' },
-                  { label: 'Total Debit', value: `₹${totalOut.toLocaleString('en-IN')}`, cls: 'text-red-600' },
-                  { label: 'Closing Balance', value: `₹${closingBalance.toLocaleString('en-IN')}`, cls: 'text-[#4F46E5]' },
+                  { label: 'Opening Balance', value: formatAmount(accountData.openingBalance), cls: 'text-[#4F46E5]' },
+                  { label: 'Total Credit', value: formatAmount(totalIn), cls: 'text-green-700' },
+                  { label: 'Total Debit', value: formatAmount(totalOut), cls: 'text-red-600' },
+                  { label: 'Closing Balance', value: formatAmount(closingBalance), cls: 'text-[#4F46E5]' },
                 ].map(b => (
                   <div key={b.label} className="border border-gray-200 rounded-[3px] p-3 text-center bg-gray-50">
                     <div className="text-[11px] text-gray-500">{b.label}</div>
@@ -388,9 +390,9 @@ export function CashBankSummary() {
                     <th className="border border-gray-500 py-2 px-3 text-center">S.No.</th>
                     <th className="border border-gray-500 py-2 px-3 text-center">Date</th>
                     <th className="border border-gray-500 py-2 px-3 text-left">Description</th>
-                    <th className="border border-gray-500 py-2 px-3 text-right">Credit (₹)</th>
-                    <th className="border border-gray-500 py-2 px-3 text-right">Debit (₹)</th>
-                    <th className="border border-gray-500 py-2 px-3 text-right">Balance (₹)</th>
+                    <th className="border border-gray-500 py-2 px-3 text-right">Credit ({currentCurrency.symbol})</th>
+                    <th className="border border-gray-500 py-2 px-3 text-right">Debit ({currentCurrency.symbol})</th>
+                    <th className="border border-gray-500 py-2 px-3 text-right">Balance ({currentCurrency.symbol})</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -399,24 +401,24 @@ export function CashBankSummary() {
                     <td className="border border-gray-200 py-2 px-3 font-bold text-[#4F46E5]">Opening Balance</td>
                     <td className="border border-gray-200 py-2 px-3"></td>
                     <td className="border border-gray-200 py-2 px-3"></td>
-                    <td className="border border-gray-200 py-2 px-3 text-right font-bold text-[#4F46E5]">{accountData.openingBalance.toLocaleString('en-IN')}</td>
+                    <td className="border border-gray-200 py-2 px-3 text-right font-bold text-[#4F46E5]">{formatAmount(accountData.openingBalance)}</td>
                   </tr>
                   {txWithBalance.map((tx, i) => (
                     <tr key={i} className={i % 2 === 1 ? 'bg-gray-50' : ''}>
                       <td className="border border-gray-200 py-1.5 px-3 text-center text-gray-500">{i + 1}</td>
                       <td className="border border-gray-200 py-1.5 px-3 text-center font-mono">{tx.date}</td>
                       <td className="border border-gray-200 py-1.5 px-3 text-gray-700">{tx.info}</td>
-                      <td className="border border-gray-200 py-1.5 px-3 text-right text-green-700 font-bold">{tx.paymentIn > 0 ? tx.paymentIn.toLocaleString('en-IN') : '—'}</td>
-                      <td className="border border-gray-200 py-1.5 px-3 text-right text-red-600 font-bold">{tx.paymentOut > 0 ? tx.paymentOut.toLocaleString('en-IN') : '—'}</td>
-                      <td className="border border-gray-200 py-1.5 px-3 text-right font-bold">{tx.balance.toLocaleString('en-IN')}</td>
+                      <td className="border border-gray-200 py-1.5 px-3 text-right text-green-700 font-bold">{tx.paymentIn > 0 ? formatAmount(tx.paymentIn) : '—'}</td>
+                      <td className="border border-gray-200 py-1.5 px-3 text-right text-red-600 font-bold">{tx.paymentOut > 0 ? formatAmount(tx.paymentOut) : '—'}</td>
+                      <td className="border border-gray-200 py-1.5 px-3 text-right font-bold">{formatAmount(tx.balance)}</td>
                     </tr>
                   ))}
                   <tr className="bg-[#343a40] text-white font-bold">
                     <td className="border border-gray-600 py-2 px-3" colSpan={2}></td>
                     <td className="border border-gray-600 py-2 px-3">CLOSING BALANCE</td>
-                    <td className="border border-gray-600 py-2 px-3 text-right text-green-300">{totalIn.toLocaleString('en-IN')}</td>
-                    <td className="border border-gray-600 py-2 px-3 text-right text-red-300">{totalOut.toLocaleString('en-IN')}</td>
-                    <td className="border border-gray-600 py-2 px-3 text-right">{closingBalance.toLocaleString('en-IN')}</td>
+                    <td className="border border-gray-600 py-2 px-3 text-right text-green-300">{formatAmount(totalIn)}</td>
+                    <td className="border border-gray-600 py-2 px-3 text-right text-red-300">{formatAmount(totalOut)}</td>
+                    <td className="border border-gray-600 py-2 px-3 text-right">{formatAmount(closingBalance)}</td>
                   </tr>
                 </tbody>
               </table>

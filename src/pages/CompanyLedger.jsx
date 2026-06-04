@@ -10,6 +10,17 @@ export function CompanyLedger() {
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   const [companySearch, setCompanySearch] = React.useState("");
   const dropdownRef = React.useRef(null);
+  const [entryDate, setEntryDate] = React.useState("2026-05-23");
+  const dateInputRef = React.useRef(null);
+
+  const formatDisplayDate = (dateString) => {
+    if (!dateString) return "";
+    const parts = dateString.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return dateString;
+  };
   
   React.useEffect(() => {
     const handleClickOutside = (event) => {
@@ -22,7 +33,7 @@ export function CompanyLedger() {
   }, []);
 
   const handleAddEntry = () => {
-    setEntries([...entries, { id: Date.now() }]);
+    setEntries([...entries, { id: Date.now(), date: formatDisplayDate(entryDate) }]);
   };
 
   const [companies, setCompanies] = React.useState([
@@ -48,7 +59,13 @@ export function CompanyLedger() {
     const headers = ['#', 'Date', 'Other Information', 'Voucher No', 'Bill Amount', 'Payment Out', 'Dis.', 'Balance'];
     const csvRows = [headers.join(',')];
     
-    csvRows.push(['1', '"23-05-2026"', '""', '""', '0', '0', '0', '0'].join(','));
+    if (entries.length === 0) {
+      csvRows.push(['1', `"${formatDisplayDate(entryDate)}"`, '""', '""', '0', '0', '0', '0'].join(','));
+    } else {
+      entries.forEach((entry, index) => {
+        csvRows.push([index + 1, `"${entry.date || '23-05-2026'}"`, '""', '""', '0', '0', '0', '0'].join(','));
+      });
+    }
     
     const csvContent = csvRows.join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -218,7 +235,7 @@ export function CompanyLedger() {
                   {index + 1}
                 </div>
                 <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  23-05-2026
+                  {entry.date || "23-05-2026"}
                 </div>
                 <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
                   Sample Information
@@ -252,16 +269,32 @@ export function CompanyLedger() {
                 <input type="checkbox" className="w-3.5 h-3.5" />
                 <span className="text-white text-[12px] font-bold ml-1">#</span>
               </div>
-              <div className="border-r border-gray-200 p-1 flex items-center">
+              <div className="border-r border-gray-200 p-1 flex items-center relative">
+                <input 
+                  ref={dateInputRef}
+                  type="date"
+                  value={entryDate}
+                  onChange={(e) => setEntryDate(e.target.value)}
+                  className="absolute w-0 h-0 opacity-0 -z-10"
+                />
                 <input 
                   type="text" 
                   readOnly
-                  value="23-05-2026"
+                  value={formatDisplayDate(entryDate)}
                   className="w-full h-[32px] border border-gray-300 border-r-0 rounded-l-[3px] px-2 text-[13px] outline-none text-gray-600"
                 />
-                <div className="h-[32px] border border-gray-300 border-l-0 px-2 flex items-center justify-center rounded-r-[3px] text-gray-500">
+                <button 
+                  onClick={() => {
+                    try {
+                      dateInputRef.current?.showPicker();
+                    } catch (e) {
+                      dateInputRef.current?.focus();
+                    }
+                  }}
+                  className="h-[32px] border border-gray-300 border-l-0 px-2 flex items-center justify-center rounded-r-[3px] text-gray-500 bg-white hover:bg-gray-50 cursor-pointer"
+                >
                   <Calendar className="w-4 h-4" />
-                </div>
+                </button>
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center">
                  <input type="text" placeholder="Enter Other Information" className="w-full h-[32px] px-2 text-[13px] outline-none text-center placeholder-gray-400" />
