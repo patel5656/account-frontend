@@ -12,7 +12,7 @@ import { useSettings } from '../context/SettingsContext';
 
 // Sample stock data enriched with sku and purchase price
 const INITIAL_ROWS = [
-  { id: 1, productName: 'Wooden Chair', sku: 'FUR-WC-001', brandName: 'Brand A', category: 'Furniture', gst: '18%', hsn: '9401', unit: 'PCS', purchasePrice: 800, mrp: 1200, sale: 999, stock: 45, warehouse: 'Main Warehouse', status: 'Active' },
+  { id: 1, productName: 'IPhone 15 Pro', sku: 'IP-15P-256', brandName: 'Apple', category: 'Mobile Phones', gst: '18%', hsn: '8517', unit: 'PCS', purchasePrice: 100000, mrp: 130000, sale: 120000, stock: 45, warehouse: 'Main Warehouse', status: 'Active', memorySize: '256GB', colorVariant: 'Natural Titanium', enableImei: true },
   { id: 2, productName: 'Steel Table', sku: 'FUR-ST-002', brandName: 'Brand B', category: 'Furniture', gst: '12%', hsn: '9403', unit: 'PCS', purchasePrice: 4000, mrp: 5500, sale: 4800, stock: 12, warehouse: 'Store Room 1', status: 'Active' },
   { id: 3, productName: 'Cotton Fabric', sku: 'RAW-CF-101', brandName: 'Brand C', category: 'Raw Material', gst: '5%', hsn: '5208', unit: 'MTR', purchasePrice: 150, mrp: 250, sale: 200, stock: 8, warehouse: 'Main Warehouse', status: 'Active' },
   { id: 4, productName: 'Plastic Box', sku: 'PKG-PB-201', brandName: 'Brand A', category: 'Packaging', gst: '18%', hsn: '3923', unit: 'BOX', purchasePrice: 20, mrp: 35, sale: 28, stock: 200, warehouse: 'Store Room 2', status: 'Active' },
@@ -482,6 +482,7 @@ export function StockDetails() {
                   <tr>
                     <th className="py-2 px-3 w-8"><button onClick={toggleAll} className="text-gray-500">{allSelected ? <CheckSquare className="w-4 h-4 text-[#4F46E5]" /> : <Square className="w-4 h-4" />}</button></th>
                     <th className="py-2 px-3 font-medium">Product / SKU</th>
+                    <th className="py-2 px-3 font-medium">Variants</th>
                     <th className="py-2 px-3 font-medium">Brand</th>
                     <th className="py-2 px-3 font-medium">Category</th>
                     <th className="py-2 px-3 font-medium text-right">Pur. Price</th>
@@ -493,13 +494,20 @@ export function StockDetails() {
                 </thead>
                 <tbody>
                   {filtered.length === 0 ? (
-                    <tr><td colSpan="9" className="py-12 text-center text-gray-400">No stock items found.</td></tr>
+                    <tr><td colSpan="10" className="py-12 text-center text-gray-400">No stock items found.</td></tr>
                   ) : filtered.map((r) => (
                     <tr key={r.id} className={`border-b border-gray-100 text-[13px] transition-colors ${selected.has(r.id) ? 'bg-indigo-50' : 'hover:bg-gray-50'}`}>
                       <td className="py-2 px-3"><button onClick={() => toggleRow(r.id)} className="text-gray-400">{selected.has(r.id) ? <CheckSquare className="w-4 h-4 text-[#4F46E5]" /> : <Square className="w-4 h-4" />}</button></td>
                       <td className="py-2 px-3">
                         <div className="font-bold text-[#4F46E5]">{r.productName}</div>
                         <div className="text-gray-500 font-mono text-[11px]">{r.sku}</div>
+                      </td>
+                      <td className="py-2 px-3">
+                        <div className="flex flex-col gap-0.5">
+                          {r.memorySize && <span className="text-[10px] text-gray-600 bg-gray-100 px-1 rounded-sm w-max">{r.memorySize}</span>}
+                          {r.colorVariant && <span className="text-[10px] text-gray-600 bg-gray-100 px-1 rounded-sm w-max">{r.colorVariant}</span>}
+                          {r.enableImei && <span className="text-[9px] text-purple-700 bg-purple-100 px-1 rounded-sm w-max font-bold">IMEI</span>}
+                        </div>
                       </td>
                       <td className="py-2 px-3 text-gray-700">{r.brandName}</td>
                       <td className="py-2 px-3 text-gray-600">{r.category}</td>

@@ -43,6 +43,11 @@ export function PurchaseInvoice() {
   const [disc2, setDisc2] = useState(5);
   const [disc2Type, setDisc2Type] = useState('%');
 
+  // IMEI Tracking State
+  const [isImeiTracked, setIsImeiTracked] = useState(true);
+  const [imeiModalOpen, setImeiModalOpen] = useState(false);
+  const [imeiList, setImeiList] = useState([]);
+
   // Calculation Logic
   const baseAmount = (qty || 0) * (price || 0);
   
@@ -162,8 +167,8 @@ export function PurchaseInvoice() {
         {/* Data Table */}
         <div className="flex-1 min-h-[300px] overflow-x-auto">
           <div className="min-w-[1000px]">
-            {/* Table Header: 9 Columns grid-cols-[40px_1fr_80px_80px_100px_110px_110px_100px_80px] */}
-            <div className="bg-[#343a40] text-white grid grid-cols-[40px_1fr_80px_80px_100px_110px_110px_100px_80px] text-center border-b border-gray-600">
+            {/* Table Header: 10 Columns */}
+            <div className="bg-[#343a40] text-white grid grid-cols-[40px_1fr_80px_80px_100px_110px_110px_80px_100px_80px] text-center border-b border-gray-600">
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold leading-tight flex flex-col justify-center">
                 S.NO.
               </div>
@@ -191,6 +196,9 @@ export function PurchaseInvoice() {
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-blue-300">
                 DISC 2
               </div>
+              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-purple-300">
+                IMEI
+              </div>
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">
                 AMOUNT
               </div>
@@ -200,7 +208,7 @@ export function PurchaseInvoice() {
             </div>
 
             {/* Input Row */}
-            <div className="grid grid-cols-[40px_1fr_80px_80px_100px_110px_110px_100px_80px] bg-white border-b border-gray-200">
+            <div className="grid grid-cols-[40px_1fr_80px_80px_100px_110px_110px_80px_100px_80px] bg-white border-b border-gray-200">
               <div className="border-r border-gray-200 flex items-center justify-center p-1 bg-gray-600">
               </div>
               <div className="border-r border-gray-200 p-1 flex relative">
@@ -271,6 +279,17 @@ export function PurchaseInvoice() {
                    <option value="%">%</option>
                    <option value="₹">₹</option>
                  </select>
+              </div>
+
+              {/* IMEI Button */}
+              <div className="border-r border-gray-200 p-1 flex items-center justify-center">
+                {isImeiTracked ? (
+                  <button onClick={() => setImeiModalOpen(true)} className={`text-[10px] font-bold px-2 py-1 rounded-[3px] transition-colors w-full h-full flex items-center justify-center ${imeiList.filter(Boolean).length === qty ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-purple-100 text-purple-800 border border-purple-200 hover:bg-purple-200'}`}>
+                    {imeiList.filter(Boolean).length}/{qty} IMEI
+                  </button>
+                ) : (
+                  <span className="text-[11px] text-gray-400">-</span>
+                )}
               </div>
 
               <div className="border-r border-gray-200 p-1 flex items-center justify-end pr-2 text-[13px] font-bold text-gray-800 bg-gray-50">
@@ -422,6 +441,40 @@ export function PurchaseInvoice() {
           <ChevronDown className="w-3.5 h-3.5 ml-1" strokeWidth={3} />
         </button>
       </div>
+
+      {/* IMEI Modal */}
+      {imeiModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-[3px] shadow-xl w-full max-w-md flex flex-col">
+            <div className="bg-[#4F46E5] px-4 py-2 flex justify-between items-center text-white">
+              <h3 className="font-bold text-[14px]">Enter IMEI Numbers ({imeiList.filter(Boolean).length}/{qty})</h3>
+              <button onClick={() => setImeiModalOpen(false)}><X className="w-4 h-4" strokeWidth={3} /></button>
+            </div>
+            <div className="p-4 flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
+              <p className="text-[12px] text-gray-600">Please enter a unique IMEI number for each piece you are purchasing.</p>
+              {Array.from({ length: qty }).map((_, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <span className="text-[12px] font-bold text-gray-500 w-[20px]">{idx + 1}.</span>
+                  <input 
+                    type="text" 
+                    placeholder="Enter 15-digit IMEI" 
+                    value={imeiList[idx] || ''}
+                    onChange={(e) => {
+                      const newList = [...imeiList];
+                      newList[idx] = e.target.value;
+                      setImeiList(newList);
+                    }}
+                    className="flex-1 border border-gray-300 rounded-[3px] px-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5]" 
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="bg-gray-50 px-4 py-3 flex justify-end border-t border-gray-200">
+              <button onClick={() => setImeiModalOpen(false)} className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[3px] text-[13px] font-bold shadow-sm">Confirm IMEIs</button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

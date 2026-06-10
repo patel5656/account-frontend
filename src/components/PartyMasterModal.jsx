@@ -84,7 +84,7 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
-      <div className="bg-white rounded-[3px] shadow-2xl w-full sm:max-w-[750px] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div className="bg-white rounded-[3px] shadow-2xl w-full sm:max-w-[750px] max-h-[95vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
         
         {/* Header */}
         <div className="bg-[#17a2b8] flex items-center justify-between">
@@ -103,7 +103,7 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
         </div>
 
         {/* Body */}
-        <div className="p-6 bg-white">
+        <div className="p-6 bg-white overflow-y-auto flex-1">
           <div className="flex flex-col gap-4">
             
             {/* Row 1: Party Name, Active, Due Days */}

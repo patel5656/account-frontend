@@ -50,7 +50,8 @@ import {
   Printer,
   ArrowRightLeft,
   Building2,
-  Warehouse
+  Warehouse,
+  LogOut
 } from 'lucide-react';
 import { CashBankMasterModal } from './CashBankMasterModal';
 import { PartyMasterModal } from './PartyMasterModal';
@@ -229,6 +230,11 @@ const menuItems = [
     subitems: [
       { name: 'Print Setting', icon: Printer, path: '/admin/print-setting' }
     ]
+  },
+  { 
+    name: 'Logout', 
+    icon: LogOut, 
+    path: '/login' 
   }
 ];
 

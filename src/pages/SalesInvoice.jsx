@@ -70,6 +70,11 @@ export function SalesInvoice() {
   const [disc2, setDisc2] = useState(5);
   const [disc2Type, setDisc2Type] = useState('%');
 
+  // IMEI Tracking State
+  const [isImeiTracked, setIsImeiTracked] = useState(true);
+  const [selectedImei, setSelectedImei] = useState('');
+  const availableImeis = ['354123067891234', '354123067891235', '354123067891236'];
+
   // Manual Summary Inputs
   const [manualDiscPercent, setManualDiscPercent] = useState("");
   const [manualDiscAmount, setManualDiscAmount] = useState("");
@@ -282,8 +287,8 @@ export function SalesInvoice() {
         {/* Data Table */}
         <div className="flex-1 min-h-[300px] overflow-x-auto">
           <div className="min-w-[1000px]">
-            {/* Table Header: 9 Columns grid-cols-[40px_1fr_80px_80px_100px_90px_90px_100px_80px] */}
-            <div className="bg-[#343a40] text-white grid grid-cols-[40px_1fr_80px_80px_100px_110px_110px_100px_80px] text-center border-b border-gray-600">
+            {/* Table Header: 10 Columns */}
+            <div className="bg-[#343a40] text-white grid grid-cols-[40px_1fr_80px_80px_100px_110px_110px_120px_100px_80px] text-center border-b border-gray-600">
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold leading-tight flex flex-col justify-center">
                 S.NO.
               </div>
@@ -314,6 +319,9 @@ export function SalesInvoice() {
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-blue-300">
                 DISC 2
               </div>
+              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-purple-300">
+                IMEI
+              </div>
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">
                 AMOUNT
               </div>
@@ -323,7 +331,7 @@ export function SalesInvoice() {
             </div>
 
             {/* Input Row */}
-            <div className="grid grid-cols-[40px_1fr_80px_80px_100px_110px_110px_100px_80px] bg-white border-b border-gray-200">
+            <div className="grid grid-cols-[40px_1fr_80px_80px_100px_110px_110px_120px_100px_80px] bg-white border-b border-gray-200">
               <div className="border-r border-gray-200 flex items-center justify-center p-1 bg-gray-600">
               </div>
               <div className="border-r border-gray-200 p-1 flex relative">
@@ -394,6 +402,24 @@ export function SalesInvoice() {
                     <option value="%">%</option>
                     <option value={currentCurrency.symbol}>{currentCurrency.symbol}</option>
                   </select>
+              </div>
+
+              {/* IMEI Select */}
+              <div className="border-r border-gray-200 p-1 flex items-center justify-center">
+                {isImeiTracked ? (
+                  <select 
+                    value={selectedImei}
+                    onChange={(e) => setSelectedImei(e.target.value)}
+                    className="w-full h-full border border-purple-200 bg-purple-50 rounded-[3px] px-1 text-[11px] outline-none text-purple-800"
+                  >
+                    <option value="">Select IMEI</option>
+                    {availableImeis.map(imei => (
+                      <option key={imei} value={imei}>{imei}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-[11px] text-gray-400">-</span>
+                )}
               </div>
 
               <div className="border-r border-gray-200 p-1 flex items-center justify-end pr-2 text-[13px] font-bold text-gray-800 bg-gray-50">

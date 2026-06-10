@@ -8,9 +8,15 @@ export function ItemMasterModal({ isOpen, onClose }) {
   const [isActive, setIsActive] = useState(true);
   const [activeTab, setActiveTab] = useState('basic');
   
+  // Variant states
+  const [memorySize, setMemorySize] = useState('');
+  const [colorVariant, setColorVariant] = useState('');
+  const [designNo, setDesignNo] = useState('');
+  
   // Inventory tracking states
   const [enableBatch, setEnableBatch] = useState(false);
   const [enableExpiry, setEnableExpiry] = useState(false);
+  const [enableImei, setEnableImei] = useState(false);
 
   // BOM states
   const [hasBom, setHasBom] = useState(false);
@@ -132,6 +138,22 @@ export function ItemMasterModal({ isOpen, onClose }) {
                 </div>
               </div>
 
+              {/* Variant Details */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-gray-100 pb-5">
+                <div className="flex flex-col gap-1 w-full">
+                  <label className="text-[13px] font-bold text-gray-800">Memory Size</label>
+                  <input type="text" value={memorySize} onChange={e => setMemorySize(e.target.value)} placeholder="e.g. 128GB, 256GB" className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white" />
+                </div>
+                <div className="flex flex-col gap-1 w-full">
+                  <label className="text-[13px] font-bold text-gray-800">Color Variant</label>
+                  <input type="text" value={colorVariant} onChange={e => setColorVariant(e.target.value)} placeholder="e.g. Midnight Blue" className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white" />
+                </div>
+                <div className="flex flex-col gap-1 w-full">
+                  <label className="text-[13px] font-bold text-gray-800">Design No / Model</label>
+                  <input type="text" value={designNo} onChange={e => setDesignNo(e.target.value)} placeholder="e.g. Model X" className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white" />
+                </div>
+              </div>
+
               {/* Advanced Unit System */}
               <div className="bg-blue-50 border border-blue-100 p-4 rounded-[3px]">
                 <h4 className="text-[14px] font-bold text-blue-900 mb-3 flex items-center justify-between">
@@ -239,7 +261,7 @@ export function ItemMasterModal({ isOpen, onClose }) {
                 <h4 className="text-[14px] font-bold text-purple-900 mb-3 border-b border-purple-200 pb-2 flex items-center gap-2">
                   <History className="w-4 h-4" /> Advanced Tracking
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="flex items-center gap-3 p-3 bg-white border border-purple-100 rounded-[3px]">
                     <div 
                       className={`w-[36px] h-[20px] rounded-full relative cursor-pointer transition-colors flex-shrink-0 ${enableBatch ? 'bg-purple-600' : 'bg-gray-300'}`}
@@ -263,6 +285,19 @@ export function ItemMasterModal({ isOpen, onClose }) {
                     <div>
                       <h4 className="text-[13px] font-bold text-gray-800">Enable Expiry Tracking</h4>
                       <p className="text-[11px] text-gray-500">Force expiry date entry during purchase.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 p-3 bg-white border border-purple-100 rounded-[3px]">
+                    <div 
+                      className={`w-[36px] h-[20px] rounded-full relative cursor-pointer transition-colors flex-shrink-0 ${enableImei ? 'bg-purple-600' : 'bg-gray-300'}`}
+                      onClick={() => setEnableImei(!enableImei)}
+                    >
+                      <div className={`w-[16px] h-[16px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${enableImei ? 'translate-x-[18px]' : 'translate-x-[2px]'}`}></div>
+                    </div>
+                    <div>
+                      <h4 className="text-[13px] font-bold text-gray-800">Enable IMEI Tracking</h4>
+                      <p className="text-[11px] text-gray-500">Track unique IMEI numbers for each piece.</p>
                     </div>
                   </div>
                 </div>

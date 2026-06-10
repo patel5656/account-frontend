@@ -84,6 +84,7 @@ import { BranchMaster } from './pages/BranchMaster';
 import { WarehouseMaster } from './pages/WarehouseMaster';
 import { GodownTransfer } from './pages/GodownTransfer';
 import { BillBook } from './pages/BillBook';
+import { Login } from './pages/Login';
 
 import { SettingsProvider } from './context/SettingsContext';
 
@@ -100,9 +101,12 @@ function App() {
   return (
     <SettingsProvider>
       <Router>
-        <DashboardLayout>
-          <Routes>
-            <Route path="/" element={<FirmRegistration />} />
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/*" element={
+            <DashboardLayout>
+              <Routes>
+                <Route path="/" element={<FirmRegistration />} />
             <Route path="/admin/registration" element={<FirmRegistration />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/admin/invoice-details/customer_sale" element={<SalesInvoiceSummary />} />
@@ -203,9 +207,11 @@ function App() {
             <Route path="/tools/hard-refresh" element={<HardRefreshPage />} />
             <Route path="/admin/audit-logs" element={<AuditLogs />} />
             <Route path="/admin/bill-book" element={<BillBook />} />
-            <Route path="*" element={<Navigate to="/dashboard" />} />
-          </Routes>
-        </DashboardLayout>
+                <Route path="*" element={<Navigate to="/dashboard" />} />
+              </Routes>
+            </DashboardLayout>
+          } />
+        </Routes>
       </Router>
     </SettingsProvider>
   );

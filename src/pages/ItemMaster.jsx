@@ -13,7 +13,7 @@ export function ItemMaster() {
   const navigate = useNavigate();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [rows, setRows] = useState([
-    { id: 1, name: 'Sample Item', category: 'Raw Material', brand: 'Brand A', sku: 'SKU001', barcode: '1234567890', price: 100, qty: 50, status: 'Active', hasBom: false, synced: true },
+    { id: 1, name: 'IPhone 15 Pro', category: 'Mobile Phones', brand: 'Apple', sku: 'SKU001', barcode: '1234567890', price: 120000, qty: 15, status: 'Active', hasBom: false, synced: true, memorySize: '256GB', colorVariant: 'Natural Titanium', designNo: 'A2848', enableImei: true },
     { id: 2, name: 'Finished Product A', category: 'Finished Goods', brand: 'Brand B', sku: 'SKU002', barcode: '0987654321', price: 500, qty: 10, status: 'Active', hasBom: true, synced: false }
   ]);
   const [viewMode, setViewMode] = useState('items'); // 'items' | 'boms'
@@ -140,6 +140,7 @@ export function ItemMaster() {
                 <tr className="bg-gray-50 border-y border-gray-200 text-gray-600 text-[13px]">
                   <th className="py-2 px-3 font-medium">#</th>
                   <th className="py-2 px-3 font-medium">Item Name</th>
+                  <th className="py-2 px-3 font-medium">Variants & IMEI</th>
                   <th className="py-2 px-3 font-medium">Category</th>
                   <th className="py-2 px-3 font-medium">Brand</th>
                   <th className="py-2 px-3 font-medium">Code/SKU</th>
@@ -157,6 +158,13 @@ export function ItemMaster() {
                     <td className="py-2 px-3 font-bold text-[#4F46E5]">
                       {row.name}
                       {row.hasBom && <span className="ml-2 bg-blue-100 text-blue-800 text-[9px] px-1.5 py-0.5 rounded-[3px] font-bold uppercase tracking-wide">BOM</span>}
+                    </td>
+                    <td className="py-2 px-3">
+                      <div className="flex flex-wrap gap-1">
+                        {row.memorySize && <span className="bg-gray-100 border border-gray-200 text-gray-700 text-[10px] px-1.5 py-0.5 rounded-[3px] leading-tight">{row.memorySize}</span>}
+                        {row.colorVariant && <span className="bg-gray-100 border border-gray-200 text-gray-700 text-[10px] px-1.5 py-0.5 rounded-[3px] leading-tight">{row.colorVariant}</span>}
+                        {row.enableImei && <span className="bg-purple-100 border border-purple-200 text-purple-800 text-[10px] px-1.5 py-0.5 rounded-[3px] font-bold leading-tight" title="IMEI Tracking Enabled">IMEI</span>}
+                      </div>
                     </td>
                     <td className="py-2 px-3 text-gray-600">{row.category}</td>
                     <td className="py-2 px-3 text-gray-600 font-medium">{row.brand}</td>

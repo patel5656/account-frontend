@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { 
   Menu, 
@@ -11,7 +11,8 @@ import {
   RefreshCw, 
   Printer, 
   User,
-  Star
+  Star,
+  LogOut
 } from 'lucide-react';
 import { cn } from '../utils';
 import { ImportDataModal } from './ImportDataModal';
@@ -21,6 +22,7 @@ export function TopNavbar({ toggleSidebar, isOpen }) {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { i18n } = useTranslation();
 
   const changeLanguage = (e) => {
@@ -219,6 +221,16 @@ export function TopNavbar({ toggleSidebar, isOpen }) {
             <User className="w-[14px] h-[14px]" />
           </div>
           <span className="text-[13px] font-medium text-gray-600 hidden sm:block">Anmol Gour</span>
+        </button>
+
+        {/* Logout Button */}
+        <button 
+          onClick={() => navigate('/login')}
+          className="flex items-center gap-1 sm:gap-1.5 pl-1 sm:pl-2 border-l border-gray-200 text-red-500 hover:text-red-700 flex-shrink-0 focus:outline-none transition-colors"
+          title="Logout"
+        >
+          <LogOut className="w-[16px] h-[16px]" strokeWidth={2.5} />
+          <span className="text-[13px] font-medium hidden sm:block">Logout</span>
         </button>
       </div>
 
