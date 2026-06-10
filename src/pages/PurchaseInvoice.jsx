@@ -48,6 +48,9 @@ export function PurchaseInvoice() {
   const [imeiModalOpen, setImeiModalOpen] = useState(false);
   const [imeiList, setImeiList] = useState([]);
 
+  // Toggles State
+  const [isTaxIncluded, setIsTaxIncluded] = useState(true);
+
   // Calculation Logic
   const baseAmount = (qty || 0) * (price || 0);
   
@@ -183,9 +186,12 @@ export function PurchaseInvoice() {
               </div>
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex flex-col justify-center leading-tight">
                 <span className="font-normal text-[10px]">(TAX INCLUDED)</span>
-                <div className="flex items-center justify-center gap-1 mt-0.5">
-                  <div className="w-[20px] h-[10px] bg-[#117a8b] rounded-full relative">
-                    <div className="w-[8px] h-[8px] bg-white rounded-full absolute top-[1px] left-[1px]"></div>
+                <div 
+                  onClick={() => setIsTaxIncluded(!isTaxIncluded)}
+                  className="flex items-center justify-center gap-1 mt-0.5 cursor-pointer"
+                >
+                  <div className={`w-[24px] h-[14px] rounded-full relative transition-colors ${isTaxIncluded ? 'bg-[#117a8b]' : 'bg-gray-400'}`}>
+                    <div className={`w-[10px] h-[10px] bg-white rounded-full absolute top-[2px] transition-all shadow-sm ${isTaxIncluded ? 'right-[2px]' : 'left-[2px]'}`}></div>
                   </div>
                   PRICE
                 </div>
@@ -297,10 +303,10 @@ export function PurchaseInvoice() {
               </div>
               
               <div className="bg-[#343a40] flex items-center justify-center gap-2 p-1">
-                <button className="text-[#28a745] hover:text-green-400">
+                <button onClick={() => alert('Row added!')} className="text-[#28a745] hover:text-green-400">
                   <PlusSquare className="w-[18px] h-[18px]" strokeWidth={2.5} />
                 </button>
-                <button className="text-white hover:text-gray-300">
+                <button onClick={() => alert('Row edit logged!')} className="text-white hover:text-gray-300">
                   <Edit className="w-[18px] h-[18px]" strokeWidth={2.5} />
                 </button>
               </div>

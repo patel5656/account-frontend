@@ -13,6 +13,7 @@ export function CustomerLedger() {
   const dropdownRef = React.useRef(null);
   const [entryDate, setEntryDate] = React.useState("2026-05-23");
   const dateInputRef = React.useRef(null);
+  const [isPaymentIn, setIsPaymentIn] = React.useState(true);
 
   const formatDisplayDate = (dateString) => {
     if (!dateString) return "";
@@ -192,11 +193,14 @@ export function CustomerLedger() {
               <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center">
                 Bill Amount
               </div>
-              <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center gap-1.5">
-                <div className="w-[30px] h-[16px] bg-[#28a745] rounded-full relative cursor-pointer">
-                  <div className="w-[12px] h-[12px] bg-white rounded-full absolute top-[2px] right-[2px]"></div>
+              <div 
+                className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center gap-1.5 cursor-pointer select-none"
+                onClick={() => setIsPaymentIn(!isPaymentIn)}
+              >
+                <div className={`w-[30px] h-[16px] rounded-full relative border transition-colors ${isPaymentIn ? 'bg-[#28a745] border-[#218838]' : 'bg-[#dc3545] border-[#c82333]'}`}>
+                  <div className={`w-[12px] h-[12px] bg-white rounded-full absolute top-[1px] transition-all ${isPaymentIn ? 'right-[1px]' : 'left-[1px]'}`}></div>
                 </div>
-                Payment In
+                {isPaymentIn ? 'Payment In' : 'Payment Out'}
               </div>
               <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center">
                 Dis.

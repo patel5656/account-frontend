@@ -16,6 +16,7 @@ export function EmployeeLedger() {
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   const [employeeSearch, setEmployeeSearch] = React.useState("");
   const dropdownRef = React.useRef(null);
+  const [isPaid, setIsPaid] = React.useState(false);
   
   React.useEffect(() => {
     const handleClickOutside = (event) => {
@@ -147,9 +148,12 @@ export function EmployeeLedger() {
               <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center">
                 Salary
               </div>
-              <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center gap-1.5">
-                <div className="w-[30px] h-[16px] bg-[#dc3545] rounded-full relative cursor-pointer border border-[#c82333]">
-                  <div className="w-[12px] h-[12px] bg-white rounded-full absolute top-[1px] left-[1px]"></div>
+              <div 
+                className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center gap-1.5 cursor-pointer select-none"
+                onClick={() => setIsPaid(!isPaid)}
+              >
+                <div className={`w-[30px] h-[16px] rounded-full relative border transition-colors ${isPaid ? 'bg-[#28a745] border-[#218838]' : 'bg-[#dc3545] border-[#c82333]'}`}>
+                  <div className={`w-[12px] h-[12px] bg-white rounded-full absolute top-[1px] transition-all ${isPaid ? 'right-[1px]' : 'left-[1px]'}`}></div>
                 </div>
                 Paid
               </div>

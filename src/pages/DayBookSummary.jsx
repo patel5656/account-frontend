@@ -4,6 +4,9 @@ import { Search } from 'lucide-react';
 
 export function DayBookSummary() {
   const navigate = useNavigate();
+  const [dateType, setDateType] = React.useState('Transaction Date');
+  const [searchByVoucher, setSearchByVoucher] = React.useState(false);
+  const [withItems, setWithItems] = React.useState(false);
 
   return (
     <div className="bg-white min-h-[calc(100vh-45px)] p-6 relative pb-16">
@@ -18,19 +21,28 @@ export function DayBookSummary() {
         <div className="flex flex-wrap items-center gap-4 mb-2">
           <span className="text-[14px] font-bold text-gray-800">Date Type:</span>
           
-          <div className="flex flex-wrap items-center gap-1.5 cursor-pointer">
-            <input type="radio" checked readOnly className="w-4 h-4 text-blue-500 accent-blue-500" />
-            <span className="text-[14px] font-bold text-[#007bff]">Transaction Date</span>
+          <div 
+            className="flex flex-wrap items-center gap-1.5 cursor-pointer"
+            onClick={() => setDateType('Transaction Date')}
+          >
+            <input type="radio" checked={dateType === 'Transaction Date'} readOnly className="w-4 h-4 text-blue-500 accent-blue-500" />
+            <span className={`text-[14px] ${dateType === 'Transaction Date' ? 'font-bold text-[#007bff]' : 'text-gray-600'}`}>Transaction Date</span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 cursor-pointer ml-2">
-            <input type="radio" disabled className="w-4 h-4" />
-            <span className="text-[14px] text-gray-600">Modified Date</span>
+          <div 
+            className="flex flex-wrap items-center gap-1.5 cursor-pointer ml-2"
+            onClick={() => setDateType('Modified Date')}
+          >
+            <input type="radio" checked={dateType === 'Modified Date'} readOnly className="w-4 h-4 text-blue-500 accent-blue-500" />
+            <span className={`text-[14px] ${dateType === 'Modified Date' ? 'font-bold text-[#007bff]' : 'text-gray-600'}`}>Modified Date</span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 ml-4">
-            <div className="w-[36px] h-[20px] bg-[#d6d8db] rounded-full relative cursor-pointer">
-              <div className="w-[14px] h-[14px] bg-white rounded-full absolute top-[3px] left-[3px] shadow-sm"></div>
+          <div 
+            className="flex flex-wrap items-center gap-2 ml-4 cursor-pointer select-none"
+            onClick={() => setWithItems(!withItems)}
+          >
+            <div className={`w-[36px] h-[20px] rounded-full relative transition-colors ${withItems ? 'bg-blue-500' : 'bg-[#d6d8db]'}`}>
+              <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[3px] transition-all shadow-sm ${withItems ? 'right-[3px]' : 'left-[3px]'}`}></div>
             </div>
             <span className="text-[14px] font-bold text-gray-800">With Items</span>
           </div>
@@ -46,9 +58,12 @@ export function DayBookSummary() {
         
         {/* Search by Voucher Type */}
         <div className="flex-1 max-w-[300px]">
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            <div className="w-[36px] h-[20px] bg-[#d6d8db] rounded-full relative cursor-pointer">
-              <div className="w-[14px] h-[14px] bg-white rounded-full absolute top-[3px] left-[3px] shadow-sm"></div>
+          <div 
+            className="flex flex-wrap items-center gap-2 mb-2 cursor-pointer select-none"
+            onClick={() => setSearchByVoucher(!searchByVoucher)}
+          >
+            <div className={`w-[36px] h-[20px] rounded-full relative transition-colors ${searchByVoucher ? 'bg-blue-500' : 'bg-[#d6d8db]'}`}>
+              <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[3px] transition-all shadow-sm ${searchByVoucher ? 'right-[3px]' : 'left-[3px]'}`}></div>
             </div>
             <span className="text-[14px] font-bold text-gray-800">Search by Voucher Type :</span>
           </div>

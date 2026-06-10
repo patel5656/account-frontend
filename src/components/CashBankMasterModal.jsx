@@ -44,22 +44,24 @@ export function CashBankMasterModal({ isOpen, onClose }) {
                 value={bookName}
                 onChange={(e) => setBookName(e.target.value)}
                 placeholder="Enter Bank Name Or UPI Name"
-                className="w-full border border-gray-300 bg-[#a6cdec] placeholder-gray-400 rounded-[3px] px-3 py-[7px] text-[14px] outline-none focus:border-[#4F46E5]"
+                className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-[7px] text-[14px] outline-none focus:border-[#4F46E5]"
               />
             </div>
             
             {/* Right side: Active toggle & Type */}
-            <div className="flex flex-col gap-3 w-full">
+            <div className="flex-1 flex flex-col gap-1">
               
-              <div className="flex flex-wrap items-center gap-2 justify-end mb-1">
-                <div 
-                  className={`w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${isActive ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}
-                  onClick={() => setIsActive(!isActive)}
-                >
-                  <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${isActive ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
+              <div className="flex flex-wrap items-center justify-between mb-1">
+                <span className="text-[14px] font-bold text-gray-800">Type</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[14px] font-bold text-gray-800 select-none">Active</span>
+                  <div 
+                    className={`w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${isActive ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}
+                    onClick={() => setIsActive(!isActive)}
+                  >
+                    <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${isActive ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
+                  </div>
                 </div>
-                <span className="text-[14px] font-bold text-gray-800 select-none">Active</span>
-                <span className="text-[14px] font-bold text-gray-800 ml-4">Type</span>
               </div>
 
               <div>
