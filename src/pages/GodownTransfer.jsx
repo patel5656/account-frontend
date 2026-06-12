@@ -274,52 +274,7 @@ export function GodownTransfer() {
         </div>
       </div>
 
-      {/* Fixed Bottom Action Bar */}
-      <div className="fixed bottom-0 left-0 md:left-[220px] right-0 bg-[#343a40] z-40 px-4 py-2 flex items-center justify-between shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-        <div className="flex flex-wrap items-center gap-1 text-[12px] font-bold invisible sm:visible">
-          <span className="text-white">Status:</span>
-          <span className="text-[#28a745]">Pending Transfer</span>
-        </div>
-        
-        <div className="flex items-center justify-center gap-1.5 flex-1 max-w-[400px] mx-auto">
-          <button 
-            onClick={() => {
-              if (items.length === 0) {
-                alert('Please add items to transfer');
-                return;
-              }
-              alert('Stock transferred successfully!');
-              setItems([]);
-            }}
-            className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] transition-colors"
-          >
-            <Check className="w-4 h-4" strokeWidth={3} />
-            Transfer Stock
-          </button>
-          
-          <button 
-            onClick={() => window.print()}
-            className="flex items-center gap-1 bg-[#4F46E5] hover:bg-[#4338ca] text-white px-3 py-1.5 rounded-[3px] text-[13px] transition-colors"
-          >
-            <Printer className="w-4 h-4" strokeWidth={3} />
-            Print Challan
-          </button>
 
-          <button 
-            onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-1 bg-[#dc3545] hover:bg-[#c82333] text-white px-3 py-1.5 rounded-[3px] text-[13px] transition-colors"
-          >
-            <X className="w-4 h-4" strokeWidth={3} />
-            Close
-          </button>
-        </div>
-
-        <button className="flex items-center gap-2 bg-[#23272b] hover:bg-[#1d2124] text-white px-3 py-1.5 rounded-[3px] text-[12px] border border-gray-600 transition-colors invisible sm:visible">
-          <Grip className="w-4 h-4" />
-          Shortcut keys
-          <ChevronDown className="w-3.5 h-3.5 ml-1" strokeWidth={3} />
-        </button>
-      </div>
 
     </div>
   );

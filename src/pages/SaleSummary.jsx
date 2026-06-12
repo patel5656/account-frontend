@@ -160,12 +160,6 @@ export function SaleSummary() {
           >
             <Download className="w-4 h-4" strokeWidth={2.5} /> Download
           </button>
-          <button 
-            onClick={() => window.open('https://www.gst.gov.in/', '_blank')}
-            className="bg-[#4F46E5] hover:bg-[#4338ca] text-white text-[13px] font-bold px-3 py-1.5 rounded-[3px] flex items-center gap-1 shadow-sm transition-colors"
-          >
-            <ExternalLink className="w-4 h-4" strokeWidth={2.5} /> Open GSTR Portal
-          </button>
         </div>
 
       </div>

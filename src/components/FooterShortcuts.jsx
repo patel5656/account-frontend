@@ -15,7 +15,7 @@ const shortcuts = [
 
 export function FooterShortcuts({ isOpen }) {
   return (
-    <div className={`fixed bottom-0 right-0 bg-[#2d3238] border-t border-[#1b2024] p-2 z-30 overflow-x-auto custom-scrollbar ${isOpen ? 'left-0 md:left-[220px]' : 'left-0'}`}>
+    <div className={`hidden md:block fixed bottom-0 right-0 bg-[#2d3238] border-t border-[#1b2024] p-2 z-30 overflow-x-auto custom-scrollbar ${isOpen ? 'left-0 md:left-[220px]' : 'left-0'}`}>
       <div className="flex flex-wrap items-center gap-2 px-2">
         {shortcuts.map((shortcut, index) => (
           <div 

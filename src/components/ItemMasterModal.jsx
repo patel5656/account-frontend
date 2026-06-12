@@ -26,6 +26,9 @@ export function ItemMasterModal({ isOpen, onClose }) {
   const [syncOnline, setSyncOnline] = useState(false);
   const [barcode, setBarcode] = useState('');
 
+  // Pricing states
+  const [qtySlabs, setQtySlabs] = useState([]);
+
   if (!isOpen) return null;
 
   const tabs = [
@@ -103,7 +106,7 @@ export function ItemMasterModal({ isOpen, onClose }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-gray-100 pb-5">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 border-b border-gray-100 pb-5">
                 <div className="flex flex-col gap-1 w-full">
                   <div className="flex justify-between items-center">
                     <label className="text-[13px] font-bold text-gray-800">Category</label>
@@ -135,6 +138,10 @@ export function ItemMasterModal({ isOpen, onClose }) {
                     <option value="18">18%</option>
                     <option value="28">28%</option>
                   </select>
+                </div>
+                <div className="flex flex-col gap-1 w-full">
+                  <label className="text-[13px] font-bold text-gray-800">HSN Code</label>
+                  <input type="text" placeholder="e.g. 8517" className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white" />
                 </div>
               </div>
 
@@ -195,21 +202,79 @@ export function ItemMasterModal({ isOpen, onClose }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pb-4">
                 <div className="flex flex-col gap-1 w-full">
-                  <label className="text-[14px] font-bold text-gray-800">Purchase Price (Base Unit)</label>
+                  <label className="text-[13px] font-bold text-gray-800">Purchase Price</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">₹</span>
-                    <input type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-7 pr-3 py-2 text-[14px] outline-none focus:border-[#4F46E5] bg-white text-right font-bold" />
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-[13px]">₹</span>
+                    <input type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-6 pr-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] bg-white text-right font-bold" />
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 w-full">
-                  <label className="text-[14px] font-bold text-gray-800">Sale Price (Base Unit)</label>
+                  <label className="text-[13px] font-bold text-gray-800">Sale Price</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">₹</span>
-                    <input type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-7 pr-3 py-2 text-[14px] outline-none focus:border-[#4F46E5] bg-white text-right font-bold" />
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-[13px]">₹</span>
+                    <input type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-6 pr-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] bg-white text-right font-bold" />
                   </div>
                 </div>
+                <div className="flex flex-col gap-1 w-full">
+                  <label className="text-[13px] font-bold text-gray-800">Wholesale Price</label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-[13px]">₹</span>
+                    <input type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-6 pr-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] bg-[#fff8e1] text-right font-bold" />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1 w-full">
+                  <label className="text-[13px] font-bold text-gray-800">Credit Sale Price</label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-[13px]">₹</span>
+                    <input type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-6 pr-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] bg-[#e1f5fe] text-right font-bold" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Special Quantity Wise Pricing */}
+              <div className="bg-green-50 border border-green-200 p-4 rounded-[3px] mt-2">
+                <h4 className="text-[14px] font-bold text-green-900 mb-3 flex items-center justify-between">
+                  Special Quantity Wise Pricing
+                  <button 
+                    onClick={() => setQtySlabs([...qtySlabs, { minQty: '', maxQty: '', price: '' }])}
+                    className="text-[12px] bg-white border border-green-300 text-green-700 px-2 py-1 rounded-[3px] shadow-sm flex items-center gap-1 hover:bg-green-100 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" /> Add Slab
+                  </button>
+                </h4>
+                {qtySlabs.length === 0 ? (
+                  <p className="text-[12px] text-green-700 italic">No quantity slabs defined. Regular prices will apply.</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <div className="grid grid-cols-12 gap-2 px-2 pb-1 border-b border-green-200 text-[12px] font-bold text-green-800">
+                      <div className="col-span-4">Min Quantity</div>
+                      <div className="col-span-4">Max Quantity</div>
+                      <div className="col-span-3">Special Price</div>
+                      <div className="col-span-1 text-center">Action</div>
+                    </div>
+                    {qtySlabs.map((slab, index) => (
+                      <div key={index} className="grid grid-cols-12 gap-2 items-center">
+                        <div className="col-span-4">
+                          <input type="number" placeholder="e.g. 1" value={slab.minQty} onChange={(e) => { const newSlabs = [...qtySlabs]; newSlabs[index].minQty = e.target.value; setQtySlabs(newSlabs); }} className="w-full border border-green-300 rounded-[3px] px-2 py-1.5 text-[13px] outline-none focus:border-green-500 bg-white" />
+                        </div>
+                        <div className="col-span-4">
+                          <input type="number" placeholder="e.g. 10" value={slab.maxQty} onChange={(e) => { const newSlabs = [...qtySlabs]; newSlabs[index].maxQty = e.target.value; setQtySlabs(newSlabs); }} className="w-full border border-green-300 rounded-[3px] px-2 py-1.5 text-[13px] outline-none focus:border-green-500 bg-white" />
+                        </div>
+                        <div className="col-span-3">
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-[12px]">₹</span>
+                            <input type="number" placeholder="0.00" value={slab.price} onChange={(e) => { const newSlabs = [...qtySlabs]; newSlabs[index].price = e.target.value; setQtySlabs(newSlabs); }} className="w-full border border-green-300 rounded-[3px] pl-5 pr-2 py-1.5 text-[13px] outline-none focus:border-green-500 bg-white font-bold text-right" />
+                          </div>
+                        </div>
+                        <div className="col-span-1 flex justify-center">
+                          <button onClick={() => setQtySlabs(qtySlabs.filter((_, i) => i !== index))} className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors"><X className="w-4 h-4" /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

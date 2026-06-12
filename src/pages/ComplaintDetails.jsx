@@ -120,18 +120,7 @@ export function ComplaintDetails() {
       </div>
 
       {/* Empty State */}
-      <div className="flex-1 flex flex-col items-center pt-24 bg-white relative">
-        <h2 className="text-[26px] font-normal text-[#333] mb-3">No Complain Booked Yet</h2>
-        <p className="text-[14px] text-[#555] mb-1">It seems that you do not have any Complain.</p>
-        <p className="text-[14px] text-[#555] mb-8">Please Book one now.</p>
-        
-        {/* Large Document Icon */}
-        <div className="text-[#333] mb-16">
-          <svg width="90" height="110" viewBox="0 0 60 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path fillRule="evenodd" clipRule="evenodd" d="M0 4C0 1.79086 1.79086 0 4 0H42.1716C43.2325 0 44.2499 0.421427 45.0001 1.17157L58.8284 15C59.5786 15.7501 60 16.7675 60 17.8284V76C60 78.2091 58.2091 80 56 80H4C1.79086 80 0 78.2091 0 76V4ZM42 16H56.1716L42 1.82843V16ZM10 18H28V24H10V18ZM10 32H38V38H10V32ZM10 52H50V70H10V52ZM16 58H44V64H16V58Z" fill="#333333"/>
-          </svg>
-        </div>
-      </div>
+      <div className="flex-1 bg-white"></div>
 
       {/* Complain Master Modal */}
       {isModalOpen && (

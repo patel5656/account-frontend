@@ -51,7 +51,8 @@ import {
   ArrowRightLeft,
   Building2,
   Warehouse,
-  LogOut
+  LogOut,
+  Import
 } from 'lucide-react';
 import { CashBankMasterModal } from './CashBankMasterModal';
 import { PartyMasterModal } from './PartyMasterModal';
@@ -206,6 +207,7 @@ const menuItems = [
       { name: 'Service Reminder', icon: Wrench, path: '/tools/service-reminder' },
       { name: 'Set Message Template', icon: Mail, path: '#' },
       { name: 'BarCode', icon: Barcode, path: '/tools/barcode' },
+      { name: 'Bank Statement Import', icon: Import, path: '/admin/bank_statement_import' },
       { name: 'HSN & GST Error', icon: Hash, path: '/tools/hsn-gst-error' },
       { name: 'GST UQC Merge', icon: Merge, path: '#' },
       { name: 'Stock Correction', icon: PackageOpen, path: '#' },

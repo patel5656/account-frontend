@@ -132,18 +132,6 @@ export function GstrSaleSummary() {
           <span className="text-[16px] leading-none mt-[-2px]">&laquo;</span> Go back
         </button>
         <button 
-          onClick={() => window.open('https://ewaybillgst.gov.in/', '_blank')}
-          className="bg-[#007bff] hover:bg-[#0069d9] text-white text-[13px] font-medium px-4 py-1.5 rounded-[3px] flex items-center justify-center gap-1.5 shadow-sm transition-colors"
-        >
-          <Truck className="w-4 h-4" /> E-Way Bills
-        </button>
-        <button 
-          onClick={() => window.open('https://einvoice1.gst.gov.in/', '_blank')}
-          className="bg-[#007bff] hover:bg-[#0069d9] text-white text-[13px] font-medium px-4 py-1.5 rounded-[3px] flex items-center justify-center gap-1.5 shadow-sm transition-colors"
-        >
-          <FileText className="w-4 h-4" /> E-Invoices
-        </button>
-        <button 
           onClick={handleShare}
           className="bg-[#28a745] hover:bg-[#218838] text-white text-[13px] font-medium px-3 py-1.5 rounded-[3px] flex items-center justify-center shadow-sm transition-colors"
         >
@@ -166,12 +154,6 @@ export function GstrSaleSummary() {
           className="bg-[#343a40] hover:bg-[#23272b] text-white text-[13px] font-medium px-4 py-1.5 rounded-[3px] flex items-center justify-center gap-1.5 shadow-sm transition-colors"
         >
           <Download className="w-4 h-4" /> Download
-        </button>
-        <button 
-          onClick={() => window.open('https://www.gst.gov.in/', '_blank')}
-          className="bg-[#4F46E5] hover:bg-[#4338ca] text-white text-[13px] font-medium px-4 py-1.5 rounded-[3px] flex items-center justify-center gap-1.5 shadow-sm transition-colors"
-        >
-          <ExternalLink className="w-4 h-4" /> Open GSTR Portal
         </button>
       </div>
 

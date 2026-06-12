@@ -90,9 +90,6 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
         <div className="bg-[#17a2b8] flex items-center justify-between">
           <h2 className="text-[15px] text-white font-medium tracking-wide pl-4 py-2.5">Party Master</h2>
           <div className="flex items-center">
-            <button className="text-white hover:text-gray-200 focus:outline-none transition-colors px-3">
-              <Settings className="w-[18px] h-[18px]" strokeWidth={2.5} />
-            </button>
             <button 
               onClick={onClose} 
               className="bg-[#dc3545] hover:bg-[#c82333] h-full px-3 py-2.5 focus:outline-none transition-colors"

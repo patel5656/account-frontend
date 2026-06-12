@@ -85,6 +85,7 @@ import { WarehouseMaster } from './pages/WarehouseMaster';
 import { GodownTransfer } from './pages/GodownTransfer';
 import { BillBook } from './pages/BillBook';
 import { Login } from './pages/Login';
+import { BankStatementImport } from './pages/BankStatementImport';
 
 import { SettingsProvider } from './context/SettingsContext';
 
@@ -106,7 +107,7 @@ function App() {
           <Route path="/*" element={
             <DashboardLayout>
               <Routes>
-                <Route path="/" element={<FirmRegistration />} />
+                <Route path="/" element={<Navigate to="/login" />} />
             <Route path="/admin/registration" element={<FirmRegistration />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/admin/invoice-details/customer_sale" element={<SalesInvoiceSummary />} />
@@ -207,6 +208,7 @@ function App() {
             <Route path="/tools/hard-refresh" element={<HardRefreshPage />} />
             <Route path="/admin/audit-logs" element={<AuditLogs />} />
             <Route path="/admin/bill-book" element={<BillBook />} />
+            <Route path="/admin/bank_statement_import" element={<BankStatementImport />} />
                 <Route path="*" element={<Navigate to="/dashboard" />} />
               </Routes>
             </DashboardLayout>

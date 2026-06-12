@@ -63,13 +63,7 @@ export function GstrPurchaseReturn() {
           </select>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 mt-5">
-          <div className="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" className="sr-only peer" />
-            <div className="w-8 h-4 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#007bff]"></div>
-          </div>
-          <label className="text-[13px] font-bold text-gray-800">Show HSN-wise</label>
-        </div>
+
       </div>
 
       {/* Main Card */}
@@ -154,12 +148,6 @@ export function GstrPurchaseReturn() {
           className="bg-[#343a40] hover:bg-[#23272b] text-white text-[13px] font-medium px-4 py-1.5 rounded-[3px] flex items-center justify-center gap-1.5 shadow-sm transition-colors"
         >
           <Download className="w-4 h-4" /> Download
-        </button>
-        <button 
-          onClick={() => window.open('https://www.gst.gov.in/', '_blank')}
-          className="bg-[#4F46E5] hover:bg-[#4338ca] text-white text-[13px] font-medium px-4 py-1.5 rounded-[3px] flex items-center justify-center gap-1.5 shadow-sm transition-colors"
-        >
-          <ExternalLink className="w-4 h-4" /> Open GSTR Portal
         </button>
       </div>
 
