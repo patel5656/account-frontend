@@ -13,9 +13,8 @@ export function SettingsDrawer({ isOpen, onClose }) {
   const isLedgerRoute = location.pathname.includes('/party-ledger/');
   const isBarcodeRoute = location.pathname.includes('/barcode');
   const isStockPriceUpdateRoute = location.pathname.includes('/stock-price-update') || location.pathname.includes('/items_quantity_report');
-  const isCustomerInvoiceCreation = location.pathname.includes('/customer-invoice-creation') || location.pathname.includes('/create_invoices/company_purchase') || location.pathname.includes('/customer-challan-creation');
-  const isInvoiceRoute = location.pathname.includes('/sales-invoice') || 
-                         location.pathname.includes('/create_invoices/') || 
+  const isCustomerInvoiceCreation = location.pathname.includes('/customer-invoice-creation') || location.pathname.includes('/create_invoices/company_purchase') || location.pathname.includes('/customer-challan-creation') || location.pathname.includes('/sales-invoice');
+  const isInvoiceRoute = location.pathname.includes('/create_invoices/') || 
                          location.pathname.includes('/quotation-invoice') || 
                          location.pathname.includes('/stock-adjustment-invoice');
 

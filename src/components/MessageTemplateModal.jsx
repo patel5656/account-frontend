@@ -15,7 +15,7 @@ export function MessageTemplateModal({ isOpen, onClose }) {
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
       <div className="bg-white w-[min(98vw,800px)] rounded-[3px] shadow-lg flex flex-col overflow-hidden relative animate-in fade-in zoom-in duration-200">
         {/* Header */}
-        <div className="bg-[#17a2b8] pl-4 pr-0 flex items-center justify-between h-[42px] text-white">
+        <div className="bg-[#4F46E5] pl-4 pr-0 flex items-center justify-between h-[42px] text-white">
           <h2 className="text-[14.5px] font-medium tracking-wide">Message Template</h2>
           <button 
             onClick={onClose} 

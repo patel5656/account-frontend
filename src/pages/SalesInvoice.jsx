@@ -59,15 +59,63 @@ export function SalesInvoice() {
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
   };
 
+  // Mock Item Master Data for Demonstration
+  const MOCK_ITEM = {
+    name: "Smartphone X",
+    sale_price: 1000,
+    wholesale_price: 900,
+    credit_sale_price: 1050,
+    qty_slabs: [
+      { min: 10, max: 49, price: 950 },
+      { min: 50, max: 99999, price: 850 }
+    ]
+  };
+
+  const [isWholesale, setIsWholesale] = useState(false);
+
   // Interactive Live Calculation State
-  const [qty, setQty] = useState(10);
-  const [freeQty, setFreeQty] = useState(2);
-  const [price, setPrice] = useState(1000);
+  const [qty, setQty] = useState(1);
+  const [freeQty, setFreeQty] = useState(0);
   
-  const [disc1, setDisc1] = useState(10);
+  // State for tracking the applied price reason
+  const [priceReason, setPriceReason] = useState('Standard Retail');
+
+  // Dynamic Price Calculation
+  const calculatePrice = (currentQty, isCredit, isWholesaleTx) => {
+    let newPrice = MOCK_ITEM.sale_price;
+    let reason = "Standard Retail";
+
+    if (isCredit) {
+      newPrice = MOCK_ITEM.credit_sale_price;
+      reason = "Credit Sale Price";
+    } else if (isWholesaleTx) {
+      newPrice = MOCK_ITEM.wholesale_price;
+      reason = "Wholesale Price";
+    }
+
+    // Check quantity slabs (Quantity override takes highest priority for retail/wholesale)
+    const matchingSlab = MOCK_ITEM.qty_slabs.find(slab => currentQty >= slab.min && currentQty <= slab.max);
+    if (matchingSlab && !isCredit) { // Typically credit sales don't get volume discounts, or maybe they do. Let's apply it if found.
+      newPrice = matchingSlab.price;
+      reason = `Special Qty Price (${matchingSlab.min}-${matchingSlab.max})`;
+    }
+
+    return { price: newPrice, reason };
+  };
+
+  const [price, setPrice] = useState(MOCK_ITEM.sale_price);
+
+  // Recalculate when qty or toggles change
+  React.useEffect(() => {
+    const { price: newPrice, reason } = calculatePrice(qty, paymentMode === 'Credit', isWholesale);
+    setPrice(newPrice);
+    setPriceReason(reason);
+  }, [qty, paymentMode, isWholesale]);
+  
+  const [disc1, setDisc1] = useState(0);
   const [disc1Type, setDisc1Type] = useState('%');
   
-  const [disc2, setDisc2] = useState(5);
+  const [disc2, setDisc2] = useState(0);
   const [disc2Type, setDisc2Type] = useState('%');
 
   // IMEI Tracking State
@@ -166,6 +214,19 @@ export function SalesInvoice() {
           <h2 className="text-white font-medium text-[15px]">{pageTitle}</h2>
           
           <div className="flex flex-wrap items-center gap-3">
+            <div 
+              className="flex flex-wrap items-center gap-1.5 cursor-pointer" 
+              onClick={() => setIsWholesale(!isWholesale)}
+            >
+              <span className={`text-[13px] font-bold ${!isWholesale ? 'text-white' : 'text-gray-300'}`}>Retail</span>
+              <div className={`w-[32px] h-[18px] rounded-full relative border transition-colors ${isWholesale ? 'bg-[#117a8b] border-[#148ea1]' : 'bg-gray-400 border-gray-500'}`}>
+                <div className={`w-[14px] h-[14px] rounded-full absolute top-[1px] transition-all bg-white shadow-sm ${isWholesale ? 'right-[1px]' : 'left-[1px]'}`}></div>
+              </div>
+              <span className={`text-[13px] font-bold ${isWholesale ? 'text-white' : 'text-gray-300'}`}>Wholesale</span>
+            </div>
+
+            <div className="w-[1px] h-5 bg-indigo-400 mx-1"></div>
+
             <div 
               className="flex flex-wrap items-center gap-1.5 cursor-pointer" 
               onClick={() => setPaymentMode(paymentMode === 'Cash' ? 'Credit' : 'Cash')}
@@ -335,7 +396,12 @@ export function SalesInvoice() {
               <div className="border-r border-gray-200 flex items-center justify-center p-1 bg-gray-600">
               </div>
               <div className="border-r border-gray-200 p-1 flex relative">
-                <input type="text" placeholder="Enter Product Name" className="w-full px-2 py-1 text-[13px] outline-none" />
+                <input 
+                  type="text" 
+                  value={MOCK_ITEM.name} 
+                  readOnly 
+                  className="w-full px-2 py-1 text-[13px] outline-none font-bold text-gray-800" 
+                />
                 <button className="absolute right-1 top-1.5 bottom-1.5 bg-[#4F46E5] text-white text-[11px] px-2 rounded-sm font-bold flex items-center gap-1">
                   <FilterIcon className="w-3 h-3" /> Product
                 </button>
@@ -359,13 +425,16 @@ export function SalesInvoice() {
                  />
               </div>
 
-              <div className="border-r border-gray-200 p-1">
+              <div className="border-r border-gray-200 p-1 flex flex-col justify-center relative group">
                 <input 
                   type="number" 
                   value={price}
                   onChange={(e) => setPrice(Number(e.target.value))}
-                  className="w-full h-full border border-gray-200 rounded-[3px] px-2 text-[13px] outline-none text-right font-bold" 
+                  className="w-full h-full border border-gray-200 rounded-[3px] px-2 text-[13px] outline-none text-right font-bold transition-colors bg-blue-50 border-blue-200" 
                 />
+                <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap bg-gray-800 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+                  Applied: {priceReason}
+                </div>
               </div>
 
               {/* Disc 1 */}

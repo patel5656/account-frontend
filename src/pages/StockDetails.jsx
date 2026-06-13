@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  X, GitMerge, Plus, Printer, RefreshCw, FileDown, Filter,
+  X, GitMerge, Plus, Printer, RefreshCw, FileDown, Filter, Search,
   CheckSquare, Square, Edit2, Trash2, Tag, AlertCircle, Eye, 
   ChevronDown, ChevronRight, Package, LayoutGrid
 } from 'lucide-react';
@@ -24,9 +24,20 @@ export function StockDetails() {
   const navigate = useNavigate();
   const { formatAmount, currentCurrency } = useSettings();
   const [viewMode, setViewMode] = useState('item'); // 'item' or 'brand'
-  const [rows, setRows] = useState(INITIAL_ROWS);
+  const [rows, setRows] = useState(() => {
+    const saved = localStorage.getItem('stockDetailsRows');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return INITIAL_ROWS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('stockDetailsRows', JSON.stringify(rows));
+  }, [rows]);
   const [selected, setSelected] = useState(new Set());
   const [search, setSearch] = useState('');
+  const [searchFilter, setSearchFilter] = useState('Product Name');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [stockFilter, setStockFilter] = useState('');
   const [warehouseFilter, setWarehouseFilter] = useState('');
@@ -40,6 +51,13 @@ export function StockDetails() {
   
   const [showPreview, setShowPreview] = useState(false);
   const [expandedBrands, setExpandedBrands] = useState(new Set());
+  const [viewModalData, setViewModalData] = useState(null);
+
+  const handleDeleteItem = (id) => {
+    if (window.confirm("Are you sure you want to delete this item?")) {
+      setRows(prev => prev.filter(r => r.id !== id));
+    }
+  };
 
   // Filtering
   const filtered = rows.filter(r => {
@@ -325,312 +343,142 @@ export function StockDetails() {
       </div>
 
       {/* ======= MAIN UI ======= */}
-      <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] flex flex-col p-3">
+      <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] flex flex-col p-3 relative pb-[50px]">
         <div className="bg-white rounded shadow-sm border border-gray-200 flex-1 flex flex-col overflow-hidden">
-
+          
           {/* Header */}
           <div className="bg-[#4F46E5] px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <h2 className="text-white text-[16px] font-medium tracking-wide">Stock / Inventory Summary</h2>
+            <h2 className="text-white text-[16px] font-medium tracking-wide">Stock Details</h2>
+            
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex bg-white/20 rounded p-1 mr-2">
-                <button onClick={() => setViewMode('item')} className={`flex items-center gap-1.5 px-3 py-1 rounded text-[12px] font-bold transition-all ${viewMode === 'item' ? 'bg-white text-[#4F46E5] shadow' : 'text-white hover:bg-white/10'}`}>
-                  <Package className="w-4 h-4" /> Item View
-                </button>
-                <button onClick={() => setViewMode('brand')} className={`flex items-center gap-1.5 px-3 py-1 rounded text-[12px] font-bold transition-all ${viewMode === 'brand' ? 'bg-white text-[#4F46E5] shadow' : 'text-white hover:bg-white/10'}`}>
-                  <LayoutGrid className="w-4 h-4" /> Brand-wise
-                </button>
-              </div>
-
-              {viewMode === 'item' && (
-                <button onClick={() => setAddModalOpen(true)} className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-2.5 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors">
-                  <Plus className="w-4 h-4" strokeWidth={3} /> Add
-                </button>
-              )}
-              
-              <button onClick={() => setShowPreview(true)} className="flex items-center gap-1.5 bg-[#17a2b8] hover:bg-[#138496] text-white px-2.5 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors">
-                <Eye className="w-4 h-4" /> Preview
+              <button onClick={() => setMergeModalOpen(true)} className="flex items-center gap-1.5 bg-white text-gray-800 px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors shadow-sm">
+                <GitMerge className="w-4 h-4" /> Merge
               </button>
-              <button onClick={handlePDF} className="flex items-center gap-1.5 bg-[#dc3545] hover:bg-[#c82333] text-white px-2.5 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors">
-                <FileDown className="w-4 h-4" strokeWidth={2.5} /> PDF
+              <button className="flex items-center gap-1.5 bg-[#343a40] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors shadow-sm">
+                <Search className="w-4 h-4" /> Find Duplicates
               </button>
-              <button onClick={handleExportCSV} className="flex items-center gap-1.5 bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 px-2.5 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors">
-                <FileDown className="w-4 h-4" strokeWidth={2.5} /> Excel
+              <button onClick={() => setShowBulkEdit(true)} className="flex items-center gap-1.5 bg-[#ffc107] text-gray-900 px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm">
+                <Edit2 className="w-4 h-4" /> Bulk Update
               </button>
-              <button onClick={() => navigate('/dashboard')} className="bg-[#dc3545] hover:bg-[#c82333] text-white p-1 rounded-[3px] transition-colors ml-1">
-                <X className="w-5 h-5" strokeWidth={3} />
+              <button onClick={() => setAddModalOpen(true)} className="flex items-center gap-1 bg-[#28a745] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm">
+                <Plus className="w-4 h-4" strokeWidth={3} /> Add
+              </button>
+              <button onClick={handleExportCSV} className="flex items-center gap-1.5 bg-[#ffc107] text-gray-900 px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm">
+                <FileDown className="w-4 h-4" /> Export
+              </button>
+              <button onClick={() => navigate('/dashboard')} className="bg-[#dc3545] text-white p-1.5 rounded-[3px] transition-colors shadow-sm">
+                <X className="w-4 h-4 font-bold" strokeWidth={3} />
               </button>
             </div>
           </div>
 
           {/* Filter Bar */}
-          <div className="p-3 bg-white border-b border-gray-200">
-            <div className="flex flex-col sm:flex-row items-center gap-2">
-              <div className="flex items-center flex-1 w-full bg-white border border-gray-300 rounded-[3px] overflow-hidden shadow-sm focus-within:border-blue-400">
-                <div className="px-3 py-2 text-blue-500 bg-gray-50 border-r border-gray-300 flex-shrink-0"><FilterIcon className="w-4 h-4" /></div>
-                <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search product, brand, or SKU..."
-                  className="flex-1 min-w-0 px-3 py-2 text-[13px] outline-none bg-[#add8e6] text-[#0056b3] placeholder-[#0056b3]" />
-              </div>
-              <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none bg-white text-gray-700 shadow-sm w-full sm:w-[130px]">
-                <option value="">All Categories</option>
-                {categories.map(c => <option key={c}>{c}</option>)}
-              </select>
-              <select value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)} className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none bg-white text-gray-700 shadow-sm w-full sm:w-[130px]">
-                <option value="">All Warehouses</option>
-                {warehouses.map(w => <option key={w}>{w}</option>)}
-              </select>
-              <select value={stockFilter} onChange={e => setStockFilter(e.target.value)} className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none bg-white text-gray-700 shadow-sm w-full sm:w-[130px]">
-                <option value="">Stock Status</option>
-                <option value="instock">In Stock</option>
-                <option value="low">Low Stock</option>
-                <option value="out">Out of Stock</option>
-              </select>
+          <div className="p-3 border-b border-gray-200" style={{ backgroundColor: '#4F46E5' }}>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+               <div className="flex flex-wrap sm:flex-nowrap items-center flex-1 w-full gap-2">
+                 <div className="flex items-center bg-white border border-gray-300 rounded-[3px] overflow-hidden">
+                   <div className="px-2 text-blue-500"><FilterIcon className="w-4 h-4" /></div>
+                   <select 
+                     value={searchFilter}
+                     onChange={(e) => setSearchFilter(e.target.value)}
+                     className="border-l border-gray-300 px-2 py-1.5 text-[13px] outline-none bg-white text-gray-600"
+                   >
+                     <option>Product Name</option>
+                     <option>Product Code</option>
+                     <option>Barcode</option>
+                     <option>Company</option>
+                     <option>Category</option>
+                     <option>Product Type</option>
+                     <option>Gst Applicable</option>
+                     <option>GST</option>
+                     <option>Product Commision</option>
+                     <option>HSN/SAC</option>
+                   </select>
+                 </div>
+                 <input 
+                   type="text" 
+                   value={search}
+                   onChange={(e) => setSearch(e.target.value)}
+                   placeholder={`Search for ${searchFilter}`} 
+                   className="flex-1 min-w-0 border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none bg-white placeholder-gray-500"
+                 />
+               </div>
+               <div className="w-full sm:w-auto">
+                 <select className="border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none bg-white text-gray-600 w-full sm:w-[150px]">
+                   <option>Show All</option>
+                   <option>Only In Stock</option>
+                   <option>Only Negative</option>
+                   <option>Zero Stock</option>
+                   <option>Expire</option>
+                   <option>Expiry Soon</option>
+                   <option>Stock Aging</option>
+                 </select>
+               </div>
             </div>
           </div>
 
-          {/* Bulk Action Bar (Only in Item Mode) */}
-          {viewMode === 'item' && selectedCount > 0 && (
-            <div className="bg-indigo-50 border-b border-indigo-200 px-4 py-2 flex flex-wrap items-center gap-2">
-              <span className="text-[13px] font-bold text-[#4F46E5]">{selectedCount} items selected</span>
-              <div className="h-4 w-[1px] bg-indigo-200 mx-1 hidden sm:block"></div>
-              <button onClick={() => setShowBulkEdit(true)} className="flex items-center gap-1.5 bg-[#4F46E5] hover:bg-[#4338ca] text-white px-3 py-1.5 rounded-[3px] text-[12px] font-bold transition-colors shadow-sm"><Edit2 className="w-3.5 h-3.5" /> Bulk Edit</button>
-              <button onClick={() => triggerBulkAction('delete')} className="flex items-center gap-1.5 bg-[#dc3545] hover:bg-[#c82333] text-white px-3 py-1.5 rounded-[3px] text-[12px] font-bold transition-colors shadow-sm"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
-              <button onClick={() => setSelected(new Set())} className="ml-auto text-[12px] text-gray-500 hover:text-gray-800">Clear</button>
-            </div>
-          )}
-
-          {/* Totals Header */}
-          <div className="bg-[#343a40] text-white flex flex-col sm:grid sm:grid-cols-4 text-center border-b border-gray-600 py-2">
-            <div className="font-bold text-[13px]">TOTAL ITEMS : {filtered.length}</div>
-            <div className="font-bold text-[13px]">TOTAL STOCK : {totalStockQty}</div>
-            <div className="font-bold text-[13px] text-red-400">LOW/OUT STOCK : {filtered.filter(r => r.stock < 10).length}</div>
-            <div className="font-bold text-[13px] text-green-400">STOCK VALUE : {formatAmount(grandTotal)}</div>
-          </div>
-
-          {/* Data Table */}
-          <div className="flex-1 overflow-auto bg-white">
-            {viewMode === 'brand' ? (
-              <div className="w-full">
-                {brandList.length === 0 ? (
-                  <div className="py-12 text-center text-gray-400 text-[14px]">No brands found.</div>
-                ) : (
-                  brandList.map((b) => {
-                    const isExpanded = expandedBrands.has(b.name);
-                    return (
-                      <div key={b.name} className="border-b border-gray-200">
-                        {/* Brand Row */}
-                        <div 
-                          className="flex items-center px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
-                          onClick={() => toggleBrandExpand(b.name)}
-                        >
-                          <div className="flex items-center gap-3 w-[250px]">
-                            {isExpanded ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
-                            <span className="font-bold text-[#4F46E5] text-[14px]">{b.name}</span>
-                          </div>
-                          <div className="flex-1 grid grid-cols-5 text-[13px]">
-                            <div className="text-gray-600"><span className="font-medium text-gray-800">{b.items.length}</span> Items</div>
-                            <div className="text-gray-600"><span className="font-bold text-green-700">{b.totalQty}</span> in Stock</div>
-                            <div className="text-gray-600"><span className="font-bold text-gray-800">{formatAmount(b.totalValue)}</span> Value</div>
-                            <div className="text-gray-600">{b.lowStockCount > 0 ? <span className="text-yellow-600 font-bold">{b.lowStockCount} Low</span> : '-'}</div>
-                            <div className="text-gray-600">{b.outOfStockCount > 0 ? <span className="text-red-600 font-bold">{b.outOfStockCount} Out</span> : '-'}</div>
-                          </div>
+          {/* Main Content Area - Cards */}
+          <div className="flex-1 overflow-y-auto bg-white p-4">
+            <div className="max-w-[1200px] mx-auto flex flex-col gap-4">
+              {filtered.map((item, index) => (
+                <div key={item.id} className="border border-gray-200 rounded-[6px] p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex justify-between items-start">
+                    <div className="flex gap-2">
+                      <input type="checkbox" className="mt-1 w-4 h-4" />
+                      <div>
+                        <div className="text-[15px] text-gray-800">
+                          <span className="font-bold">#{index + 1}. {item.productName}</span> - <span className="text-[#28a745] font-bold">{item.category}</span>
                         </div>
-                        
-                        {/* Expanded Items */}
-                        {isExpanded && (
-                          <div className="bg-gray-50 border-t border-gray-100 px-10 py-3">
-                            <table className="w-full text-left bg-white border border-gray-200 rounded shadow-sm">
-                              <thead className="bg-gray-100 border-b border-gray-200 text-gray-600 text-[12px]">
-                                <tr>
-                                  <th className="py-2 px-3">Item / SKU</th>
-                                  <th className="py-2 px-3">Category</th>
-                                  <th className="py-2 px-3 text-right">Pur. Price</th>
-                                  <th className="py-2 px-3 text-right">Sale Price</th>
-                                  <th className="py-2 px-3 text-right">Qty</th>
-                                  <th className="py-2 px-3 text-right">Value</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {b.items.map(item => (
-                                  <tr key={item.id} className="border-b border-gray-100 text-[12px] hover:bg-gray-50">
-                                    <td className="py-2 px-3">
-                                      <div className="font-bold text-gray-800">{item.productName}</div>
-                                      <div className="text-gray-500 text-[10px] font-mono">{item.sku}</div>
-                                    </td>
-                                    <td className="py-2 px-3 text-gray-600">{item.category}</td>
-                                    <td className="py-2 px-3 text-right text-gray-600">{formatAmount(item.purchasePrice)}</td>
-                                    <td className="py-2 px-3 text-right font-bold text-gray-800">{formatAmount(item.sale)}</td>
-                                    <td className="py-2 px-3 text-right">
-                                      {item.stock === 0 ? <span className="text-red-600 font-bold">Out of Stock</span> :
-                                       item.stock < 10 ? <span className="text-yellow-600 font-bold">{item.stock}</span> : 
-                                       <span className="text-green-700 font-bold">{item.stock}</span>}
-                                    </td>
-                                    <td className="py-2 px-3 text-right font-bold text-[#4F46E5]">{formatAmount(item.stock * item.sale)}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            ) : (
-              <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 bg-gray-50 border-b border-gray-200 text-gray-600 text-[13px] z-10">
-                  <tr>
-                    <th className="py-2 px-3 w-8"><button onClick={toggleAll} className="text-gray-500">{allSelected ? <CheckSquare className="w-4 h-4 text-[#4F46E5]" /> : <Square className="w-4 h-4" />}</button></th>
-                    <th className="py-2 px-3 font-medium">Product / SKU</th>
-                    <th className="py-2 px-3 font-medium">Variants</th>
-                    <th className="py-2 px-3 font-medium">Brand</th>
-                    <th className="py-2 px-3 font-medium">Category</th>
-                    <th className="py-2 px-3 font-medium text-right">Pur. Price</th>
-                    <th className="py-2 px-3 font-medium text-right">Sale Price</th>
-                    <th className="py-2 px-3 font-medium text-right">Stock</th>
-                    <th className="py-2 px-3 font-medium">Warehouse</th>
-                    <th className="py-2 px-3 font-medium text-center">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.length === 0 ? (
-                    <tr><td colSpan="10" className="py-12 text-center text-gray-400">No stock items found.</td></tr>
-                  ) : filtered.map((r) => (
-                    <tr key={r.id} className={`border-b border-gray-100 text-[13px] transition-colors ${selected.has(r.id) ? 'bg-indigo-50' : 'hover:bg-gray-50'}`}>
-                      <td className="py-2 px-3"><button onClick={() => toggleRow(r.id)} className="text-gray-400">{selected.has(r.id) ? <CheckSquare className="w-4 h-4 text-[#4F46E5]" /> : <Square className="w-4 h-4" />}</button></td>
-                      <td className="py-2 px-3">
-                        <div className="font-bold text-[#4F46E5]">{r.productName}</div>
-                        <div className="text-gray-500 font-mono text-[11px]">{r.sku}</div>
-                      </td>
-                      <td className="py-2 px-3">
-                        <div className="flex flex-col gap-0.5">
-                          {r.memorySize && <span className="text-[10px] text-gray-600 bg-gray-100 px-1 rounded-sm w-max">{r.memorySize}</span>}
-                          {r.colorVariant && <span className="text-[10px] text-gray-600 bg-gray-100 px-1 rounded-sm w-max">{r.colorVariant}</span>}
-                          {r.enableImei && <span className="text-[9px] text-purple-700 bg-purple-100 px-1 rounded-sm w-max font-bold">IMEI</span>}
+                        <div className="flex items-center gap-3 mt-2 text-[12px] text-gray-600">
+                          <span>Sale Price : <span className="text-[#28a745] border border-[#28a745] px-1.5 py-0.5 rounded font-bold">{item.sale} / {item.unit.toLowerCase()}</span></span>
+                          <span>MRP : <span className="border border-gray-300 px-1.5 py-0.5 rounded text-gray-700">{item.mrp} / {item.unit.toLowerCase()}</span></span>
                         </div>
-                      </td>
-                      <td className="py-2 px-3 text-gray-700">{r.brandName}</td>
-                      <td className="py-2 px-3 text-gray-600">{r.category}</td>
-                      <td className="py-2 px-3 text-right text-gray-600">{formatAmount(r.purchasePrice)}</td>
-                      <td className="py-2 px-3 text-right font-bold text-gray-800">{formatAmount(r.sale)}</td>
-                      <td className="py-2 px-3 text-right font-bold">
-                        {r.stock === 0 ? <span className="text-red-600">0</span> : r.stock < 10 ? <span className="text-yellow-600 flex justify-end items-center gap-1"><AlertCircle className="w-3.5 h-3.5"/>{r.stock}</span> : r.stock}
-                      </td>
-                      <td className="py-2 px-3 text-gray-600 text-[12px]">{r.warehouse}</td>
-                      <td className="py-2 px-3 text-center">
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${r.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>{r.status}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ======= PRINT PREVIEW MODAL ======= */}
-      {showPreview && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowPreview(false)}>
-          <div className="bg-white rounded-[3px] shadow-2xl w-full max-w-[min(98vw,900px)] max-h-[90vh] overflow-auto animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
-            <div className="bg-[#4F46E5] px-4 py-2.5 flex items-center justify-between sticky top-0 z-10">
-              <h3 className="text-white font-bold text-[15px] flex items-center gap-2"><Eye className="w-5 h-5" /> Print Preview — {viewMode === 'brand' ? 'Brand-wise Report' : 'Inventory Report'}</h3>
-              <div className="flex gap-2">
-                <button onClick={() => { setShowPreview(false); setTimeout(() => window.print(), 100); }} className="flex items-center gap-1.5 bg-white text-[#4F46E5] px-3 py-1.5 rounded-[3px] text-[13px] font-bold hover:bg-gray-50 transition-colors">
-                  <Printer className="w-4 h-4" /> Print Now
-                </button>
-                <button onClick={() => setShowPreview(false)} className="bg-[#dc3545] hover:bg-[#c82333] text-white p-1 rounded-[3px] transition-colors"><X className="w-5 h-5" strokeWidth={3} /></button>
-              </div>
-            </div>
-            
-            <div className="p-8 bg-white" style={{ fontFamily: 'Arial, sans-serif' }}>
-              <div className="text-center border-b-2 border-gray-800 pb-4 mb-5">
-                <div className="text-[20px] font-bold text-gray-900">Os Books</div>
-                <div className="text-[16px] font-bold text-gray-700 mt-1">{viewMode === 'brand' ? 'Brand-wise Inventory Summary' : 'Inventory Stock Report'}</div>
-                <div className="text-[11px] text-gray-400 mt-2">Generated on: {now}</div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="border border-gray-200 rounded p-3 text-center bg-gray-50"><div className="text-[11px] text-gray-500">Total Items</div><div className="text-[16px] font-bold text-gray-800">{filtered.length}</div></div>
-                <div className="border border-gray-200 rounded p-3 text-center bg-gray-50"><div className="text-[11px] text-gray-500">Total Stock Qty</div><div className="text-[16px] font-bold text-green-700">{totalStockQty}</div></div>
-                <div className="border border-gray-200 rounded p-3 text-center bg-gray-50"><div className="text-[11px] text-gray-500">Total Stock Value</div><div className="text-[16px] font-bold text-[#4F46E5]">{formatAmount(grandTotal)}</div></div>
-              </div>
-
-              {viewMode === 'brand' ? (
-                <div>
-                  {brandList.map(b => (
-                    <div key={b.name} className="mb-5 border border-gray-300 rounded overflow-hidden">
-                      <div className="bg-gray-100 px-3 py-2 flex justify-between font-bold border-b border-gray-300 text-[13px]">
-                        <span>{b.name}</span>
-                        <span className="text-gray-600">Qty: {b.totalQty} | Value: {formatAmount(b.totalValue)}</span>
+                        <div className="text-[12px] text-gray-500 mt-1">Barcodes : [{item.sku}]</div>
                       </div>
-                      <table className="w-full text-left text-[11px]">
-                        <thead>
-                          <tr className="bg-gray-50 text-gray-600">
-                            <th className="py-1.5 px-3 border-b border-gray-200">SKU / Item</th>
-                            <th className="py-1.5 px-3 border-b border-gray-200 text-center">Unit</th>
-                            <th className="py-1.5 px-3 border-b border-gray-200 text-right">Pur. Price</th>
-                            <th className="py-1.5 px-3 border-b border-gray-200 text-right">Sale Price</th>
-                            <th className="py-1.5 px-3 border-b border-gray-200 text-right">Qty</th>
-                            <th className="py-1.5 px-3 border-b border-gray-200 text-right">Value ({currentCurrency.symbol})</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {b.items.map(item => (
-                            <tr key={item.id} className="border-b border-gray-100 last:border-0">
-                              <td className="py-1.5 px-3"><strong>{item.productName}</strong> <span className="text-gray-400">({item.sku})</span></td>
-                              <td className="py-1.5 px-3 text-center">{item.unit}</td>
-                              <td className="py-1.5 px-3 text-right">{formatAmount(item.purchasePrice)}</td>
-                              <td className="py-1.5 px-3 text-right font-bold">{formatAmount(item.sale)}</td>
-                              <td className="py-1.5 px-3 text-right font-bold">{item.stock}</td>
-                              <td className="py-1.5 px-3 text-right font-bold text-[#4F46E5]">{formatAmount(item.stock * item.sale)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
                     </div>
-                  ))}
+                    
+                    <div className="text-right">
+                      <div className="text-[13px] text-gray-600">Qty : <span className="font-bold text-gray-800">{item.stock} {item.unit.toLowerCase()}</span> <span className="text-gray-300 mx-1">|</span> value : <span className="font-bold text-gray-800">{formatAmount(item.stock * item.sale).replace('₹', '')}</span></div>
+                      <div className="text-[11px] text-gray-500 mt-[26px]">
+                        HSN : <span className="text-blue-500">{item.hsn || '+Add'}</span> <span className="text-gray-300 mx-1">|</span> GST : {parseInt(item.gst)} <span className="text-gray-300 mx-1">|</span> TAXABLE : {formatAmount((item.stock * item.sale) * (1 - (parseInt(item.gst)/100))).replace('₹', '')}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between sm:justify-center sm:gap-40 items-center border-t border-gray-100 mt-4 pt-3">
+                    <button onClick={() => setViewModalData(item)} className="flex items-center gap-1.5 text-[#007bff] border border-[#007bff] hover:bg-blue-50 px-4 py-1.5 rounded text-[13px] font-bold transition-colors">
+                      <Eye className="w-4 h-4" /> View
+                    </button>
+                    <button onClick={() => navigate('/admin/items_quantity_report/' + item.id)} className="flex items-center gap-1.5 text-[#007bff] border border-[#007bff] hover:bg-blue-50 px-4 py-1.5 rounded text-[13px] font-bold transition-colors">
+                      <RefreshCw className="w-4 h-4" /> History
+                    </button>
+                    <button onClick={() => setAddModalOpen(true)} className="flex items-center gap-1.5 text-[#28a745] border border-[#28a745] hover:bg-green-50 px-4 py-1.5 rounded text-[13px] font-bold transition-colors">
+                      <Edit2 className="w-4 h-4" /> Edit
+                    </button>
+                    <button onClick={() => handleDeleteItem(item.id)} className="flex items-center gap-1.5 text-[#dc3545] border border-[#dc3545] hover:bg-red-50 px-4 py-1.5 rounded text-[13px] font-bold transition-colors">
+                      <Trash2 className="w-4 h-4" /> Delete
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                <table className="w-full text-left text-[12px] border-collapse">
-                  <thead>
-                    <tr className="bg-[#343a40] text-white">
-                      <th className="border border-gray-500 py-2 px-3">SKU / Product</th>
-                      <th className="border border-gray-500 py-2 px-3">Brand</th>
-                      <th className="border border-gray-500 py-2 px-3 text-right">Purchase</th>
-                      <th className="border border-gray-500 py-2 px-3 text-right">Sale</th>
-                      <th className="border border-gray-500 py-2 px-3 text-right">Qty</th>
-                      <th className="border border-gray-500 py-2 px-3 text-right">Value ({currentCurrency.symbol})</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((r, i) => (
-                      <tr key={r.id} className={i % 2 === 1 ? 'bg-gray-50' : ''}>
-                        <td className="border border-gray-200 py-1.5 px-3"><strong>{r.productName}</strong> <div className="text-[10px] text-gray-500 font-mono">{r.sku}</div></td>
-                        <td className="border border-gray-200 py-1.5 px-3">{r.brandName}</td>
-                        <td className="border border-gray-200 py-1.5 px-3 text-right">{formatAmount(r.purchasePrice)}</td>
-                        <td className="border border-gray-200 py-1.5 px-3 text-right font-bold">{formatAmount(r.sale)}</td>
-                        <td className="border border-gray-200 py-1.5 px-3 text-right font-bold">{r.stock}</td>
-                        <td className="border border-gray-200 py-1.5 px-3 text-right font-bold text-[#4F46E5]">{formatAmount(r.stock * r.sale)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-              
-              <div className="mt-8 text-center text-[10px] text-gray-400 border-t border-gray-200 pt-3">
-                System-generated report — Os Books | The Digital Accounting Book
-              </div>
+              ))}
             </div>
           </div>
         </div>
-      )}
+
+        {/* Fixed Footer Totals */}
+        <div className="fixed bottom-0 left-[220px] right-0 bg-[#343a40] text-white grid grid-cols-3 text-center py-2.5 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+           <div className="font-bold text-[14px]">TOTAL : {filtered.length}</div>
+           <div className="font-bold text-[14px]">TAXABLE TOTAL : {formatAmount(filtered.reduce((s, r) => s + (r.stock * r.sale) * (1 - (parseInt(r.gst)/100)), 0)).replace('₹', '')}</div>
+           <div className="font-bold text-[14px]">GRAND TOTAL : {formatAmount(grandTotal).replace('₹', '')}</div>
+        </div>
+
+      </div>
 
       {/* Bulk Edit Modal */}
       {showBulkEdit && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[3px] shadow-2xl w-full max-w-[480px] overflow-hidden">
-            <div className="bg-[#4F46E5] px-4 py-2.5 flex justify-between"><h3 className="text-white font-bold text-[15px]"><Edit2 className="w-4 h-4 inline mr-2"/> Bulk Edit</h3><button onClick={() => setShowBulkEdit(false)} className="text-white"><X className="w-5 h-5"/></button></div>
+            <div className="bg-[#17a2b8] px-4 py-2.5 flex justify-between"><h3 className="text-white font-bold text-[15px]"><Edit2 className="w-4 h-4 inline mr-2"/> Bulk Edit</h3><button onClick={() => setShowBulkEdit(false)} className="text-white"><X className="w-5 h-5"/></button></div>
             <div className="p-5 flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1"><label className="text-[13px] font-bold text-gray-800">Sale Price</label><input type="number" placeholder="New price" value={bulkEditFields.price} onChange={e => setBulkEditFields(p => ({ ...p, price: e.target.value }))} className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px]"/></div>
@@ -641,7 +489,7 @@ export function StockDetails() {
             </div>
             <div className="bg-gray-50 px-5 py-3 flex justify-end gap-2 border-t border-gray-200">
               <button onClick={() => setShowBulkEdit(false)} className="bg-gray-200 px-4 py-2 rounded-[3px] text-[13px] font-medium">Cancel</button>
-              <button onClick={() => { setConfirmAction('bulkEdit'); setShowConfirm(true); setShowBulkEdit(false); }} className="bg-[#4F46E5] text-white px-5 py-2 rounded-[3px] text-[13px] font-bold">Apply</button>
+              <button onClick={() => { setConfirmAction('bulkEdit'); setShowConfirm(true); setShowBulkEdit(false); }} className="bg-[#17a2b8] text-white px-5 py-2 rounded-[3px] text-[13px] font-bold">Apply</button>
             </div>
           </div>
         </div>
@@ -651,7 +499,7 @@ export function StockDetails() {
       {showConfirm && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[3px] shadow-2xl w-full max-w-[380px] overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className={`px-4 py-2.5 ${confirmAction === 'delete' ? 'bg-[#dc3545]' : 'bg-[#4F46E5]'}`}>
+            <div className={`px-4 py-2.5 ${confirmAction === 'delete' ? 'bg-[#dc3545]' : 'bg-[#17a2b8]'}`}>
               <h3 className="text-white font-bold text-[14px]">⚠️ Confirm Action</h3>
             </div>
             <div className="p-5">
@@ -659,8 +507,162 @@ export function StockDetails() {
             </div>
             <div className="flex justify-end gap-2 px-5 pb-4">
               <button onClick={() => { setShowConfirm(false); setConfirmAction(null); }} className="bg-gray-200 px-4 py-2 rounded-[3px] text-[13px] font-medium">Cancel</button>
-              <button onClick={executeBulkAction} className={`text-white px-5 py-2 rounded-[3px] text-[13px] font-bold ${confirmAction === 'delete' ? 'bg-[#dc3545]' : 'bg-[#4F46E5]'}`}>Confirm</button>
+              <button onClick={executeBulkAction} className={`text-white px-5 py-2 rounded-[3px] text-[13px] font-bold ${confirmAction === 'delete' ? 'bg-[#dc3545]' : 'bg-[#17a2b8]'}`}>Confirm</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Modal */}
+      {viewModalData && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-[3px] shadow-xl w-full max-w-[500px] overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-[#4F46E5] px-4 py-2.5 flex justify-between items-center">
+              <h3 className="text-white font-medium text-[15px]">Stock Quantity Price-wise Details</h3>
+              <button onClick={() => setViewModalData(null)} className="text-[#dc3545] hover:text-red-600 transition-colors drop-shadow-sm">
+                <X className="w-6 h-6" strokeWidth={3} />
+              </button>
+            </div>
+            
+            <div className="p-4 bg-white">
+              <div className="text-[#17a2b8] text-[13px] mb-2 font-medium">Minimum Quantity : 0 pcs</div>
+              
+              <table className="w-full border-collapse border border-gray-200 text-center mb-4">
+                <thead>
+                  <tr className="bg-white border-b border-gray-200">
+                    <th className="py-2 px-3 text-gray-800 text-[14px] font-bold border-r border-gray-200">Stock Details</th>
+                    <th className="py-2 px-3 text-gray-800 text-[14px] font-bold border-r border-gray-200">Stock Price</th>
+                    <th className="py-2 px-3 text-gray-800 text-[14px] font-bold">Stock</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-gray-200">
+                    <td className="py-2.5 px-3 text-gray-700 text-[14px] border-r border-gray-200">{viewModalData.stock} {viewModalData.unit.toLowerCase()} @ {viewModalData.sale}</td>
+                    <td className="py-2.5 px-3 text-gray-700 text-[14px] border-r border-gray-200">{formatAmount(viewModalData.stock * viewModalData.sale).replace('₹', '')}</td>
+                    <td className="py-2.5 px-3">
+                      <div className="bg-[#28a745] text-white text-[10px] font-bold py-1 px-2 rounded-[2px] w-[90%] mx-auto shadow-sm">100%</div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div className="flex justify-center mb-2">
+                <div className="bg-[#007bff] text-white px-3 py-1.5 rounded-[4px] font-bold text-[14px] shadow-sm">
+                  Average Price: {Number(viewModalData.sale).toFixed(2)}
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white px-4 py-3 flex justify-end border-t border-gray-200">
+              <button onClick={() => setViewModalData(null)} className="bg-[#dc3545] text-white px-4 py-1.5 rounded-[3px] text-[14px] font-medium transition-colors hover:bg-[#c82333]">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Merge Modal */}
+      {mergeModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-[#f4f6f9] rounded-[3px] shadow-2xl w-full max-w-[600px] overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-[#17a2b8] px-4 py-2.5 flex justify-between items-center">
+              <h3 className="text-white font-medium text-[15px]">Item Correction</h3>
+              <button onClick={() => setMergeModalOpen(false)} className="text-[#dc3545] hover:text-red-600 transition-colors drop-shadow-sm">
+                <X className="w-6 h-6" strokeWidth={3} />
+              </button>
+            </div>
+            
+            <div className="p-4 bg-white flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-[14px] font-bold text-gray-800">Incorrect Product Name</label>
+                <select className="border border-[#007bff] bg-[#d1ecf1] rounded-[3px] px-3 py-2 text-[14px] outline-none w-full text-gray-500 font-bold">
+                  <option>Enter Barcode</option>
+                  {filtered.map(f => <option key={f.id}>{f.productName}</option>)}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-[14px] font-bold text-gray-800">Correct Product Name</label>
+                <select className="border border-gray-300 rounded-[3px] px-3 py-2 text-[14px] outline-none w-full text-gray-500">
+                  <option>Enter Barcode</option>
+                  {filtered.map(f => <option key={f.id}>{f.productName}</option>)}
+                </select>
+              </div>
+            </div>
+            
+            <div className="bg-[#f4f6f9] px-4 py-3 flex justify-end gap-2 border-t border-gray-200">
+              <button onClick={() => setMergeModalOpen(false)} className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[3px] text-[14px] transition-colors">
+                Merge
+              </button>
+              <button onClick={() => setMergeModalOpen(false)} className="bg-[#dc3545] hover:bg-[#c82333] text-white px-4 py-1.5 rounded-[3px] text-[14px] transition-colors">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Update Modal */}
+      {showBulkEdit && (
+        <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-[3px] shadow-2xl w-full max-w-[800px] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+            
+            {/* Header */}
+            <div className="bg-white px-5 py-4 flex justify-between items-center border-b border-gray-200">
+              <h3 className="text-[#333] font-medium text-[20px]">Bulk Update Product Fields</h3>
+              <button onClick={() => setShowBulkEdit(false)} className="text-gray-500 hover:text-gray-700 transition-colors focus:outline-none">
+                <X className="w-5 h-5" strokeWidth={3} />
+              </button>
+            </div>
+            
+            {/* Body */}
+            <div className="p-5 flex flex-col gap-5 bg-white">
+              
+              {/* Alert Box */}
+              <div className="bg-[#17a2b8] rounded-[3px] p-4 text-white flex gap-3 items-start shadow-sm">
+                <div className="bg-white text-[#17a2b8] rounded-full w-[20px] h-[20px] flex items-center justify-center font-bold text-[13px] flex-shrink-0 mt-[2px] leading-none">
+                  i
+                </div>
+                <div>
+                  <div className="font-bold text-[15px] mb-1">This will update 9 product(s) with the selected field value.</div>
+                  <div className="text-[13px] text-[#8b3a3a] opacity-90">Only one field can be updated at a time.</div>
+                </div>
+              </div>
+              
+              {/* Select Field */}
+              <div className="flex flex-col gap-1.5 mt-2">
+                <label className="text-[14px] font-bold text-gray-800">
+                  Select Field to Update <span className="text-red-500">*</span>
+                </label>
+                <select className="border border-gray-300 rounded-[3px] px-3 py-2.5 text-[14px] outline-none w-full text-gray-600 bg-white shadow-sm">
+                  <option>-- Select Field --</option>
+                  <option>Product Name</option>
+                  <option>Category</option>
+                  <option>Brand</option>
+                  <option>Tax Rate</option>
+                  <option>Status</option>
+                </select>
+              </div>
+
+            </div>
+            
+            {/* Footer */}
+            <div className="bg-white px-5 py-4 flex justify-end gap-3 border-t border-gray-200">
+              <button 
+                onClick={() => setShowBulkEdit(false)} 
+                className="bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 px-5 py-2 rounded-[3px] text-[14px] transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => setShowBulkEdit(false)} 
+                className="bg-[#5c9ded] hover:bg-[#4a8cd9] text-white px-5 py-2 rounded-[3px] text-[14px] font-medium transition-colors flex items-center gap-1.5 shadow-sm"
+              >
+                <span className="font-bold">✓</span> Update 9 Product(s)
+              </button>
+            </div>
+
           </div>
         </div>
       )}
