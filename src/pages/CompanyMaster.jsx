@@ -156,14 +156,16 @@ export function CompanyMaster() {
         </div>
 
         {/* Data Table */}
-        <div className="flex-1 data-grid-scroll">
-          <div className="min-w-[800px]">
+        <div className="flex-1 overflow-x-auto data-grid-scroll">
+          <div className="w-full min-w-[1000px]">
             {/* Table Header */}
-            <div className="grid grid-cols-[60px_200px_150px_150px_150px_150px_120px] border-b border-gray-200 bg-white">
+            <div className="grid grid-cols-[50px_2fr_1.5fr_1fr_1.5fr_2fr_1fr_1fr_110px] border-b border-gray-200 bg-white">
               <HeaderCell text="#" />
               <HeaderCell text={t('company_master.party_name')} />
               <HeaderCell text={t('company_master.mobile_no')} />
               <HeaderCell text={t('company_master.city')} />
+              <HeaderCell text="GSTIN" />
+              <HeaderCell text="Address" />
               <HeaderCell text={t('company_master.type')} />
               <HeaderCell text={t('company_master.balance')} />
               <HeaderCell text={t('company_master.action')} />
@@ -174,12 +176,14 @@ export function CompanyMaster() {
               <div 
                 key={row.id} 
                 onClick={() => setSelectedRow(row)}
-                className={`grid grid-cols-[60px_200px_150px_150px_150px_150px_120px] border-b border-gray-200 hover:bg-indigo-50/50 cursor-pointer transition-colors bg-white ${selectedRow?.id === row.id ? 'bg-indigo-50/70 font-semibold' : ''}`}
+                className={`grid grid-cols-[50px_2fr_1.5fr_1fr_1.5fr_2fr_1fr_1fr_110px] border-b border-gray-200 hover:bg-indigo-50/50 cursor-pointer transition-colors bg-white ${selectedRow?.id === row.id ? 'bg-indigo-50/70 font-semibold' : ''}`}
               >
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{index + 1}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.name}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.mobile}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.city}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.gstin || '-'}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center truncate" title={row.address}>{row.address || '-'}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.type}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.balance}</div>
                 <div className="py-2.5 px-3 flex flex-wrap items-center gap-1" onClick={(e) => e.stopPropagation()}>

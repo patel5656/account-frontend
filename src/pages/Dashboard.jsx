@@ -86,7 +86,7 @@ export function Dashboard() {
             showEye={true}
             onPlusClick={() => navigate('/admin/sales-invoice')}
             onEyeClick={() => setIsModalOpen(true)}
-            onMoreInfoClick={() => navigate('/admin/sales-invoice')}
+            onMoreInfoClick={() => navigate('/admin/sales')}
           />
           <StatCard 
             title={t('dashboard_page.today_purchase')} 

@@ -80,7 +80,6 @@
     "Sale Summary": "விற்பனை சுருக்கம்",
     "Sale Return": "விற்பனை திரும்புதல்",
     "Purchase Summary": "கொள்முதல் சுருக்கம்",
-    "Purchase Return": "கொள்முதல் திரும்புதல்",
     "GST-WISE Summary": "GST-வாரியான சுருக்கம்",
     "HSN-WISE Summary": "HSN-வாரியான சுருக்கம்",
     "Complaint": "புகார் (Complaint)",
@@ -116,5 +115,7 @@
     "Party Type Both": "இரு தரப்பு வகை",
     "Txn Date Only": "பரிவர்த்தனை தேதி மட்டும்",
     "Interest on Invoices": "விலைப்பட்டியல்களுக்கான வட்டி"
-  }
+  },
+  "SaaS": "சாஸ்",
+  "POS": "பிஓஎஸ்"
 }

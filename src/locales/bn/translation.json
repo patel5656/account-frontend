@@ -80,7 +80,6 @@
     "Sale Summary": "বিক্রয় সারাংশ",
     "Sale Return": "বিক্রয় ফেরত",
     "Purchase Summary": "ক্রয় সারাংশ",
-    "Purchase Return": "ক্রয় ফেরত",
     "GST-WISE Summary": "GST-ভিত্তিক সারাংশ",
     "HSN-WISE Summary": "HSN-ভিত্তিক সারাংশ",
     "Complaint": "অভিযোগ (Complaint)",
@@ -101,5 +100,7 @@
     "Sale Order": "বিক্রয় আদেশ (Sales Order)",
     "Customer Challan": "গ্রাহক চালান",
     "Customer Invoice": "গ্রাহক ইনভয়েস"
-  }
+  },
+  "SaaS": "সাস",
+  "POS": "পিওএস"
 }

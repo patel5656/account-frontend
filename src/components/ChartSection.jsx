@@ -38,7 +38,7 @@ export function ChartSection() {
       </div>
 
       {/* Chart Area Placeholder */}
-      <div className="p-4 flex-1 relative min-h-[300px]">
+      <div className="p-4 flex-1 relative min-h-[300px] notranslate" translate="no">
          <div className="flex justify-center mb-4">
            <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
               <div className="w-8 h-3 bg-[#4F46E5]"></div>

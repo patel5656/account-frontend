@@ -1,13 +1,23 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogIn, Mail, Lock, ShieldCheck, TrendingUp } from 'lucide-react';
+import { LogIn, Mail, Lock, ShieldCheck, TrendingUp, ArrowLeft } from 'lucide-react';
 
 export const Login = () => {
   // Autofill credentials setup
   const [email, setEmail] = useState('admin@osbooking.com');
   const [password, setPassword] = useState('admin123');
   const [isLoading, setIsLoading] = useState(false);
+  const [loginType, setLoginType] = useState('admin');
   const navigate = useNavigate();
+
+  const handleLoginTypeSwitch = (type) => {
+    setLoginType(type);
+    if (type === 'superadmin') {
+      setEmail('superadmin@osbooking.com');
+    } else {
+      setEmail('admin@osbooking.com');
+    }
+  };
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -16,7 +26,11 @@ export const Login = () => {
     // Simulate network delay for realistic dummy effect
     setTimeout(() => {
       setIsLoading(false);
-      navigate('/dashboard');
+      if (email === 'superadmin@osbooking.com') {
+        window.location.href = '/superadmin/dashboard';
+      } else {
+        window.location.href = '/dashboard';
+      }
     }, 1200);
   };
 
@@ -78,6 +92,15 @@ export const Login = () => {
       {/* Right Side - Login Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12 lg:p-24 bg-[#FAFAFA] relative">
         
+        {/* Back to Home / Logout Button */}
+        <button 
+          onClick={() => navigate('/')}
+          className="absolute top-8 right-8 flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-indigo-600 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Home
+        </button>
+
         {/* Mobile Logo (Visible only on small screens) */}
         <div className="absolute top-8 left-8 lg:hidden flex items-center gap-2">
            <div className="w-9 h-9 bg-[#4F46E5] rounded flex items-center justify-center text-white font-bold text-lg shadow-md">
@@ -95,6 +118,24 @@ export const Login = () => {
             <p className="mt-2 text-sm text-gray-500">
               Please enter your details to sign in to your account.
             </p>
+          </div>
+
+          {/* Login Type Toggle */}
+          <div className="mt-6 flex bg-gray-100 p-1 rounded-lg">
+            <button
+              type="button"
+              onClick={() => handleLoginTypeSwitch('admin')}
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${loginType === 'admin' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Company Admin
+            </button>
+            <button
+              type="button"
+              onClick={() => handleLoginTypeSwitch('superadmin')}
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${loginType === 'superadmin' ? 'bg-white text-[#4F46E5] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Super Admin
+            </button>
           </div>
 
           {/* Form */}

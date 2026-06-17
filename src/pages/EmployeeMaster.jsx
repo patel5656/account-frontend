@@ -156,27 +156,39 @@ export function EmployeeMaster() {
 
         {/* Data Table */}
         <div className="flex-1 overflow-x-auto data-grid-scroll">
-          <div className="min-w-[1000px]">
+          <div className="w-full min-w-[1500px]">
             {/* Table Header */}
-            <div className="grid grid-cols-[60px_200px_150px_150px_150px_150px_120px] border-b border-gray-200 bg-white">
+            <div className="grid grid-cols-[50px_2fr_1.5fr_1fr_1fr_1.5fr_1fr_1fr_1fr_1.5fr_1.5fr_1.5fr_110px] border-b border-gray-200 bg-white">
               <HeaderCell text="#" />
               <HeaderCell text="Employee Name" />
               <HeaderCell text="Mobile No" />
               <HeaderCell text="City" />
+              <HeaderCell text="Joining Date" />
               <HeaderCell text="Designation" />
               <HeaderCell text="Salary" />
+              <HeaderCell text="Paid Holiday" />
+              <HeaderCell text="Commission" />
+              <HeaderCell text="Special Comm." />
+              <HeaderCell text="Total Sale Comm." />
+              <HeaderCell text="Mfg Comm." />
               <HeaderCell text="Action" />
             </div>
 
             {/* Rows */}
             {rows.map((row, index) => (
-              <div key={row.id} className="grid grid-cols-[60px_200px_150px_150px_150px_150px_120px] border-b border-gray-200 hover:bg-gray-50 transition-colors bg-white">
+              <div key={row.id} className="grid grid-cols-[50px_2fr_1.5fr_1fr_1fr_1.5fr_1fr_1fr_1fr_1.5fr_1.5fr_1.5fr_110px] border-b border-gray-200 hover:bg-gray-50 transition-colors bg-white">
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{index + 1}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.employeeName}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.mobileNumber}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.city}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.joiningDate}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.designation}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.salary}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.paidHoliday || '0'}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.commission || '0'}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.specialCommission || '0'}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.totalSaleCommission || '0'}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.commissionOnManufacturing || '-'}</div>
                 <div className="py-2.5 px-3 flex flex-wrap items-center gap-1">
                   <ActionButton type="menu" />
                   <ActionButton type="edit" onClick={() => {

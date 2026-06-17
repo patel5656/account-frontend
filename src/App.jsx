@@ -1,7 +1,13 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { DashboardLayout } from './layouts/DashboardLayout';
+import { SuperadminLayout } from './layouts/SuperadminLayout';
 import { Dashboard } from './pages/Dashboard';
+import { SuperadminDashboard } from './pages/superadmin/SuperadminDashboard';
+import { CompanyManagement } from './pages/superadmin/CompanyManagement';
+import { SubscriptionManagement } from './pages/superadmin/SubscriptionManagement';
+import { SuperadminSupport } from './pages/superadmin/SuperadminSupport';
+import { GlobalSettings } from './pages/superadmin/GlobalSettings';
 import { FirmRegistration } from './pages/FirmRegistration';
 import { SalesInvoiceSummary } from './pages/SalesInvoiceSummary';
 import { SalesInvoice } from './pages/SalesInvoice';
@@ -86,6 +92,7 @@ import { GodownTransfer } from './pages/GodownTransfer';
 import { BillBook } from './pages/BillBook';
 import { Login } from './pages/Login';
 import { BankStatementImport } from './pages/BankStatementImport';
+import { LandingPage } from './pages/LandingPage';
 
 import { SettingsProvider } from './context/SettingsContext';
 
@@ -103,7 +110,25 @@ function App() {
     <SettingsProvider>
       <Router>
         <Routes>
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
+          
+          {/* Superadmin Routes */}
+          <Route path="/superadmin/*" element={
+            <SuperadminLayout>
+              <Routes>
+                <Route path="/" element={<Navigate to="dashboard" />} />
+                <Route path="dashboard" element={<SuperadminDashboard />} />
+                <Route path="companies" element={<CompanyManagement />} />
+                <Route path="subscriptions" element={<SubscriptionManagement />} />
+                <Route path="support" element={<SuperadminSupport />} />
+                <Route path="settings" element={<GlobalSettings />} />
+                <Route path="*" element={<Navigate to="dashboard" />} />
+              </Routes>
+            </SuperadminLayout>
+          } />
+
+          {/* Regular Tenant Routes */}
           <Route path="/*" element={
             <DashboardLayout>
               <Routes>

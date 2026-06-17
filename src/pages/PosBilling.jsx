@@ -44,22 +44,22 @@ export function PosBilling() {
   const [products, setProducts] = useState([
     { 
       id: 1, name: 'Smartphone X', barcode: '12345', 
-      base_price: 1000, price: 1000, tax: 5,
+      mrp: 1200, base_price: 1000, price: 1000, tax: 5,
       wholesale_price: 900, credit_sale_price: 1050,
       qty_slabs: [{ min: 10, max: 49, price: 950 }, { min: 50, max: 99999, price: 850 }]
     },
     { 
       id: 2, name: 'Amul Butter 100g', barcode: '12346', 
-      base_price: 55, price: 55, tax: 5,
+      mrp: 60, base_price: 55, price: 55, tax: 5,
       wholesale_price: 50, credit_sale_price: 58,
       qty_slabs: [{ min: 10, max: 999, price: 48 }]
     },
-    { id: 3, name: 'Aashirvaad Atta 5kg', barcode: '12347', base_price: 210, price: 210, tax: 0, wholesale_price: 200, credit_sale_price: 215, qty_slabs: [] },
-    { id: 4, name: 'Maggi Masala 140g', barcode: '12348', base_price: 28, price: 28, tax: 12, wholesale_price: 26, credit_sale_price: 30, qty_slabs: [] },
-    { id: 5, name: 'Tata Salt 1kg', barcode: '12349', base_price: 25, price: 25, tax: 0, wholesale_price: 23, credit_sale_price: 26, qty_slabs: [] },
-    { id: 6, name: 'Surf Excel 1kg', barcode: '12350', base_price: 135, price: 135, tax: 18, wholesale_price: 125, credit_sale_price: 140, qty_slabs: [] },
-    { id: 7, name: 'Santoor Soap 125g', barcode: '12351', base_price: 35, price: 35, tax: 18, wholesale_price: 32, credit_sale_price: 38, qty_slabs: [] },
-    { id: 8, name: 'Fortune Oil 1L', barcode: '12352', base_price: 145, price: 145, tax: 5, wholesale_price: 135, credit_sale_price: 150, qty_slabs: [] },
+    { id: 3, name: 'Aashirvaad Atta 5kg', barcode: '12347', mrp: 250, base_price: 210, price: 210, tax: 0, wholesale_price: 200, credit_sale_price: 215, qty_slabs: [] },
+    { id: 4, name: 'Maggi Masala 140g', barcode: '12348', mrp: 30, base_price: 28, price: 28, tax: 12, wholesale_price: 26, credit_sale_price: 30, qty_slabs: [] },
+    { id: 5, name: 'Tata Salt 1kg', barcode: '12349', mrp: 28, base_price: 25, price: 25, tax: 0, wholesale_price: 23, credit_sale_price: 26, qty_slabs: [] },
+    { id: 6, name: 'Surf Excel 1kg', barcode: '12350', mrp: 150, base_price: 135, price: 135, tax: 18, wholesale_price: 125, credit_sale_price: 140, qty_slabs: [] },
+    { id: 7, name: 'Santoor Soap 125g', barcode: '12351', mrp: 40, base_price: 35, price: 35, tax: 18, wholesale_price: 32, credit_sale_price: 38, qty_slabs: [] },
+    { id: 8, name: 'Fortune Oil 1L', barcode: '12352', mrp: 160, base_price: 145, price: 145, tax: 5, wholesale_price: 135, credit_sale_price: 150, qty_slabs: [] },
   ]);
 
   const [isWholesale, setIsWholesale] = useState(false);
@@ -243,9 +243,10 @@ export function PosBilling() {
 
           {/* Cart Table */}
           <div className="flex-1 overflow-y-auto">
-            <div className="bg-[#343a40] text-white grid grid-cols-[50px_1fr_100px_100px_100px_60px] text-center sticky top-0 z-10">
+            <div className="bg-[#343a40] text-white grid grid-cols-[50px_1fr_80px_100px_100px_100px_60px] text-center sticky top-0 z-10">
               <div className="py-2 text-[12px] font-bold">S.NO</div>
               <div className="py-2 text-[12px] font-bold text-left px-2">PRODUCT NAME</div>
+              <div className="py-2 text-[12px] font-bold">MRP</div>
               <div className="py-2 text-[12px] font-bold">PRICE</div>
               <div className="py-2 text-[12px] font-bold">QTY</div>
               <div className="py-2 text-[12px] font-bold">TOTAL</div>
@@ -260,12 +261,13 @@ export function PosBilling() {
             ) : (
               <div className="flex flex-col">
                 {cart.map((item, index) => (
-                  <div key={item.id} className="grid grid-cols-[50px_1fr_100px_100px_100px_60px] text-center border-b border-gray-200 bg-white items-center hover:bg-gray-50">
+                  <div key={item.id} className="grid grid-cols-[50px_1fr_80px_100px_100px_100px_60px] text-center border-b border-gray-200 bg-white items-center hover:bg-gray-50">
                     <div className="py-2 text-[13px] font-bold text-gray-600">{index + 1}</div>
                     <div className="py-2 text-[13px] font-bold text-left px-2 text-gray-800 line-clamp-1 flex flex-col justify-center relative group">
                       {item.name}
                       <span className="text-[10px] font-normal text-blue-500">{item.priceReason}</span>
                     </div>
+                    <div className="py-2 text-[13px] font-bold text-gray-500">₹{(item.mrp || item.base_price || item.price).toFixed(2)}</div>
                     <div className="py-2 text-[13px] font-bold text-gray-700">₹{item.price.toFixed(2)}</div>
                     <div className="py-2 px-2">
                       <div className="flex items-center border border-gray-300 rounded-[3px] bg-white overflow-hidden">

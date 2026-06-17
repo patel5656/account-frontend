@@ -80,7 +80,6 @@
     "Sale Summary": "വിൽപ്പന സംഗ്രഹം",
     "Sale Return": "വിൽപ്പന തിരിച്ചുനൽകൽ",
     "Purchase Summary": "വാങ്ങൽ സംഗ്രഹം",
-    "Purchase Return": "വാങ്ങൽ തിരിച്ചുനൽകൽ",
     "GST-WISE Summary": "GST അടിസ്ഥാനത്തിലുള്ള സംഗ്രഹം",
     "HSN-WISE Summary": "HSN അടിസ്ഥാനത്തിലുള്ള സംഗ്രഹം",
     "Complaint": "പരാതി (Complaint)",
@@ -101,5 +100,7 @@
     "Sale Order": "സെയിൽസ് ഓർഡർ (Sales Order)",
     "Customer Challan": "കസ്റ്റമർ ചെലാൻ",
     "Customer Invoice": "കസ്റ്റമർ ഇൻവോയ്സ്"
-  }
+  },
+  "SaaS": "സാസ്",
+  "POS": "പിഒഎസ്"
 }

@@ -80,7 +80,6 @@
     "Sale Summary": "વેચાણ સારાંશ",
     "Sale Return": "વેચાણ પરત",
     "Purchase Summary": "ખરીદી સારાંશ",
-    "Purchase Return": "ખરીદી પરત",
     "GST-WISE Summary": "GST-વાઇઝ સારાંશ",
     "HSN-WISE Summary": "HSN-વાઇઝ સારાંશ",
     "Complaint": "ફરિયાદ (Complaint)",
@@ -116,5 +115,7 @@
     "Party Type Both": "પાર્ટી પ્રકાર બંને",
     "Txn Date Only": "માત્ર વ્યવહાર તારીખ",
     "Interest on Invoices": "ઇન્વોઇસ પર વ્યાજ"
-  }
+  },
+  "SaaS": "સાસ",
+  "POS": "પીઓએસ"
 }

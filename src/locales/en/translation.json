@@ -80,7 +80,6 @@
     "Sale Summary": "Sale Summary",
     "Sale Return": "Sale Return",
     "Purchase Summary": "Purchase Summary",
-    "Purchase Return": "Purchase Return",
     "GST-WISE Summary": "GST-WISE Summary",
     "HSN-WISE Summary": "HSN-WISE Summary",
     "Complaint": "Complaint",
@@ -192,5 +191,7 @@
     "Party Type Both": "Party Type Both",
     "Txn Date Only": "Txn Date Only",
     "Interest on Invoices": "Interest on Invoices"
-  }
+  },
+  "SaaS": "SaaS",
+  "POS": "POS"
 }

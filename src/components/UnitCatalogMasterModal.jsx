@@ -16,7 +16,10 @@ export function UnitCatalogMasterModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   const handleAddOrUpdate = () => {
-    if (!formData.name.trim()) return;
+    if (!formData.name.trim()) {
+      alert("Please enter a Unit Name.");
+      return;
+    }
     
     if (editId) {
       setUnits(units.map(u => u.id === editId ? { ...formData, id: editId } : u));

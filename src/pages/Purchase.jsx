@@ -35,9 +35,12 @@ export function Purchase() {
   
   const [partyName, setPartyName] = useState('');
   const [dateFilter, setDateFilter] = useState('Today');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [collectionDate, setCollectionDate] = useState('2026-05-30');
 
   const handleSearch = () => {
-    console.log("Searching with Party:", partyName, "Date:", dateFilter);
+    console.log("Searching with Party:", partyName, "Date:", dateFilter, "Custom Range:", customStartDate, customEndDate);
   };
 
   return (
@@ -118,7 +121,7 @@ export function Purchase() {
                 <select 
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value)}
-                  className="min-w-0 border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none bg-white text-gray-800 w-full"
+                  className="min-w-0 border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none bg-white text-gray-800 w-full sm:w-auto"
                 >
                   <option value="Today">Today</option>
                   <option value="Yesterday">Yesterday</option>
@@ -128,6 +131,25 @@ export function Purchase() {
                   <option value="This Month">This Month</option>
                   <option value="Custom Range">Custom Range</option>
                 </select>
+
+                {dateFilter === 'Custom Range' && (
+                  <div className="flex items-center gap-1.5">
+                    <input 
+                      type="date" 
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      className="border border-gray-300 rounded-[3px] px-2 py-1.5 text-[13px] outline-none bg-white text-gray-800"
+                    />
+                    <span className="text-[12px] text-gray-500 font-medium">to</span>
+                    <input 
+                      type="date" 
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      className="border border-gray-300 rounded-[3px] px-2 py-1.5 text-[13px] outline-none bg-white text-gray-800"
+                    />
+                  </div>
+                )}
+
                 <button 
                   onClick={handleSearch}
                   className="flex items-center gap-1.5 bg-[#007bff] hover:bg-[#0069d9] text-white px-4 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors shadow-sm whitespace-nowrap"
@@ -203,9 +225,17 @@ export function Purchase() {
                       <option>Custom Range</option>
                     </select>
                   </div>
-                  <div className="flex flex-wrap items-center gap-1.5 bg-[#17a2b8] text-white px-3 py-1.5 rounded-[4px] text-[13px] font-bold shadow-sm">
-                    <Calendar className="w-4 h-4" />
-                    30-May-2026
+                  <div className="relative flex items-center">
+                    <input 
+                      type="date"
+                      value={collectionDate}
+                      onChange={(e) => setCollectionDate(e.target.value)}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <div className="flex flex-wrap items-center gap-1.5 bg-[#17a2b8] text-white px-3 py-1.5 rounded-[4px] text-[13px] font-bold shadow-sm">
+                      <Calendar className="w-4 h-4" />
+                      {collectionDate ? new Date(collectionDate).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'}).replace(/ /g, '-') : 'Select Date'}
+                    </div>
                   </div>
                 </div>
               </div>

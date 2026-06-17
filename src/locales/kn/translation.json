@@ -80,7 +80,6 @@
     "Sale Summary": "ಮಾರಾಟದ ಸಾರಾಂಶ",
     "Sale Return": "ಮಾರಾಟ ಮರುಪಾವತಿ",
     "Purchase Summary": "ಖರೀದಿಯ ಸಾರಾಂಶ",
-    "Purchase Return": "ಖರೀದಿ ಮರುಪಾವತಿ",
     "GST-WISE Summary": "GST-ಆಧಾರಿತ ಸಾರಾಂಶ",
     "HSN-WISE Summary": "HSN-ಆಧಾರಿತ ಸಾರಾಂಶ",
     "Complaint": "ದೂರು (Complaint)",
@@ -101,5 +100,7 @@
     "Sale Order": "ಮಾರಾಟ ಆದೇಶ (Sales Order)",
     "Customer Challan": "ಗ್ರಾಹಕ ಚಲನ್",
     "Customer Invoice": "ಗ್ರಾಹಕ ಇನ್‌ವಾಯ್ಸ್"
-  }
+  },
+  "SaaS": "ಸಾಸ್",
+  "POS": "ಪಿಓಎಸ್"
 }

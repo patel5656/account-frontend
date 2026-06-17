@@ -62,6 +62,7 @@ export function SalesInvoice() {
   // Mock Item Master Data for Demonstration
   const MOCK_ITEM = {
     name: "Smartphone X",
+    mrp: 1200,
     sale_price: 1000,
     wholesale_price: 900,
     credit_sale_price: 1050,
@@ -348,8 +349,8 @@ export function SalesInvoice() {
         {/* Data Table */}
         <div className="flex-1 min-h-[300px] overflow-x-auto">
           <div className="min-w-[1000px]">
-            {/* Table Header: 10 Columns */}
-            <div className="bg-[#343a40] text-white grid grid-cols-[40px_1fr_80px_80px_100px_110px_110px_120px_100px_80px] text-center border-b border-gray-600">
+            {/* Table Header: 11 Columns */}
+            <div className="bg-[#343a40] text-white grid grid-cols-[40px_1fr_80px_80px_80px_100px_110px_110px_120px_100px_80px] text-center border-b border-gray-600">
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold leading-tight flex flex-col justify-center">
                 S.NO.
               </div>
@@ -361,6 +362,9 @@ export function SalesInvoice() {
               </div>
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold text-[#ffc107] flex items-center justify-center">
                 FREE QTY
+              </div>
+              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">
+                MRP
               </div>
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex flex-col justify-center leading-tight">
                 <span className="font-normal text-[10px]">(TAX INCLUDED)</span>
@@ -392,7 +396,7 @@ export function SalesInvoice() {
             </div>
 
             {/* Input Row */}
-            <div className="grid grid-cols-[40px_1fr_80px_80px_100px_110px_110px_120px_100px_80px] bg-white border-b border-gray-200">
+            <div className="grid grid-cols-[40px_1fr_80px_80px_80px_100px_110px_110px_120px_100px_80px] bg-white border-b border-gray-200">
               <div className="border-r border-gray-200 flex items-center justify-center p-1 bg-gray-600">
               </div>
               <div className="border-r border-gray-200 p-1 flex relative">
@@ -423,6 +427,10 @@ export function SalesInvoice() {
                    onChange={(e) => setFreeQty(Number(e.target.value))}
                    className="w-full h-full border border-yellow-300 bg-yellow-50 rounded-[3px] px-2 text-[13px] outline-none text-center font-bold text-yellow-800" 
                  />
+              </div>
+
+              <div className="border-r border-gray-200 p-1 flex items-center justify-center bg-gray-50 text-[13px] font-bold text-gray-500">
+                {MOCK_ITEM.mrp.toFixed(2)}
               </div>
 
               <div className="border-r border-gray-200 p-1 flex flex-col justify-center relative group">

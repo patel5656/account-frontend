@@ -17,10 +17,19 @@ import {
   ArrowUpFromLine,
   Building,
   Users,
-  FileText
+  FileText,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { cn } from '../utils';
 import { useSettings } from '../context/SettingsContext';
+
+const DUMMY_DATA = [
+  { id: 1, invoiceId: "18", customerName: "Siddu", user: "SIDDALING A PADASALAGI", phone: "", location: "", date: "2026-06-13", totalAmt: 2000, paidAmt: 2000, balance: 0, currentBalance: 9800 },
+  { id: 2, invoiceId: "19", customerName: "Anandamoyee Hardware & Tools", location: "(Ichapur)", user: "SIDDALING A PADASALAGI", phone: "+91 9830015666", date: "2026-06-13", totalAmt: 6999, paidAmt: 6999, balance: 0, currentBalance: -6999 },
+  { id: 3, invoiceId: "17", customerName: "Siddu", user: "SIDDALING A PADASALAGI", phone: "", location: "", date: "2026-06-11", totalAmt: 500, paidAmt: 500, balance: 0, currentBalance: 9800 },
+  { id: 4, invoiceId: "16", customerName: "Sures", user: "", phone: "+91 9845974586", location: "", date: "2026-06-09", totalAmt: 800, paidAmt: 800, balance: 0, currentBalance: 0 },
+];
 
 export function SalesInvoiceSummary() {
   const navigate = useNavigate();
@@ -29,7 +38,91 @@ export function SalesInvoiceSummary() {
   const [collectionModalOpen, setCollectionModalOpen] = useState(false);
   const [loadingSheetModalOpen, setLoadingSheetModalOpen] = useState(false);
   const [reportDate, setReportDate] = useState("2026-05-27");
+  const [dateFilter, setDateFilter] = useState("Last 30 Days");
+  const [searchText, setSearchText] = useState("");
+  const [isToggleOn, setIsToggleOn] = useState(false);
+  const [salesData, setSalesData] = useState(() => {
+    const saved = localStorage.getItem('dummy_sales_data');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return DUMMY_DATA;
+      }
+    }
+    return DUMMY_DATA;
+  });
   const dateInputRef = useRef(null);
+
+  const handleDelete = (id) => {
+    setSalesData(prevData => {
+      const newData = prevData.filter(item => item.id !== id);
+      localStorage.setItem('dummy_sales_data', JSON.stringify(newData));
+      return newData;
+    });
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleEdit = () => {
+    navigate('/admin/sales-invoice');
+  };
+
+  const getFilteredData = () => {
+    let filtered = salesData;
+    
+    if (searchText) {
+      filtered = filtered.filter(item => 
+        item.customerName.toLowerCase().includes(searchText.toLowerCase()) ||
+        item.invoiceId.toLowerCase().includes(searchText.toLowerCase())
+      );
+    }
+    
+    const today = new Date('2026-06-15');
+    today.setHours(0, 0, 0, 0);
+    
+    filtered = filtered.filter(item => {
+      const itemDate = new Date(item.date);
+      itemDate.setHours(0, 0, 0, 0);
+      
+      switch (dateFilter) {
+        case 'Today':
+          return itemDate.getTime() === today.getTime();
+        case 'Yesterday':
+          const yesterday = new Date(today);
+          yesterday.setDate(today.getDate() - 1);
+          return itemDate.getTime() === yesterday.getTime();
+        case 'Last 7 Days':
+          const last7Days = new Date(today);
+          last7Days.setDate(today.getDate() - 7);
+          return itemDate >= last7Days && itemDate <= today;
+        case 'Last 30 Days':
+          const last30Days = new Date(today);
+          last30Days.setDate(today.getDate() - 30);
+          return itemDate >= last30Days && itemDate <= today;
+        case 'This Month':
+          return itemDate.getMonth() === today.getMonth() && itemDate.getFullYear() === today.getFullYear();
+        case 'Last Month':
+          let lastMonth = today.getMonth() - 1;
+          let year = today.getFullYear();
+          if (lastMonth < 0) {
+            lastMonth = 11;
+            year--;
+          }
+          return itemDate.getMonth() === lastMonth && itemDate.getFullYear() === year;
+        default:
+          return true;
+      }
+    });
+    return filtered;
+  };
+
+  const filteredData = getFilteredData();
+  const totalAmtSum = filteredData.reduce((sum, item) => sum + item.totalAmt, 0);
+  const totalPaidSum = filteredData.reduce((sum, item) => sum + item.paidAmt, 0);
+  const balanceSum = filteredData.reduce((sum, item) => sum + item.balance, 0);
 
   const formatDisplayDate = (dateString) => {
     if (!dateString) return "";
@@ -94,16 +187,20 @@ export function SalesInvoiceSummary() {
         <div className="p-3 border-b border-gray-200 flex flex-col md:flex-row gap-4 items-start md:items-end">
           <div className="flex-1 w-full md:w-auto relative">
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
-              <div className="w-8 h-[18px] bg-gray-300 rounded-full relative cursor-pointer flex items-center">
-                <div className="w-[14px] h-[14px] bg-white rounded-full absolute left-[2px] shadow-sm"></div>
+              <div onClick={() => setIsToggleOn(!isToggleOn)} className={`w-8 h-[18px] rounded-full relative cursor-pointer flex items-center transition-colors duration-200 ${isToggleOn ? 'bg-[#4F46E5]' : 'bg-gray-300'}`}>
+                <div className={`w-[14px] h-[14px] bg-white rounded-full absolute shadow-sm transition-transform duration-200 ease-in-out ${isToggleOn ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
               </div>
-              <span className="text-[13px] font-bold text-gray-800">Customer Name</span>
+              <span className="text-[13px] font-bold text-gray-800 select-none cursor-pointer" onClick={() => setIsToggleOn(!isToggleOn)}>
+                Customer Name
+              </span>
             </div>
             <div className="relative flex items-center">
               <input 
                 type="text"
                 list="customer-names"
                 placeholder="Select or Search Name"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
                 className="w-full min-w-0 border border-gray-300 rounded-[3px] px-3 py-1.5 pr-8 text-[14px] text-gray-700 outline-none focus:border-[#4F46E5] bg-white"
               />
               <Search className="absolute right-2.5 w-4 h-4 text-gray-400" />
@@ -125,7 +222,11 @@ export function SalesInvoiceSummary() {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                    <span className="text-[13px] font-bold text-gray-800">Date</span>
-                   <select className="min-w-0 border border-gray-300 rounded-[3px] px-3 py-1.5 text-[14px] text-gray-700 outline-none focus:border-[#4F46E5] bg-white">
+                   <select 
+                     value={dateFilter}
+                     onChange={(e) => setDateFilter(e.target.value)}
+                     className="min-w-0 border border-gray-300 rounded-[3px] px-3 py-1.5 text-[14px] text-gray-700 outline-none focus:border-[#4F46E5] bg-white"
+                   >
                      <option>Today</option>
                     <option>Yesterday</option>
                     <option>Last 7 Days</option>
@@ -152,21 +253,74 @@ export function SalesInvoiceSummary() {
         <div className="bg-[#343a40] text-white flex flex-col sm:grid sm:grid-cols-3 text-center py-2 px-4 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)]">
           <div className="flex flex-col items-center border-r border-gray-600">
             <span className="text-[15px] font-bold tracking-wider">TOTAL AMT:</span>
-            <span className="text-[18px] font-bold leading-none mt-0.5">{formatAmount(0)}</span>
+            <span className="text-[18px] font-bold leading-none mt-0.5">{formatAmount(totalAmtSum)}</span>
           </div>
           <div className="flex flex-col items-center border-r border-gray-600">
             <span className="text-[15px] font-bold tracking-wider">TOTAL PAID:</span>
-            <span className="text-[18px] font-bold leading-none mt-0.5">{formatAmount(0)}</span>
+            <span className="text-[18px] font-bold leading-none mt-0.5">{formatAmount(totalPaidSum)}</span>
           </div>
           <div className="flex flex-col items-center">
             <span className="text-[15px] font-bold tracking-wider">BALANCE:</span>
-            <span className="text-[18px] font-bold leading-none mt-0.5">{formatAmount(0)}</span>
+            <span className="text-[18px] font-bold leading-none mt-0.5">{formatAmount(balanceSum)}</span>
           </div>
         </div>
 
-        {/* Empty Area for table body */}
-        <div className="flex-1 bg-white">
-          {/* Table rows would go here */}
+        {/* Main list body */}
+        <div className="flex-1 bg-[#f0f2f5] overflow-auto p-3 flex flex-col gap-3">
+          {filteredData.length > 0 ? (
+            filteredData.map((row, index) => (
+              <div key={row.id} className="bg-white rounded-[6px] shadow-[0_1px_3px_rgba(0,0,0,0.1)] border border-gray-200 flex flex-col">
+                {/* Card Main Body */}
+                <div className="p-3">
+                  <div className="flex justify-between items-start mb-1.5">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[14px] font-bold text-gray-800">{index + 1}.</span>
+                      <input type="checkbox" className="w-[13px] h-[13px] border-gray-300 rounded-[2px] outline-none cursor-pointer mx-0.5" />
+                      <span className="text-[12px] text-gray-500">#Invoice No : {row.invoiceId}</span>
+                    </div>
+                    <span className="text-[12px] text-gray-500">{formatDisplayDate(row.date)}</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-start">
+                    <div className="flex flex-col">
+                      <div className="text-[15px] text-gray-800 flex items-center gap-1.5 leading-tight mb-1">
+                        {row.customerName} {row.location && <span className="font-bold text-[14px]">{row.location}</span>}
+                      </div>
+                      {row.phone && <div className="text-[#007bff] text-[13px] leading-tight mb-1 hover:underline cursor-pointer">{row.phone}</div>}
+                      {row.user && <div className="text-[12px] font-bold text-gray-800 mt-0.5">User : <span className="font-bold">{row.user}</span></div>}
+                    </div>
+                    
+                    <div className="flex flex-col items-end text-right">
+                      <div className="text-[16px] font-bold text-gray-800 leading-none mb-1">{row.totalAmt.toLocaleString('en-IN')}</div>
+                      <div className="text-[12px] text-gray-500 leading-tight">Paid : {row.paidAmt.toLocaleString('en-IN')}</div>
+                      <div className="text-[12px] font-bold text-gray-800 leading-tight">Balance : {row.balance.toLocaleString('en-IN')}</div>
+                      <div className="text-[11px] text-gray-600 mt-1">Current Balance : {row.currentBalance.toLocaleString('en-IN')}</div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Card Actions */}
+                <div className="border-t border-gray-100 p-2 flex justify-between items-center bg-[#fdfdfd] rounded-b-[6px]">
+                  <button onClick={handlePrint} className="flex items-center justify-center gap-1.5 border border-[#ffc107] text-[#ffc107] bg-white hover:bg-yellow-50 px-3 py-1 rounded-[4px] text-[13px] font-medium transition-colors h-[30px]">
+                    <Printer className="w-4 h-4" />
+                    Print
+                  </button>
+                  <button onClick={handleEdit} className="flex items-center justify-center gap-1.5 border border-[#17a2b8] text-[#17a2b8] bg-white hover:bg-cyan-50 px-3 py-1 rounded-[4px] text-[13px] font-medium transition-colors h-[30px]">
+                    <Edit className="w-4 h-4" />
+                    Edit
+                  </button>
+                  <button onClick={() => handleDelete(row.id)} className="flex items-center justify-center gap-1.5 border border-[#dc3545] text-[#dc3545] bg-white hover:bg-red-50 px-3 py-1 rounded-[4px] text-[13px] font-medium transition-colors h-[30px]">
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="bg-white p-8 text-center text-gray-500 rounded-md border border-gray-200">
+              No records found for the selected filter
+            </div>
+          )}
         </div>
       </div>
 

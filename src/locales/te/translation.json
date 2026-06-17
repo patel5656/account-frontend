@@ -80,7 +80,6 @@
     "Sale Summary": "విక్రయాల సారాంశం",
     "Sale Return": "విక్రయాల తిరుగుదల",
     "Purchase Summary": "కొనుగోలు సారాంశం",
-    "Purchase Return": "కొనుగోలు తిరుగుదల",
     "GST-WISE Summary": "GST-వారీ సారాంశం",
     "HSN-WISE Summary": "HSN-వారీ సారాంశం",
     "Complaint": "ఫిర్యాదు (Complaint)",
@@ -116,5 +115,7 @@
     "Party Type Both": "పార్టీ రకం రెండు",
     "Txn Date Only": "లావాదేవీ తేదీ మాత్రమే",
     "Interest on Invoices": "ఇన్‌వాయిస్‌లపై వడ్డీ"
-  }
+  },
+  "SaaS": "సాస్",
+  "POS": "పిఓఎస్"
 }

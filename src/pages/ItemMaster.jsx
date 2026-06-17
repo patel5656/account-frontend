@@ -13,14 +13,14 @@ export function ItemMaster() {
   const navigate = useNavigate();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [rows, setRows] = useState([
-    { id: 1, name: 'IPhone 15 Pro', category: 'Mobile Phones', brand: 'Apple', sku: 'SKU001', barcode: '1234567890', price: 120000, qty: 15, status: 'Active', hasBom: false, synced: true, memorySize: '256GB', colorVariant: 'Natural Titanium', designNo: 'A2848', enableImei: true },
-    { id: 2, name: 'Finished Product A', category: 'Finished Goods', brand: 'Brand B', sku: 'SKU002', barcode: '0987654321', price: 500, qty: 10, status: 'Active', hasBom: true, synced: false }
+    { id: 1, name: 'IPhone 15 Pro', category: 'Mobile Phones', brand: 'Apple', sku: 'SKU001', barcode: '1234567890', mrp: 130000, price: 120000, qty: 15, status: 'Active', hasBom: false, synced: true, memorySize: '256GB', colorVariant: 'Natural Titanium', designNo: 'A2848', enableImei: true },
+    { id: 2, name: 'Finished Product A', category: 'Finished Goods', brand: 'Brand B', sku: 'SKU002', barcode: '0987654321', mrp: 600, price: 500, qty: 10, status: 'Active', hasBom: true, synced: false }
   ]);
   const [viewMode, setViewMode] = useState('items'); // 'items' | 'boms'
 
   const handleExport = () => {
     if (rows.length === 0) {
-      const headers = ['#', 'Item Name', 'Item Category', 'Item Code', 'Unit', 'Sale Price', 'Purchase Price', 'Stock Qty', 'Status'];
+      const headers = ['#', 'Item Name', 'Item Category', 'Item Code', 'Unit', 'MRP', 'Sale Price', 'Purchase Price', 'Stock Qty', 'Status'];
       const csvRows = [headers.join(',')];
       const csvContent = csvRows.join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -145,6 +145,7 @@ export function ItemMaster() {
                   <th className="py-2 px-3 font-medium">Brand</th>
                   <th className="py-2 px-3 font-medium">Code/SKU</th>
                   <th className="py-2 px-3 font-medium">Barcode</th>
+                  <th className="py-2 px-3 font-medium text-right">MRP</th>
                   <th className="py-2 px-3 font-medium text-right">Sale Price</th>
                   <th className="py-2 px-3 font-medium text-right">Stock</th>
                   <th className="py-2 px-3 font-medium text-center">Status</th>
@@ -170,6 +171,7 @@ export function ItemMaster() {
                     <td className="py-2 px-3 text-gray-600 font-medium">{row.brand}</td>
                     <td className="py-2 px-3 text-gray-600">{row.sku}</td>
                     <td className="py-2 px-3 text-gray-600 font-mono text-[12px]">{row.barcode}</td>
+                    <td className="py-2 px-3 text-gray-500 font-medium text-right">₹{row.mrp}</td>
                     <td className="py-2 px-3 text-gray-800 font-bold text-right">₹{row.price}</td>
                     <td className="py-2 px-3 text-gray-800 font-bold text-right">
                       {row.qty < 20 ? (

@@ -80,7 +80,6 @@
     "Sale Summary": "ਵਿਕਰੀ ਸਾਰਾਂਸ਼",
     "Sale Return": "ਵਿਕਰੀ ਵਾਪਸੀ",
     "Purchase Summary": "ਖਰੀਦ ਸਾਰਾਂਸ਼",
-    "Purchase Return": "ਖਰੀਦ ਵਾਪਸੀ",
     "GST-WISE Summary": "GST-ਅਨੁਸਾਰ ਸਾਰਾਂਸ਼",
     "HSN-WISE Summary": "HSN-ਅਨੁਸਾਰ ਸਾਰਾਂਸ਼",
     "Complaint": "ਸ਼ਿਕਾਇਤ (Complaint)",
@@ -116,5 +115,7 @@
     "Party Type Both": "ਪਾਰਟੀ ਕਿਸਮ ਦੋਵੇਂ",
     "Txn Date Only": "ਸਿਰਫ਼ ਲੈਣ-ਦੇਣ ਦੀ ਮਿਤੀ",
     "Interest on Invoices": "ਇਨਵੌਇਸ 'ਤੇ ਵਿਆਜ"
-  }
+  },
+  "SaaS": "ਸਾਸ",
+  "POS": "ਪੀਓਐਸ"
 }

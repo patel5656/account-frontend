@@ -415,9 +415,6 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
 
           {/* Footer */}
           <div className="bg-white px-5 py-4 flex justify-end gap-2 border-t border-gray-100">
-            <button className="bg-[#6c757d] hover:bg-[#5a6268] text-white px-3 py-[7px] rounded-[3px] transition-colors flex items-center justify-center">
-              <ImageIcon className="w-[18px] h-[18px]" />
-            </button>
             <button 
               onClick={handleSubmit}
               className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-[7px] rounded-[3px] text-[14px] font-medium transition-colors"

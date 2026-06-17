@@ -28,6 +28,47 @@ export function ItemMasterModal({ isOpen, onClose }) {
 
   // Pricing states
   const [qtySlabs, setQtySlabs] = useState([]);
+  const [slabError, setSlabError] = useState('');
+
+  const handleSave = () => {
+    setSlabError('');
+    if (qtySlabs.length > 0) {
+      for (let i = 0; i < qtySlabs.length; i++) {
+        const slab = qtySlabs[i];
+        const min = Number(slab.minQty);
+        const max = Number(slab.maxQty);
+        const price = Number(slab.price);
+        
+        if (slab.minQty === '' || slab.maxQty === '') {
+          setSlabError(`Slab ${i + 1}: Min and Max quantity cannot be empty.`);
+          setActiveTab('basic');
+          return;
+        }
+        if (min >= max) {
+          setSlabError(`Slab ${i + 1}: Min Quantity (${min}) must be less than Max Quantity (${max}).`);
+          setActiveTab('basic');
+          return;
+        }
+        if (!slab.price || price <= 0) {
+          setSlabError(`Slab ${i + 1}: Special Price cannot be empty or zero.`);
+          setActiveTab('basic');
+          return;
+        }
+      }
+      
+      const sortedSlabs = [...qtySlabs].sort((a, b) => Number(a.minQty) - Number(b.minQty));
+      for (let i = 0; i < sortedSlabs.length - 1; i++) {
+        if (Number(sortedSlabs[i].maxQty) >= Number(sortedSlabs[i+1].minQty)) {
+          setSlabError(`Slabs cannot overlap. Overlap found between Max Qty ${sortedSlabs[i].maxQty} and Min Qty ${sortedSlabs[i+1].minQty}.`);
+          setActiveTab('basic');
+          return;
+        }
+      }
+    }
+    
+    // Perform save logic here if any
+    onClose();
+  };
 
   if (!isOpen) return null;
 
@@ -202,7 +243,14 @@ export function ItemMasterModal({ isOpen, onClose }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pb-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 pb-4">
+                <div className="flex flex-col gap-1 w-full">
+                  <label className="text-[13px] font-bold text-gray-800">MRP</label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-[13px]">₹</span>
+                    <input type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-6 pr-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] bg-white text-right font-bold" />
+                  </div>
+                </div>
                 <div className="flex flex-col gap-1 w-full">
                   <label className="text-[13px] font-bold text-gray-800">Purchase Price</label>
                   <div className="relative">
@@ -238,12 +286,13 @@ export function ItemMasterModal({ isOpen, onClose }) {
                 <h4 className="text-[14px] font-bold text-green-900 mb-3 flex items-center justify-between">
                   Special Quantity Wise Pricing
                   <button 
-                    onClick={() => setQtySlabs([...qtySlabs, { minQty: '', maxQty: '', price: '' }])}
+                    onClick={() => { setSlabError(''); setQtySlabs([...qtySlabs, { minQty: '', maxQty: '', price: '' }]); }}
                     className="text-[12px] bg-white border border-green-300 text-green-700 px-2 py-1 rounded-[3px] shadow-sm flex items-center gap-1 hover:bg-green-100 transition-colors"
                   >
                     <Plus className="w-3 h-3" /> Add Slab
                   </button>
                 </h4>
+                {slabError && <div className="text-red-600 text-[12px] font-bold mb-3 p-2 bg-red-50 border border-red-200 rounded-[3px]">{slabError}</div>}
                 {qtySlabs.length === 0 ? (
                   <p className="text-[12px] text-green-700 italic">No quantity slabs defined. Regular prices will apply.</p>
                 ) : (
@@ -596,7 +645,7 @@ export function ItemMasterModal({ isOpen, onClose }) {
         {/* Footer */}
         <div className="bg-[#f8f9fa] px-4 md:px-6 py-3 flex justify-end gap-2 border-t border-gray-200 flex-shrink-0">
           <button 
-            onClick={onClose}
+            onClick={handleSave}
             className="bg-[#28a745] hover:bg-[#218838] text-white px-5 py-[7px] rounded-[3px] text-[14px] font-bold transition-colors shadow-sm flex items-center gap-1.5"
           >
             Save Item

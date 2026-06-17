@@ -118,7 +118,7 @@ export function EmployeeMasterModal({ isOpen, onClose, employee }) {
                   >
                     <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${isActive ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
                   </div>
-                  <span className="text-[13px] font-bold text-gray-800 select-none">Active</span>
+                  <span className="text-[13px] font-bold text-gray-800 select-none">{isActive ? 'Active' : 'Inactive'}</span>
                 </div>
               </div>
               <input 

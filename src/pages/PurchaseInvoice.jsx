@@ -225,8 +225,8 @@ export function PurchaseInvoice() {
         {/* Data Table */}
         <div className="flex-1 min-h-[300px] overflow-x-auto">
           <div className="min-w-[1000px]">
-            {/* Table Header: 10 Columns */}
-            <div className="bg-[#343a40] text-white grid grid-cols-[40px_1fr_80px_80px_100px_110px_110px_80px_100px_80px] text-center border-b border-gray-600">
+            {/* Table Header: 11 Columns */}
+            <div className="bg-[#343a40] text-white grid grid-cols-[40px_1fr_80px_80px_80px_100px_110px_110px_80px_100px_80px] text-center border-b border-gray-600">
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold leading-tight flex flex-col justify-center">
                 S.NO.
               </div>
@@ -238,6 +238,9 @@ export function PurchaseInvoice() {
               </div>
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold text-[#ffc107] flex items-center justify-center">
                 FREE QTY
+              </div>
+              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">
+                MRP
               </div>
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex flex-col justify-center leading-tight">
                 <span className="font-normal text-[10px]">(TAX INCLUDED)</span>
@@ -269,7 +272,7 @@ export function PurchaseInvoice() {
             </div>
 
             {/* Input Row */}
-            <div className="grid grid-cols-[40px_1fr_80px_80px_100px_110px_110px_80px_100px_80px] bg-white border-b border-gray-200">
+            <div className="grid grid-cols-[40px_1fr_80px_80px_80px_100px_110px_110px_80px_100px_80px] bg-white border-b border-gray-200">
               <div className="border-r border-gray-200 flex items-center justify-center p-1 bg-gray-600">
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center relative gap-1">
@@ -301,6 +304,14 @@ export function PurchaseInvoice() {
                    onChange={(e) => setFreeQty(Number(e.target.value))}
                    className="w-full h-full border border-yellow-300 bg-yellow-50 rounded-[3px] px-2 text-[13px] outline-none text-center font-bold text-yellow-800" 
                  />
+              </div>
+
+              <div className="border-r border-gray-200 p-1">
+                <input 
+                  type="number" 
+                  placeholder="0.00"
+                  className="w-full h-full border border-gray-200 rounded-[3px] px-2 text-[13px] outline-none text-right font-bold text-gray-500 bg-gray-50" 
+                />
               </div>
 
               <div className="border-r border-gray-200 p-1">

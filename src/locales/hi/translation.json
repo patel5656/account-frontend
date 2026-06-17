@@ -80,7 +80,6 @@
     "Sale Summary": "बिक्री सारांश",
     "Sale Return": "बिक्री वापसी",
     "Purchase Summary": "खरीद सारांश",
-    "Purchase Return": "खरीद वापसी",
     "GST-WISE Summary": "GST-अनुसार सारांश",
     "HSN-WISE Summary": "HSN-अनुसार सारांश",
     "Complaint": "शिकायत (Complaint)",
@@ -192,5 +191,7 @@
     "Party Type Both": "पार्टी का प्रकार: दोनों",
     "Txn Date Only": "केवल लेनदेन की तारीख",
     "Interest on Invoices": "बिलों पर ब्याज"
-  }
+  },
+  "SaaS": "सास",
+  "POS": "पीओएस"
 }
