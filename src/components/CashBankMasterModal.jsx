@@ -5,16 +5,33 @@ export function CashBankMasterModal({ isOpen, onClose }) {
   const [isActive, setIsActive] = useState(true);
   const [bookName, setBookName] = useState('');
   const [type, setType] = useState('CASH BOOK');
+  const [address, setAddress] = useState('');
+  const [branch, setBranch] = useState('');
+  const [ifsc, setIfsc] = useState('');
+  const [accountNo, setAccountNo] = useState('');
 
   const handleSubmit = () => {
     if (bookName.trim() !== '') {
       window.dispatchEvent(new CustomEvent('bankAdded', { 
-        detail: { id: Date.now(), name: bookName, type: type, balance: 0 } 
+        detail: { 
+          id: Date.now(), 
+          name: bookName, 
+          type: type, 
+          balance: 0,
+          address,
+          branch,
+          ifsc,
+          accountNo
+        } 
       }));
     }
     setBookName('');
     setType('CASH BOOK');
     setIsActive(true);
+    setAddress('');
+    setBranch('');
+    setIfsc('');
+    setAccountNo('');
     onClose();
   };
 
@@ -78,6 +95,54 @@ export function CashBankMasterModal({ isOpen, onClose }) {
                 </select>
               </div>
 
+            </div>
+          </div>
+
+          {/* Additional Fields */}
+          <div className="flex flex-col gap-6 mt-6">
+            <div className="flex flex-col sm:flex-row gap-6">
+              <div className="flex-1">
+                <label className="block text-[14px] font-bold text-gray-800 mb-2">Account No</label>
+                <input 
+                  type="text" 
+                  value={accountNo}
+                  onChange={(e) => setAccountNo(e.target.value)}
+                  placeholder="Enter Account No"
+                  className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-[7px] text-[14px] outline-none focus:border-[#4F46E5]"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-[14px] font-bold text-gray-800 mb-2">IFSC Code</label>
+                <input 
+                  type="text" 
+                  value={ifsc}
+                  onChange={(e) => setIfsc(e.target.value)}
+                  placeholder="Enter IFSC Code"
+                  className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-[7px] text-[14px] outline-none focus:border-[#4F46E5]"
+                />
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-6">
+              <div className="flex-1">
+                <label className="block text-[14px] font-bold text-gray-800 mb-2">Branch</label>
+                <input 
+                  type="text" 
+                  value={branch}
+                  onChange={(e) => setBranch(e.target.value)}
+                  placeholder="Enter Branch Name"
+                  className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-[7px] text-[14px] outline-none focus:border-[#4F46E5]"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-[14px] font-bold text-gray-800 mb-2">Address</label>
+                <input 
+                  type="text" 
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Enter Bank Address"
+                  className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-[7px] text-[14px] outline-none focus:border-[#4F46E5]"
+                />
+              </div>
             </div>
           </div>
         </div>

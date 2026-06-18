@@ -25,6 +25,8 @@ export function CustomerMaster() {
   const [mergeModalOpen, setMergeModalOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
+  
+  const [editData, setEditData] = useState({});
 
   const [searchFilter, setSearchFilter] = useState('Party Name');
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,13 +48,13 @@ export function CustomerMaster() {
     const handlePartyAdded = (e) => {
       if (e.detail.type === 'CUSTOMER') {
         setRows(prev => [...prev, {
-          id: e.detail.id,
+          ...e.detail,
           customerName: e.detail.name,
-          address: e.detail.city,
-          gstin: '',
+          address: e.detail.address || e.detail.city || '',
+          gstin: e.detail.gstin || '',
           mobileNo: e.detail.mobile,
           balance: '0',
-          partyTags: '',
+          partyTags: e.detail.partyTags || '',
           msgSent: '0'
         }]);
       }
@@ -68,7 +70,16 @@ export function CustomerMaster() {
 
   const handleEditClick = (row) => {
     setSelectedRow(row);
+    setEditData({
+      ...row,
+      toggles: row.toggles || { moreInfo: true, wholeParty: false, sezParty: false, focParty: false }
+    });
     setEditModalOpen(true);
+  };
+
+  const handleUpdate = () => {
+    setRows(rows.map(r => r.id === selectedRow.id ? { ...r, ...editData, customerName: editData.name || editData.customerName, mobileNo: editData.mobile || editData.mobileNo } : r));
+    setEditModalOpen(false);
   };
 
   const handleDeleteClick = (id) => {
@@ -213,7 +224,7 @@ export function CustomerMaster() {
         <div className="flex-1 data-grid-scroll">
           <div className="min-w-[900px]">
             {/* Table Header */}
-            <div className="grid grid-cols-[40px_150px_1fr_120px_120px_100px_120px_100px_120px] border-b border-gray-200">
+            <div className="grid grid-cols-[40px_minmax(150px,1.5fr)_minmax(150px,1.5fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_120px] border-b border-gray-200">
               <HeaderCell text="#" noSort />
               <HeaderCell text={t('customer_master.customer_name')} />
               <HeaderCell text={t('customer_master.address')} />
@@ -231,7 +242,7 @@ export function CustomerMaster() {
                 <div 
                   key={row.id} 
                   onClick={() => setSelectedRow(row)}
-                  className={`grid grid-cols-[40px_150px_1fr_120px_120px_100px_120px_100px_120px] border-b border-gray-200 hover:bg-indigo-50/50 cursor-pointer transition-colors ${selectedRow?.id === row.id ? 'bg-indigo-50/70 font-semibold' : 'bg-white'}`}
+                  className={`grid grid-cols-[40px_minmax(150px,1.5fr)_minmax(150px,1.5fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_120px] border-b border-gray-200 hover:bg-indigo-50/50 cursor-pointer transition-colors ${selectedRow?.id === row.id ? 'bg-indigo-50/70 font-semibold' : 'bg-white'}`}
                 >
                   <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{index + 1}</div>
                   <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.customerName}</div>
@@ -369,24 +380,40 @@ export function CustomerMaster() {
             </div>
 
             {/* Body */}
-            <div className="p-6 bg-white">
+            <div className="p-6 bg-white overflow-y-auto max-h-[75vh]">
               <div className="flex flex-col gap-4">
                 
-                {/* Row 1: Party Name */}
+                {/* Row 1: Party Name, Active, Due Days */}
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center justify-between">
                     <label className="text-[14px] font-bold text-gray-800">Party Name</label>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors bg-[#0d6efd]">
-                        <div className="w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform translate-x-[16px]"></div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className={`w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${editData?.isActive !== false ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}
+                          onClick={() => setEditData({...editData, isActive: editData?.isActive === false ? true : false})}
+                        >
+                          <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${editData?.isActive !== false ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
+                        </div>
+                        <span className="text-[13px] font-bold text-gray-800 select-none">Active</span>
                       </div>
-                      <span className="text-[13px] font-bold text-gray-800 select-none">Active</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-bold text-gray-800">Due Days</span>
+                        <input 
+                          type="text" 
+                          value={editData?.dueDays || '7'}
+                          onChange={(e) => setEditData({...editData, dueDays: e.target.value})}
+                          className="w-[60px] border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] outline-none focus:border-[#4F46E5] text-center"
+                        />
+                      </div>
                     </div>
                   </div>
                   <input 
                     type="text" 
-                    defaultValue={selectedRow?.customerName}
-                    className="w-full min-w-0 border border-gray-300 bg-[#a6cdec] placeholder-gray-500 rounded-[3px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5] font-bold"
+                    value={editData?.customerName || editData?.name || ''}
+                    onChange={(e) => setEditData({...editData, customerName: e.target.value, name: e.target.value})}
+                    placeholder="Enter Name"
+                    className="w-full border border-gray-300 bg-[#a6cdec] placeholder-gray-500 rounded-[3px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5] font-bold"
                   />
                 </div>
                 
@@ -396,33 +423,244 @@ export function CustomerMaster() {
                     <label className="text-[14px] font-bold text-gray-800">Mobile Number</label>
                     <input 
                       type="text" 
-                      defaultValue={selectedRow?.mobileNo}
+                      value={editData?.mobileNo || editData?.mobile || ''}
+                      onChange={(e) => setEditData({...editData, mobileNo: e.target.value, mobile: e.target.value})}
                       placeholder="Hint - Better to use WhatsApp Number"
-                      className="w-full min-w-0 border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+                      className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
                     />
                   </div>
-                  <div className="flex-1 flex flex-col gap-1">
+                  <div className="flex-1 flex flex-col gap-1 relative">
                     <label className="text-[14px] font-bold text-gray-800">City</label>
-                    <input 
-                      type="text"
-                      defaultValue={selectedRow?.address}
-                      placeholder="Enter City Name"
-                      className="w-full min-w-0 border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] font-medium"
-                    />
+                    <div className="relative">
+                      <select
+                        value={editData?.city || ''}
+                        onChange={(e) => setEditData({...editData, city: e.target.value})}
+                        className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] appearance-none"
+                      >
+                        <option value=""></option>
+                        <option value="Delhi">Delhi</option>
+                        <option value="Mumbai">Mumbai</option>
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                        <X className="w-3 h-3 text-gray-400 mr-1" />
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Row 3: Four Toggles */}
-                <div className="flex justify-between items-center mt-4 px-2 sm:px-10">
-                  {['More Info', 'Whole Party', 'SEZ Party', 'FOC Party'].map(label => (
-                    <div key={label} className="flex flex-col items-center gap-2">
-                      <div className="w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors bg-gray-300">
-                        <div className="w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform translate-x-[2px]"></div>
-                      </div>
-                      <span className="text-[11px] font-bold text-gray-800">{label}</span>
+                {/* Row 3: Party Tags */}
+                <div className="flex flex-col gap-1 relative">
+                  <label className="text-[14px] font-bold text-gray-800">Party Tags</label>
+                  <div className="relative">
+                    <select
+                      value={editData?.partyTags || ''}
+                      onChange={(e) => setEditData({...editData, partyTags: e.target.value})}
+                      className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] appearance-none"
+                    >
+                      <option value="">Enter Tags</option>
+                      <option value="Tag 1">Tag 1</option>
+                      <option value="Tag 2">Tag 2</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                     </div>
-                  ))}
+                  </div>
                 </div>
+
+                {/* Row 4: Four Toggles */}
+                <div className="flex justify-between items-center mt-4 px-2 sm:px-10">
+                  <div className="flex flex-col items-center gap-2">
+                    <div 
+                      className={`w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${editData?.toggles?.moreInfo ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}
+                      onClick={() => setEditData({...editData, toggles: {...editData.toggles, moreInfo: !editData?.toggles?.moreInfo}})}
+                    >
+                      <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${editData?.toggles?.moreInfo ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
+                    </div>
+                    <span className="text-[11px] font-bold text-gray-800">More Info</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <div 
+                      className={`w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${editData?.toggles?.wholeParty ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}
+                      onClick={() => setEditData({...editData, toggles: {...editData.toggles, wholeParty: !editData?.toggles?.wholeParty}})}
+                    >
+                      <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${editData?.toggles?.wholeParty ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
+                    </div>
+                    <span className="text-[11px] font-bold text-gray-800">Whole Party</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <div 
+                      className={`w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${editData?.toggles?.sezParty ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}
+                      onClick={() => setEditData({...editData, toggles: {...editData.toggles, sezParty: !editData?.toggles?.sezParty}})}
+                    >
+                      <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${editData?.toggles?.sezParty ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
+                    </div>
+                    <span className="text-[11px] font-bold text-gray-800">SEZ Party</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <div 
+                      className={`w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${editData?.toggles?.focParty ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}
+                      onClick={() => setEditData({...editData, toggles: {...editData.toggles, focParty: !editData?.toggles?.focParty}})}
+                    >
+                      <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${editData?.toggles?.focParty ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
+                    </div>
+                    <span className="text-[11px] font-bold text-gray-800">FOC Party</span>
+                  </div>
+                </div>
+
+                {/* Conditional More Info Fields */}
+                {editData?.toggles?.moreInfo && (
+                  <>
+                    {/* Address */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[14px] font-bold text-gray-800">Address</label>
+                      <input 
+                        type="text" 
+                        value={editData?.address || ''}
+                        onChange={(e) => setEditData({...editData, address: e.target.value})}
+                        placeholder="Enter Full Address"
+                        className="w-full border border-gray-300 bg-[#a6cdec] placeholder-gray-500 rounded-[3px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5] font-bold"
+                      />
+                    </div>
+
+                    {/* Pin Code, Gstin, Gst Applicable */}
+                    <div className="grid grid-cols-[1.2fr_2fr_1.2fr] gap-4">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[14px] font-bold text-gray-800">Pin Code</label>
+                        <input 
+                          type="text" 
+                          value={editData?.pinCode || ''}
+                          onChange={(e) => setEditData({...editData, pinCode: e.target.value})}
+                          placeholder="Enter Pin Code"
+                          className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[14px] font-bold text-gray-800">Gstin</label>
+                        <input 
+                          type="text" 
+                          value={editData?.gstin || ''}
+                          onChange={(e) => setEditData({...editData, gstin: e.target.value})}
+                          placeholder="Enter Gst Number"
+                          className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1 relative">
+                        <label className="text-[14px] font-bold text-gray-800">Gst Applicable</label>
+                        <div className="relative">
+                          <select
+                            value={editData?.gstApplicable || 'GST'}
+                            onChange={(e) => setEditData({...editData, gstApplicable: e.target.value})}
+                            className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] appearance-none"
+                          >
+                            <option value="GST">GST</option>
+                            <option value="COMPOSITION">COMPOSITION</option>
+                            <option value="UNREGISTERED">UNREGISTERED</option>
+                            <option value="CONSUMER">CONSUMER</option>
+                          </select>
+                          <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* State, Email Address, Party Type */}
+                    <div className="grid grid-cols-[1.2fr_2fr_1.2fr] gap-4">
+                      <div className="flex flex-col gap-1 relative">
+                        <label className="text-[14px] font-bold text-gray-800">State</label>
+                        <div className="relative">
+                          <select
+                            value={editData?.state || 'Karnataka'}
+                            onChange={(e) => setEditData({...editData, state: e.target.value})}
+                            className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] appearance-none"
+                          >
+                            <option value="Karnataka">Karnataka</option>
+                            <option value="Delhi">Delhi</option>
+                            <option value="Maharashtra">Maharashtra</option>
+                            <option value="Uttar Pradesh">Uttar Pradesh</option>
+                            <option value="Gujarat">Gujarat</option>
+                          </select>
+                          <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                            <X 
+                              className="w-3 h-3 text-gray-400 mr-1 cursor-pointer pointer-events-auto" 
+                              onClick={() => setEditData({...editData, state: ''})} 
+                            />
+                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[14px] font-bold text-gray-800">Email Address</label>
+                        <input 
+                          type="text" 
+                          value={editData?.emailAddress || ''}
+                          onChange={(e) => setEditData({...editData, emailAddress: e.target.value})}
+                          placeholder="Enter Email Address"
+                          className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1 relative">
+                        <label className="text-[14px] font-bold text-gray-800">Party Type</label>
+                        <div className="relative">
+                          <select
+                            value={editData?.partyType || 'company'}
+                            onChange={(e) => setEditData({...editData, partyType: e.target.value})}
+                            className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] appearance-none"
+                          >
+                            <option value="company">company</option>
+                            <option value="retailer">retailer</option>
+                            <option value="distributor">distributor</option>
+                          </select>
+                          <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Other Mobile No, Party Limit, Interest Rate/Month, Loyalty Points */}
+                    <div className="grid grid-cols-[1.2fr_1fr_1fr_1.2fr] gap-4">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[14px] font-bold text-gray-800">Other Mobile No</label>
+                        <input 
+                          type="text" 
+                          value={editData?.otherMobileNo || ''}
+                          onChange={(e) => setEditData({...editData, otherMobileNo: e.target.value})}
+                          placeholder="Enter Other Mobile"
+                          className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[14px] font-bold text-gray-800">Party Limit</label>
+                        <input 
+                          type="text" 
+                          value={editData?.partyLimit || '0'}
+                          onChange={(e) => setEditData({...editData, partyLimit: e.target.value})}
+                          className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[14px] font-bold text-gray-800">Interest Rate/Month</label>
+                        <input 
+                          type="text" 
+                          value={editData?.interestRate || '0'}
+                          onChange={(e) => setEditData({...editData, interestRate: e.target.value})}
+                          className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[14px] font-bold text-gray-800">Loyalty Points</label>
+                        <input 
+                          type="text" 
+                          value={editData?.loyaltyPoints || '0'}
+                          onChange={(e) => setEditData({...editData, loyaltyPoints: e.target.value})}
+                          className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
 
               </div>
             </div>
@@ -433,7 +671,7 @@ export function CustomerMaster() {
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
               </button>
               <button 
-                onClick={() => setEditModalOpen(false)}
+                onClick={handleUpdate}
                 className="bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 px-4 py-[7px] rounded-[3px] text-[14px] font-medium transition-colors"
               >
                 Update

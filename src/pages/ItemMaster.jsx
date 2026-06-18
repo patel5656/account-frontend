@@ -187,17 +187,9 @@ export function ItemMaster() {
                     </td>
                     <td className="py-2 px-3">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button title="Stock Adjustment" onClick={() => navigate('/admin/stock_adjustment')} className="p-1 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-[3px] transition-colors">
-                          <Settings2Icon className="w-4 h-4" />
-                        </button>
-                        <button title="Stock Transfer" onClick={() => navigate('/admin/godown_transfer')} className="p-1 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-[3px] transition-colors">
-                          <ArrowRightLeftIcon className="w-4 h-4" />
-                        </button>
-                        <button title="Online Store Sync" onClick={() => alert(row.synced ? 'Item is already synced with online store.' : 'Syncing item with online store...')} className={`p-1 rounded-[3px] transition-colors ${row.synced ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:text-green-600 hover:bg-green-50'}`}>
-                          <GlobeIcon className="w-4 h-4" />
-                        </button>
-                        <div className="w-[1px] h-3 bg-gray-300 mx-0.5"></div>
                         <button onClick={() => setCreateModalOpen(true)} className="text-[#4F46E5] hover:bg-indigo-50 px-2 py-1 rounded-[3px] font-bold transition-colors">Edit</button>
+                        <div className="w-[1px] h-3 bg-gray-300 mx-0.5"></div>
+                        <button onClick={() => { if(window.confirm('Are you sure you want to delete this item?')) { setRows(prev => prev.filter(r => r.id !== row.id)); } }} className="text-[#dc3545] hover:bg-red-50 px-2 py-1 rounded-[3px] font-bold transition-colors">Delete</button>
                       </div>
                     </td>
                   </tr>
@@ -219,6 +211,7 @@ export function ItemMaster() {
       <ItemMasterModal 
         isOpen={createModalOpen} 
         onClose={() => setCreateModalOpen(false)} 
+        onSave={(newItem) => setRows([newItem, ...rows])}
       />
 
     </div>

@@ -90,7 +90,7 @@ export function PurchaseOrder() {
       <div className="bg-white m-3 mt-0 shadow-sm border border-gray-200 flex-1 flex flex-col">
         
         {/* Top Header */}
-        <div className="bg-[#17a2b8] flex items-center justify-between px-3 py-1.5">
+        <div className="bg-[#4F46E5] flex items-center justify-between px-3 py-1.5">
           <h2 className="text-white font-medium text-[15px]">{pageTitle}</h2>
           
           <div className="flex flex-wrap items-center gap-3">

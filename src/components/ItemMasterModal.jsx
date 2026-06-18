@@ -4,7 +4,7 @@ import {
   Settings, RefreshCw, Printer, Box, AlertTriangle, History, ArrowRight 
 } from 'lucide-react';
 
-export function ItemMasterModal({ isOpen, onClose }) {
+export function ItemMasterModal({ isOpen, onClose, onSave }) {
   const [isActive, setIsActive] = useState(true);
   const [activeTab, setActiveTab] = useState('basic');
   
@@ -25,6 +25,7 @@ export function ItemMasterModal({ isOpen, onClose }) {
   // Online Sync states
   const [syncOnline, setSyncOnline] = useState(false);
   const [barcode, setBarcode] = useState('');
+  const [imagePreview, setImagePreview] = useState(null);
 
   // Pricing states
   const [qtySlabs, setQtySlabs] = useState([]);
@@ -66,7 +67,30 @@ export function ItemMasterModal({ isOpen, onClose }) {
       }
     }
     
-    // Perform save logic here if any
+    // Extract values from form elements
+    const newItem = {
+      id: Date.now(),
+      name: document.getElementById('item_name_input')?.value || 'New Item',
+      variants: [memorySize, colorVariant].filter(Boolean),
+      category: document.getElementById('item_category_input')?.value || 'Uncategorized',
+      brand: document.getElementById('item_brand_input')?.value || 'No Brand',
+      sku: document.getElementById('item_sku_input')?.value || 'SKU' + Math.floor(Math.random() * 1000),
+      barcode: barcode || Math.floor(Math.random() * 1000000000).toString(),
+      mrp: document.getElementById('item_mrp_input')?.value || '0',
+      price: document.getElementById('item_saleprice_input')?.value || '0',
+      qty: document.getElementById('item_openingstock_input')?.value || 0,
+      status: isActive ? 'ACTIVE' : 'INACTIVE',
+      hasBom: hasBom,
+      memorySize: memorySize,
+      colorVariant: colorVariant,
+      designNo: designNo,
+      enableImei: enableImei
+    };
+
+    if (onSave) {
+      onSave(newItem);
+    }
+    
     onClose();
   };
 
@@ -139,11 +163,11 @@ export function ItemMasterModal({ isOpen, onClose }) {
                       <span className="text-[13px] font-bold text-gray-800 select-none">Active</span>
                     </div>
                   </div>
-                  <input type="text" placeholder="Enter Item Name" className="w-full border border-[#4F46E5] bg-[#e8e5ff] placeholder-gray-500 rounded-[3px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5] shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold" />
+                  <input id="item_name_input" type="text" placeholder="Enter Item Name" className="w-full border border-[#4F46E5] bg-[#e8e5ff] placeholder-gray-500 rounded-[3px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5] shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold" />
                 </div>
                 <div className="flex flex-col gap-1 w-full md:mt-[25px]">
                   <label className="text-[14px] font-bold text-gray-800">Item Code / SKU</label>
-                  <input type="text" placeholder="Enter Item Code / SKU" className="w-full border border-gray-300 rounded-[3px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white" />
+                  <input id="item_sku_input" type="text" placeholder="Enter Item Code / SKU" className="w-full border border-gray-300 rounded-[3px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white" />
                 </div>
               </div>
 
@@ -153,7 +177,7 @@ export function ItemMasterModal({ isOpen, onClose }) {
                     <label className="text-[13px] font-bold text-gray-800">Category</label>
                     <button className="text-[11px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-0.5"><Plus className="w-3 h-3" /> Add</button>
                   </div>
-                  <select className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white">
+                  <select id="item_category_input" className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white">
                     <option>Select Category</option>
                     <option>Raw Material</option>
                     <option>Finished Goods</option>
@@ -164,7 +188,7 @@ export function ItemMasterModal({ isOpen, onClose }) {
                     <label className="text-[13px] font-bold text-gray-800">Brand</label>
                     <button className="text-[11px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-0.5"><Plus className="w-3 h-3" /> Add</button>
                   </div>
-                  <select className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white">
+                  <select id="item_brand_input" className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white">
                     <option>Select Brand</option>
                     <option>Brand A</option>
                     <option>Brand B</option>
@@ -248,7 +272,7 @@ export function ItemMasterModal({ isOpen, onClose }) {
                   <label className="text-[13px] font-bold text-gray-800">MRP</label>
                   <div className="relative">
                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-[13px]">₹</span>
-                    <input type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-6 pr-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] bg-white text-right font-bold" />
+                    <input id="item_mrp_input" type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-6 pr-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] bg-white text-right font-bold" />
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 w-full">
@@ -262,7 +286,7 @@ export function ItemMasterModal({ isOpen, onClose }) {
                   <label className="text-[13px] font-bold text-gray-800">Sale Price</label>
                   <div className="relative">
                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-[13px]">₹</span>
-                    <input type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-6 pr-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] bg-white text-right font-bold" />
+                    <input id="item_saleprice_input" type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-6 pr-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] bg-white text-right font-bold" />
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 w-full">
@@ -337,7 +361,7 @@ export function ItemMasterModal({ isOpen, onClose }) {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="flex flex-col gap-1">
                     <label className="text-[13px] font-bold text-gray-700">Opening Stock Qty</label>
-                    <input type="number" placeholder="0" className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-blue-500" />
+                    <input id="item_openingstock_input" type="number" placeholder="0" className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-blue-500" />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[13px] font-bold text-gray-700">Opening Stock Rate</label>
@@ -584,11 +608,7 @@ export function ItemMasterModal({ isOpen, onClose }) {
                   <h4 className="text-[14px] font-bold text-gray-800">Sync with Online Store</h4>
                   <p className="text-[12px] text-gray-600">Enable this to publish this item to your integrated eCommerce storefront.</p>
                 </div>
-                {syncOnline && (
-                  <button className="bg-[#4F46E5] hover:bg-[#4338ca] text-white px-3 py-1.5 rounded-[3px] text-[12px] font-bold shadow-sm whitespace-nowrap flex items-center gap-1 transition-colors">
-                    <RefreshCw className="w-3.5 h-3.5" /> Force Sync Now
-                  </button>
-                )}
+
               </div>
 
               {syncOnline && (
@@ -624,11 +644,39 @@ export function ItemMasterModal({ isOpen, onClose }) {
 
                   <div className="flex flex-col gap-2">
                     <label className="text-[13px] font-bold text-gray-800">Product Images</label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-[3px] h-[150px] flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors group">
-                      <ImageIcon className="w-8 h-8 text-gray-400 group-hover:text-purple-500 transition-colors mb-2" />
-                      <span className="text-[13px] font-medium text-gray-600">Click to upload image</span>
-                      <span className="text-[11px] text-gray-400 mt-1">Max size: 2MB</span>
-                    </div>
+                    <label className="border-2 border-dashed border-gray-300 rounded-[3px] h-[150px] flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors group relative overflow-hidden">
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            setImagePreview(URL.createObjectURL(file));
+                          }
+                        }}
+                      />
+                      {imagePreview ? (
+                        <>
+                          <img src={imagePreview} alt="Preview" className="w-full h-full object-contain p-2" />
+                          <div 
+                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 cursor-pointer shadow-md"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setImagePreview(null);
+                            }}
+                          >
+                            <X className="w-4 h-4" />
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <ImageIcon className="w-8 h-8 text-gray-400 group-hover:text-purple-500 transition-colors mb-2" />
+                          <span className="text-[13px] font-medium text-gray-600">Click to upload image</span>
+                          <span className="text-[11px] text-gray-400 mt-1">Max size: 2MB</span>
+                        </>
+                      )}
+                    </label>
                     
                     <div className="mt-2 bg-blue-50 border border-blue-100 rounded-[3px] p-3 text-[12px] text-blue-800">
                       <strong>Auto-Sync Active:</strong> Stock quantity and SKU will automatically sync continuously with main inventory.

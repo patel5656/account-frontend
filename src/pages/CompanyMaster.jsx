@@ -9,7 +9,8 @@ import {
   ChevronsUpDown,
   Menu,
   Edit,
-  Trash2
+  Trash2,
+  CalendarDays
 } from 'lucide-react';
 import { PartyMasterModal } from '../components/PartyMasterModal';
 
@@ -22,7 +23,28 @@ export function CompanyMaster() {
   const [editRow, setEditRow] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
   
-  const [rows, setRows] = useState([]);
+  const [rows, setRows] = useState([
+    {
+      id: 1,
+      name: 'Suplier Demo',
+      address: '',
+      gstin: '',
+      mobile: '',
+      balance: '2850',
+      partyTags: '',
+      msgSent: '0'
+    },
+    {
+      id: 2,
+      name: 'New Vendor',
+      address: '',
+      gstin: '',
+      mobile: '',
+      balance: '0',
+      partyTags: '',
+      msgSent: '0'
+    }
+  ]);
 
   useEffect(() => {
     const handlePartyAdded = (e) => {
@@ -159,16 +181,16 @@ export function CompanyMaster() {
         <div className="flex-1 overflow-x-auto data-grid-scroll">
           <div className="w-full min-w-[1000px]">
             {/* Table Header */}
-            <div className="grid grid-cols-[50px_2fr_1.5fr_1fr_1.5fr_2fr_1fr_1fr_110px] border-b border-gray-200 bg-white">
+            <div className="grid grid-cols-[40px_minmax(150px,1.5fr)_minmax(150px,1.5fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_120px] border-b border-gray-200 bg-white">
               <HeaderCell text="#" />
-              <HeaderCell text={t('company_master.party_name')} />
-              <HeaderCell text={t('company_master.mobile_no')} />
-              <HeaderCell text={t('company_master.city')} />
-              <HeaderCell text="GSTIN" />
+              <HeaderCell text="Company Name" />
               <HeaderCell text="Address" />
-              <HeaderCell text={t('company_master.type')} />
-              <HeaderCell text={t('company_master.balance')} />
-              <HeaderCell text={t('company_master.action')} />
+              <HeaderCell text="GSTIN" />
+              <HeaderCell text="Mobile No" />
+              <HeaderCell text="Balance" />
+              <HeaderCell text="Party Tags" />
+              <HeaderCell text="Msg Sent" />
+              <HeaderCell text="Action" />
             </div>
 
             {/* Rows */}
@@ -176,19 +198,23 @@ export function CompanyMaster() {
               <div 
                 key={row.id} 
                 onClick={() => setSelectedRow(row)}
-                className={`grid grid-cols-[50px_2fr_1.5fr_1fr_1.5fr_2fr_1fr_1fr_110px] border-b border-gray-200 hover:bg-indigo-50/50 cursor-pointer transition-colors bg-white ${selectedRow?.id === row.id ? 'bg-indigo-50/70 font-semibold' : ''}`}
+                className={`grid grid-cols-[40px_minmax(150px,1.5fr)_minmax(150px,1.5fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_120px] border-b border-gray-200 hover:bg-indigo-50/50 cursor-pointer transition-colors bg-white ${selectedRow?.id === row.id ? 'bg-indigo-50/70 font-semibold' : ''}`}
               >
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{index + 1}</div>
-                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.name}</div>
-                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.mobile}</div>
-                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.city}</div>
-                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.gstin || '-'}</div>
-                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center truncate" title={row.address}>{row.address || '-'}</div>
-                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.type}</div>
-                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.balance}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.name || row.customerName}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center truncate" title={row.address || row.city}>{row.address || row.city || ''}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.gstin || ''}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.mobile || row.mobileNo || ''}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.balance || '0'}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.partyTags || ''}</div>
+                <div className="py-2.5 px-3 flex items-center">
+                  <div className="bg-[#ffc107] text-gray-900 px-2 py-0.5 rounded-[3px] text-[12px] font-bold">
+                    {row.msgSent || '0'}
+                  </div>
+                </div>
                 <div className="py-2.5 px-3 flex flex-wrap items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                  <ActionButton type="menu" />
-                  <ActionButton type="edit" onClick={() => handleEditClick(row)} />
+                  <ActionButton type="calendar" />
+                  <ActionButton type="edit_teal" onClick={() => handleEditClick(row)} />
                   <ActionButton type="delete" onClick={() => handleDeleteClick(row.id)} />
                 </div>
               </div>
@@ -318,7 +344,9 @@ const ActionButton = ({ type, onClick }) => {
     switch (type) {
       case 'menu': return 'bg-[#343a40] hover:bg-[#23272b]';
       case 'edit': return 'bg-[#4F46E5] hover:bg-[#4338ca]';
+      case 'edit_teal': return 'bg-[#17a2b8] hover:bg-[#138496]';
       case 'delete': return 'bg-[#dc3545] hover:bg-[#c82333]';
+      case 'calendar': return 'bg-[#28a745] hover:bg-[#218838]';
       default: return 'bg-gray-500';
     }
   };
@@ -327,7 +355,9 @@ const ActionButton = ({ type, onClick }) => {
     switch (type) {
       case 'menu': return <Menu className="w-3.5 h-3.5 text-white" />;
       case 'edit': return <Edit className="w-3.5 h-3.5 text-white" />;
+      case 'edit_teal': return <Edit className="w-3.5 h-3.5 text-white" />;
       case 'delete': return <Trash2 className="w-3.5 h-3.5 text-white" />;
+      case 'calendar': return <CalendarDays className="w-3.5 h-3.5 text-white" />;
       default: return null;
     }
   };

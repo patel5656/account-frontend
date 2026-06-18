@@ -24,6 +24,10 @@ export function BankDetails() {
   const [activeToggle, setActiveToggle] = useState(true);
   const [newBookName, setNewBookName] = useState('');
   const [newType, setNewType] = useState('CASH BOOK');
+  const [newAddress, setNewAddress] = useState('');
+  const [newBranch, setNewBranch] = useState('');
+  const [newIfsc, setNewIfsc] = useState('');
+  const [newAccountNo, setNewAccountNo] = useState('');
 
   const [editBookName, setEditBookName] = useState('');
   const [editType, setEditType] = useState('');
@@ -61,10 +65,23 @@ export function BankDetails() {
 
   const handleInternalSubmit = () => {
     if (newBookName.trim() !== '') {
-      setRows([...rows, { id: Date.now(), name: newBookName, type: newType, balance: 0, address: '' }]);
+      setRows([...rows, { 
+        id: Date.now(), 
+        name: newBookName, 
+        type: newType, 
+        balance: 0, 
+        address: newAddress,
+        branch: newBranch,
+        ifsc: newIfsc,
+        accountNo: newAccountNo
+      }]);
     }
     setNewBookName('');
     setNewType('CASH BOOK');
+    setNewAddress('');
+    setNewBranch('');
+    setNewIfsc('');
+    setNewAccountNo('');
     setCreateModalOpen(false);
   };
 
@@ -117,9 +134,9 @@ export function BankDetails() {
       const rowData = [
         `"${row.name || ''}"`,
         `"${row.address || ''}"`,
-        `""`, // Branch
-        `""`, // IFSC
-        `""`, // Account No
+        `"${row.branch || ''}"`,
+        `"${row.ifsc || ''}"`,
+        `"${row.accountNo || ''}"`,
         `"${row.type || ''}"`,
         `"${row.balance || 0}"`
       ];
@@ -228,9 +245,9 @@ export function BankDetails() {
                   <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{index + 1}</div>
                   <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.name}</div>
                   <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.address || ''}</div>
-                  <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center"></div>
-                  <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center"></div>
-                  <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center"></div>
+                  <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.branch || ''}</div>
+                  <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.ifsc || ''}</div>
+                  <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.accountNo || ''}</div>
                   <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.type}</div>
                   <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.balance}</div>
                   <div className="py-2.5 px-3 flex flex-wrap items-center gap-1">
@@ -474,6 +491,54 @@ export function BankDetails() {
                     <option>LOAN BOOK</option>
                     <option>NON-PAYMENT BOOK</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Additional Fields */}
+              <div className="flex flex-col gap-4 mt-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1 flex flex-col gap-2">
+                    <label className="text-[13px] font-bold text-gray-800">Account No</label>
+                    <input 
+                      type="text" 
+                      value={newAccountNo}
+                      onChange={(e) => setNewAccountNo(e.target.value)}
+                      placeholder="Enter Account No"
+                      className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 placeholder-gray-400 focus:outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold"
+                    />
+                  </div>
+                  <div className="flex-1 flex flex-col gap-2">
+                    <label className="text-[13px] font-bold text-gray-800">IFSC Code</label>
+                    <input 
+                      type="text" 
+                      value={newIfsc}
+                      onChange={(e) => setNewIfsc(e.target.value)}
+                      placeholder="Enter IFSC Code"
+                      className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 placeholder-gray-400 focus:outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1 flex flex-col gap-2">
+                    <label className="text-[13px] font-bold text-gray-800">Branch</label>
+                    <input 
+                      type="text" 
+                      value={newBranch}
+                      onChange={(e) => setNewBranch(e.target.value)}
+                      placeholder="Enter Branch Name"
+                      className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 placeholder-gray-400 focus:outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold"
+                    />
+                  </div>
+                  <div className="flex-1 flex flex-col gap-2">
+                    <label className="text-[13px] font-bold text-gray-800">Address</label>
+                    <input 
+                      type="text" 
+                      value={newAddress}
+                      onChange={(e) => setNewAddress(e.target.value)}
+                      placeholder="Enter Bank Address"
+                      className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 placeholder-gray-400 focus:outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

@@ -137,8 +137,7 @@ export function SalesInvoiceSummary() {
         
         {/* Header */}
         <div className={cn(
-          "px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2",
-          location.pathname.includes('customer_challan_invoice') ? "bg-[#17a2b8]" : "bg-[#4F46E5]"
+          "px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-[#4F46E5]"
         )}>
           <h2 className="text-white text-[16px] font-medium tracking-wide">
             {location.pathname.includes('customer_sale_order') ? 'Sales Order Summary' : 
