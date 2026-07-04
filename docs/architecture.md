@@ -1,216 +1,105 @@
 # System Architecture Document
 
-This document defines the system architecture, directory structure, data flow patterns, state management strategies, and module integrations for the **Os Books (The Digital Accounting Book)** frontend application.
+This document defines the system architecture, directory structure, data flow patterns, and deployment strategies for the **Os Books SaaS** application.
+
+> [!IMPORTANT]
+> **Zero Mock Data Policy**: All data flows are fully integrated with the MySQL database via Prisma ORM. No fake responses, client-side session fallbacks, or in-memory array mocks are allowed.
 
 ---
 
-## 1. Technological Stack
+## 1. Full Backend Architecture Design
 
-The application runs as a modern single-page application (SPA) on a client-side stack:
+The backend is structured as a RESTful API service built on **Node.js and Express**, communicating with a **MySQL** database via **Prisma ORM**.
 
-*   **Core Framework**: React 19 (handling component lifecycles, virtual DOM rendering, and hooks).
-*   **Build System & Bundler**: Vite 8 (providing quick hot module replacement (HMR) and optimized rollup production bundling).
-*   **Styling Engine**: TailwindCSS 4 (integrated via PostCSS for utility-first responsive class structures and CSS variable definitions).
-*   **Routing Manager**: React Router DOM 7 (managing URL configurations, path mappings, and browser history objects).
-*   **Charts & Visualizations**: Recharts 3 (rendering interactive svg curves for sales and purchase analytics).
-*   **Internationalization (i18n)**: i18next, react-i18next, and i18next-browser-languagedetector (managing multi-language localizations and active language states).
-*   **Utility Icons**: Lucide React (standardized svg vector graphic interfaces).
-*   **Document Generators**:
-    *   `html2canvas` (converts HTML viewport divs into image canvases).
-    *   `jsPDF` (compiles images and tables into downloadable multi-page A4 PDF files).
-*   **Clsx & Tailwind-merge**: Custom utility helpers (`src/utils.js`) for conditionally combining class names.
+*   **API Layer**: Express.js routers handle incoming HTTP requests from the React frontend, validate payloads, and enforce JWT authentication.
+*   **Service Layer**: Encapsulates core business logic (e.g., subscription upgrades, discount calculations).
+*   **Data Access Layer**: Prisma Client executes strictly typed database queries.
+*   **Stateless Design**: The server is entirely stateless. Sessions are managed via JWTs. No Redis dependency exists.
 
 ---
 
-## 2. Directory Layout & Core Files
+## 2. Environment Configuration Strategy
 
-The workspace is structured into specialized functional layers within the `src/` folder:
+The system enforces a strict **zero-branching** environment strategy. This ensures that local development and Railway deployment behave identically.
 
-```
-src/
-├── api/                  # Base integrations (if any)
-├── assets/               # Branding assets, logotypes, and stylesheets
-├── components/           # Reusable master modals, charts, inputs, and layouts
-│   ├── AlertCards.jsx
-│   ├── BalanceCorrectionModal.jsx
-│   ├── BomMasterModal.jsx
-│   ├── BranchMasterModal.jsx
-│   ├── CashBankMasterModal.jsx
-│   ├── CategoryMasterModal.jsx
-│   ├── ChartSection.jsx
-│   ├── ChequeStatus.jsx
-│   ├── CollectionReportModal.jsx
-│   ├── EmployeeMasterModal.jsx
-│   ├── ExpenseMasterModal.jsx
-│   ├── FooterShortcuts.jsx
-│   ├── GstUqcMergeModal.jsx
-│   ├── HardRefreshModal.jsx
-│   ├── HoldInvoiceModal.jsx
-│   ├── ImportDataModal.jsx
-│   ├── ImportInvoiceAIModal.jsx
-│   ├── IncomeMasterModal.jsx
-│   ├── ItemMasterModal.jsx
-│   ├── LoadingSheetModal.jsx
-│   ├── MessageTemplateModal.jsx
-│   ├── OfferManagementModal.jsx
-│   ├── Pagination.jsx
-│   ├── PartyMasterModal.jsx
-│   ├── PaymentMasterModal.jsx
-│   ├── ProductMasterModal.jsx
-│   ├── SettingsDrawer.jsx
-│   ├── Sidebar.jsx
-│   ├── StatCard.jsx
-│   ├── StockCorrectionModal.jsx
-│   ├── SummaryCard.jsx
-│   ├── TopNavbar.jsx
-│   ├── UnitCatalogMasterModal.jsx
-│   ├── UnitConversionModal.jsx
-│   ├── WarehouseMasterModal.jsx
-│   └── WhatsAppReminderModal.jsx
-├── context/              # Context providers for global state management
-│   ├── AuditLogContext.jsx
-│   └── SettingsContext.jsx
-├── layouts/              # Core layout templates
-│   └── DashboardLayout.jsx
-├── locales/              # Multi-language locale dictionary configuration JSONs
-├── pages/                # Individual page route entry-point components
-│   ├── Dashboard.jsx
-│   ├── FirmRegistration.jsx
-│   ├── SalesInvoice.jsx
-│   ├── SalesInvoiceSummary.jsx
-│   ├── StockDetails.jsx
-│   ├── BankDetails.jsx
-│   └── (remaining 77 pages...)
-├── App.css               # Base layout classes and custom components styling
-├── App.jsx               # Central router mapping and context encapsulation
-├── i18n.js               # i18next initial setups and detectors registry
-├── index.css             # Tailwind imports, custom font faces, and scrollbar configs
-├── main.jsx              # DOM mounting wrapper attaching StrictMode
-└── utils.js              # Class merger utilities (cn)
-```
+*   **Single Source of Truth**: All configurations are derived from environment variables.
+    *   `DATABASE_URL`: Connection string for MySQL.
+    *   `PORT`: Server listening port.
+    *   `JWT_SECRET`: Secret for signing auth tokens.
+*   **No Environment Checks**: The codebase does NOT contain environment-specific switching logic (e.g., `if (process.env.NODE_ENV === 'production')`) for core database or routing connections.
+*   **No Platform-Specific Fallbacks**: The server does not attempt to fall back to SQLite or any other local database. It strictly requires the `DATABASE_URL`.
 
 ---
 
-## 3. Component Hierarchy
+## 3. Prisma + MySQL Lifecycle & Connection Management
 
-All pages are encapsulated within standard system layouts that manage screen sizes and menus:
+Prisma handles database modeling, migrations, and query generation. The connection lifecycle management includes:
 
-```
-[ App.jsx ] (Encapsulates Routers & Providers)
-    │
-    ▼
-[ SettingsProvider ] ──► [ AuditLogProvider ]
-    │
-    ▼
-[ DashboardLayout ] (Layout Controller)
-    ├── [ Sidebar ] (Sidebar Navigation + Search Filters + Modal Triggers)
-    ├── [ TopNavbar ] (Utilities + Alerts + Print + Profile + i18n Select)
-    │
-    ├── [ Routing View ] (Loads page routes based on paths: e.g. /admin/pos)
-    │
-    └── [ FooterShortcuts ] (Sticky keyboard helpers, visible on /dashboard only)
-```
+*   **Initialization**: Prisma Client is instantiated once at the module level (e.g., `const prisma = new PrismaClient()`). It lazily connects to the MySQL database on the first query execution.
+*   **Connection Pooling**: Prisma automatically manages connection pooling. Under the hood, the engine maintains a pool of connections to MySQL. The pool size can be adjusted using connection string parameters in `DATABASE_URL` (e.g., `&connection_limit=10`).
+*   **Zero Local-Only Code**: The database adapter, engine, and client generators are identical for local development and Railway deployment. No platform-specific overrides are allowed.
 
 ---
 
-## 4. State Management Architecture
+## 4. Server Lifecycle (Startup & Shutdown Flow)
 
-The application implements a local-first state pattern:
+The Node.js Express server manages startup initialization and graceful shutdown hooks to prevent request dropping and connection leaks.
 
-### 4.1 React Contexts
-1.  **SettingsContext (`src/context/SettingsContext.jsx`)**:
-    *   Manages user currency settings (active symbols, formatting metrics).
-    *   Holds functional flags (e.g. `showPurchaseOrder`, `showSalesOrder`, `showCustomerChallan`) that dynamically alter the navigation items in [Sidebar.jsx](file:///c:/Users/divya/Downloads/account%20frontend%2004/src/components/Sidebar.jsx).
-2.  **AuditLogContext (`src/context/AuditLogContext.jsx`)**:
-    *   Acts as an inline event broker. Provides the `addLog` function to components to dispatch changes (e.g., invoices created or stock deletions).
-    *   Maintains the active log memory array.
+### 4.1 Server Startup Flow
+1.  **Environment Loading**: Load configuration variables (`PORT`, `DATABASE_URL`, `JWT_SECRET`) from `process.env`.
+2.  **App Initialization**: Instantiate Express, register standard middleware (CORS, parser, logger).
+3.  **Router Registration**: Register all API modules (`auth`, `companies`, `plans`, `products`, `customers`, `invoices`, `audit-logs`, `dashboard`).
+4.  **Database Connection Warm-up**: Perform an initial database health check query (e.g., querying for a single record or raw status) to warm up the Prisma connection pool.
+5.  **Listen**: Bind to the assigned `process.env.PORT` (or default port `5000` / `3000`).
 
-### 4.2 Web Storage Providers
--   **LocalStorage**:
-    *   Used for persistent records like catalog lists (`bankDetailsRows`, product definitions, firm details).
-    *   Stores `i18nextLng` locale selections.
--   **SessionStorage**:
-    *   Used for temporary transaction details (e.g. active checkout lists, screen-level cache details).
-    *   Cleared immediately on user-triggered hard refresh operations.
+### 4.2 Graceful Shutdown Flow
+Upon receiving termination signals (`SIGTERM` or `SIGINT`):
+1.  **Stop Accepting Requests**: Stop the Express server from accepting new HTTP requests.
+2.  **Drain Connections**: Wait for active request cycles to complete.
+3.  **Disconnect ORM**: Invoke `await prisma.$disconnect()` to gracefully close all active MySQL pool connections.
+4.  **Process Exit**: Terminate the Node.js process with status code `0`.
 
 ---
 
-## 5. Data Flow Diagrams
+## 5. Request Flow (Frontend → Backend → DB → Response)
 
-### 5.1 Sales / Purchase Invoice Creation & Accounting Flow
-This diagram shows how user input in the invoicing grid calculates values in real-time, deducts inventory, adds audit events, and updates local database rows.
+The data flow for a typical request (e.g., creating a sales invoice) follows this sequence:
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User as Billing Operator
-    participant Comp as SalesInvoice Component
-    participant Context as SettingsContext
-    participant Audit as AuditLogContext
-    participant Storage as LocalStorage (DB)
+    actor Client as Frontend React App
+    participant Route as Express Router
+    participant Auth as JWT Middleware
+    participant Service as Business Logic Service
+    participant DB as Prisma (MySQL)
 
-    User->>Comp: Inputs Product Name, Qty, Free Qty, Price, D1, D2
-    Note over Comp: Calculates subtotal, discounts,<br/>taxes, & final invoice totals.
-    Comp->>Context: Requests active currency format
-    Context-->>Comp: Returns active symbol & format parameters
-    Comp->>User: Renders instant sum calculations on screen
-    User->>Comp: Clicks "Save Invoice"
-    Comp->>Storage: Appends invoice record & decrements active item stock quantities
-    Comp->>Audit: Triggers addLog({ userName, actionType: 'Create', billNumber, details })
-    Audit-->>Storage: Appends audit transaction item
-    Comp->>User: Displays success popup alert & resets grid input rows
-```
-
-### 5.2 POS Thermal Receipt Checkout Flow
-This diagram details the sequence inside the POS Billing terminal, starting from scanner reads to receipt printing.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as cashier
-    participant POS as PosBilling Component
-    participant Cart as Cart State
-    participant Modal as ThermalPrintModal
-
-    User->>POS: Scans item barcode (Input auto-focused on load)
-    POS->>POS: Searches dummy database for barcode match
-    POS->>Cart: Appends matching item (or increments Qty if existing)
-    Cart-->>POS: Updates on-screen cart totals & tax summaries
-    User->>POS: Selects payment mode (Cash/Card/UPI) & clicks PAY
-    POS->>Modal: Sets isOpen = true with transaction metadata
-    Modal->>User: Displays simulated 3-inch receipt layout
-    User->>Modal: Clicks "Print Receipt" (triggers window.print())
-    Modal->>Cart: Clears cart array to reset terminal
-    Modal->>POS: Closes receipt overlay
+    Client->>Route: POST /api/v1/invoices (with JWT)
+    Route->>Auth: Validate JWT & Extract companyId/role
+    Auth-->>Route: Token Valid
+    Route->>Service: Process Invoice Payload
+    Service->>Service: Validate Discounts & Stock Levels
+    Service->>DB: prisma.invoice.create(...)
+    DB-->>Service: Saved Invoice Record
+    Service-->>Route: Formatted Success Response
+    Route-->>Client: 201 Created (JSON Response)
 ```
 
 ---
 
-## 6. Routing & View Resolution
+## 6. Technology Stack (Frontend & Backend)
 
-The application relies on React Router's client-side history navigation pattern:
+### Backend Stack
+*   **Runtime**: Node.js
+*   **Framework**: Express.js
+*   **Database**: MySQL
+*   **ORM**: Prisma
+*   **Security**: JSON Web Tokens (JWT), bcrypt for passwords.
 
-*   **Catch-All Routes**: Unrecognized URL paths are automatically captured by `<Route path="*" element={<Navigate to="/dashboard" />} />` to prevent navigation breaks.
-*   **Component Reuse**: Path mapping maps multiple routes to single components where appropriate, utilizing URL parameters or pathname checks to alter configurations:
-    *   [SalesInvoiceSummary](file:///c:/Users/divya/Downloads/account%20frontend%2004/src/pages/SalesInvoiceSummary.jsx) handles sales invoices, sales orders, challan summaries, and sales list grids.
-    *   [SalesInvoice](file:///c:/Users/divya/Downloads/account%20frontend%2004/src/pages/SalesInvoice.jsx) handles creation layouts for sales orders, customer invoice templates, customer challans, quotations, and returns.
+### Frontend Stack (Pre-existing)
+*   **Framework**: React 19 + Vite 8
+*   **Styling**: TailwindCSS 4
+*   **Routing**: React Router DOM 7
+*   **State Management**: Context API
+*   **Visualizations**: Recharts 3
 
----
-
-## 7. Print Customization Engine
-
-The custom layout system inside [PrintSetting.jsx](file:///c:/Users/divya/Downloads/account%20frontend%2004/src/pages/PrintSetting.jsx) runs on a dual-component design:
-
-1.  **Configuration Form (Left Pane)**:
-    *   Updates active print settings (margins, layout typography, border colors, table line settings, terms texts) inside local states.
-2.  **Live Sandbox Preview (Right Pane)**:
-    *   Renders a mock customer invoice template inside an SVG wrapper.
-    *   Binds styles (e.g. font size, layout alignments, border densities) to the print configuration states, showing instant visual changes before sending print queries to the browser.
-
----
-
-## 8. Internationalization (i18n) Architecture
-
-*   **Initialization**: Configured inside [i18n.js](file:///c:/Users/divya/Downloads/account%20frontend%2004/src/i18n.js) and imported into [main.jsx](file:///c:/Users/divya/Downloads/account%20frontend%2004/src/main.jsx) at launch.
-*   **Translation Source**: Reads translations from locale resource collections. Fallback is set to English (`en`).
-*   **Active Selection**: When changing languages in [TopNavbar.jsx](file:///c:/Users/divya/Downloads/account%20frontend%2004/src/components/TopNavbar.jsx), cookies are dynamically updated (`googtrans=/en/[selectedLang]`) and the browser combobox is updated or the window is hard refreshed to re-localize the page representation.

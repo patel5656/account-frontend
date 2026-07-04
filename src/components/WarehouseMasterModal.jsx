@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import apiClient from '../api/apiClient';
 
 export function WarehouseMasterModal({ isOpen, onClose }) {
   const [isActive, setIsActive] = useState(true);
@@ -9,27 +10,33 @@ export function WarehouseMasterModal({ isOpen, onClose }) {
   const [managerName, setManagerName] = useState('');
   const [address, setAddress] = useState('');
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (warehouseName.trim() !== '') {
-      window.dispatchEvent(new CustomEvent('warehouseAdded', { 
-        detail: { 
-          id: Date.now(), 
-          name: warehouseName, 
-          code: warehouseCode,
-          branch: linkedBranch || 'Unlinked',
-          manager: managerName,
-          isActive
-        } 
-      }));
+      try {
+        const payload = {
+          name: warehouseName,
+          location: managerName || address, // using location field in backend
+          isActive: isActive
+        };
+        const res = await apiClient.post('/warehouses', payload);
+        
+        // Notify parent
+        window.dispatchEvent(new CustomEvent('warehouseAdded', { 
+          detail: res.data.data
+        }));
+        
+        // Reset
+        setWarehouseName('');
+        setWarehouseCode('');
+        setLinkedBranch('');
+        setManagerName('');
+        setAddress('');
+        setIsActive(true);
+        onClose();
+      } catch (error) {
+        console.error('Failed to create warehouse', error);
+      }
     }
-    // Reset
-    setWarehouseName('');
-    setWarehouseCode('');
-    setLinkedBranch('');
-    setManagerName('');
-    setAddress('');
-    setIsActive(true);
-    onClose();
   };
 
   if (!isOpen) return null;
@@ -63,7 +70,7 @@ export function WarehouseMasterModal({ isOpen, onClose }) {
                 >
                   <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${isActive ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
                 </div>
-                <span className="text-[13px] font-bold text-gray-800 select-none">Active</span>
+                <span className="text-[13px] font-bold text-gray-800 select-none">{isActive ? 'Active' : 'Inactive'}</span>
               </div>
             </div>
 
@@ -93,16 +100,13 @@ export function WarehouseMasterModal({ isOpen, onClose }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
                 <label className="text-[14px] font-bold text-gray-800">Link to Branch</label>
-                <select 
+                <input 
+                  type="text"
                   value={linkedBranch}
                   onChange={(e) => setLinkedBranch(e.target.value)}
+                  placeholder="e.g. Main Branch"
                   className="w-full border border-gray-300 rounded-[3px] px-3 py-[6px] text-[14px] outline-none focus:border-[#4F46E5] bg-white"
-                >
-                  <option value="">Select Branch</option>
-                  <option value="b1">Delhi South Branch</option>
-                  <option value="b2">Mumbai North Branch</option>
-                  <option value="all">All Branches</option>
-                </select>
+                />
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-[14px] font-bold text-gray-800">Manager Name</label>

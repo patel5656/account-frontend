@@ -1,20 +1,153 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload } from 'lucide-react';
+import { Upload, Loader2 } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { getBrandwiseSale } from '../api/financial';
+import apiClient from '../api/apiClient';
 
 export function BrandwiseSaleSummary() {
   const navigate = useNavigate();
 
+  const [period, setPeriod] = useState('Today');
+  const [customers, setCustomers] = useState([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState('all');
+  const [reportData, setReportData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  
+  // Date calculation states for display
+  const [displayStartDate, setDisplayStartDate] = useState('');
+  const [displayEndDate, setDisplayEndDate] = useState('');
+
+  useEffect(() => {
+    // Fetch customers
+    apiClient.get('/customers')
+      .then(res => setCustomers(res.data?.data || []))
+      .catch(err => console.error("Failed to fetch customers", err));
+  }, []);
+
+  useEffect(() => {
+    fetchReport();
+  }, [period, selectedCustomerId]);
+
+  const fetchReport = async () => {
+    setLoading(true);
+    try {
+      const today = new Date();
+      let start = new Date(today);
+      let end = new Date(today);
+
+      switch (period) {
+        case 'Today':
+          break;
+        case 'This Week':
+          start.setDate(today.getDate() - today.getDay());
+          break;
+        case 'This Month':
+          start = new Date(today.getFullYear(), today.getMonth(), 1);
+          break;
+        case 'This Year':
+          start = new Date(today.getFullYear(), 0, 1);
+          break;
+        case 'All Time':
+          start = new Date(2000, 0, 1);
+          break;
+        default:
+          break;
+      }
+
+      // Format for API
+      const startDateStr = start.toISOString().split('T')[0];
+      const endDateStr = end.toISOString().split('T')[0];
+      
+      // Update display dates
+      if (period === 'All Time') {
+        setDisplayStartDate('All Time');
+        setDisplayEndDate('All Time');
+      } else {
+        setDisplayStartDate(start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-'));
+        setDisplayEndDate(end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-'));
+      }
+
+      const res = await getBrandwiseSale(
+        period === 'All Time' ? null : startDateStr,
+        period === 'All Time' ? null : endDateStr,
+        selectedCustomerId
+      );
+
+      setReportData(res.data?.data || []);
+    } catch (error) {
+      console.error("Failed to fetch brandwise sale", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalQty = reportData.reduce((sum, item) => sum + (item.totalQuantity || 0), 0);
+  const totalAmt = reportData.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
+  const totalDisc = reportData.reduce((sum, item) => sum + (item.totalDiscount || 0), 0);
+
   const handleExport = () => {
-    const csvContent = [
-      ['#', 'Brand Name', 'Total Quantity', 'Total Amount', 'Total Discount'],
-      ['', 'Totals :', '0', '0', '0']
-    ].map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "brandwise_sale_summary.csv";
-    link.click();
+    const doc = new jsPDF();
+    
+    // Add professional header
+    doc.setFontSize(18);
+    doc.setTextColor(40);
+    doc.text('Brandwise Sales Summary', 14, 22);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    const dateText = period === 'All Time' ? 'All Time' : `From ${displayStartDate} to ${displayEndDate}`;
+    doc.text(`Period: ${dateText}`, 14, 30);
+    
+    // Prepare table data
+    const tableColumn = ["#", "Brand Name", "Total Quantity", "Total Amount (Rs)", "Total Discount (Rs)"];
+    const tableRows = [];
+
+    reportData.forEach((row, i) => {
+      tableRows.push([
+        i + 1,
+        row.brandName,
+        row.totalQuantity,
+        row.totalAmount?.toFixed(2),
+        row.totalDiscount?.toFixed(2)
+      ]);
+    });
+
+    // Add totals row
+    tableRows.push([
+      '', 
+      'Totals :', 
+      totalQty.toString(), 
+      totalAmt?.toFixed(2), 
+      totalDisc?.toFixed(2)
+    ]);
+
+    // Generate table
+    autoTable(doc, {
+      startY: 38,
+      head: [tableColumn],
+      body: tableRows,
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' },
+      footStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [249, 250, 251] },
+      margin: { top: 38 },
+      didParseCell: function(data) {
+        // Highlight totals row
+        if (data.row.index === tableRows.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [240, 240, 240];
+        }
+        // Right align numbers
+        if (data.column.index > 1) {
+          data.cell.styles.halign = 'right';
+        }
+      }
+    });
+
+    // Save the PDF
+    doc.save(`brandwise_sale_summary_${new Date().getTime()}.pdf`);
   };
 
   return (
@@ -29,8 +162,16 @@ export function BrandwiseSaleSummary() {
               {/* Select Period */}
               <div className="flex flex-col gap-1 w-full sm:max-w-[250px]">
                 <label className="text-[13px] font-bold text-gray-800 px-1">Select Period</label>
-                <select className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white">
-                  <option>Select</option>
+                <select 
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                  className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white"
+                >
+                  <option value="Today">Today</option>
+                  <option value="This Week">This Week</option>
+                  <option value="This Month">This Month</option>
+                  <option value="This Year">This Year</option>
+                  <option value="All Time">All Time</option>
                 </select>
               </div>
 
@@ -42,8 +183,15 @@ export function BrandwiseSaleSummary() {
                   </div>
                   <label className="text-[13px] font-bold text-gray-800">Party Name</label>
                 </div>
-                <select className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-400 bg-white">
-                  <option>Select Name</option>
+                <select 
+                  value={selectedCustomerId}
+                  onChange={(e) => setSelectedCustomerId(e.target.value)}
+                  className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-800 bg-white"
+                >
+                  <option value="all">All Parties</option>
+                  {customers.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -52,7 +200,7 @@ export function BrandwiseSaleSummary() {
             <div className="flex flex-col gap-1 w-full sm:max-w-[200px]">
               <label className="text-[13px] font-bold text-gray-800 px-1 text-right">Discount Type</label>
               <select className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white">
-                <option>MRP</option>
+                <option>Applied Discount</option>
               </select>
             </div>
 
@@ -65,7 +213,9 @@ export function BrandwiseSaleSummary() {
             {/* Title */}
             <div className="text-center mb-1">
               <h3 className="text-[14px] font-normal text-gray-600">Brandwise Sales Summary</h3>
-              <p className="text-[14px] font-bold text-gray-800">From 23-May-2026 to 23-May-2026</p>
+              <p className="text-[14px] font-bold text-gray-800">
+                {period === 'All Time' ? 'All Time' : `From ${displayStartDate} to ${displayEndDate}`}
+              </p>
             </div>
 
             {/* Table */}
@@ -81,24 +231,42 @@ export function BrandwiseSaleSummary() {
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td className="border border-gray-800 py-1.5 px-2 h-[28px]"></td>
-                  <td className="border border-gray-800 py-1.5 px-2"></td>
-                  <td className="border border-gray-800 py-1.5 px-2"></td>
-                  <td className="border border-gray-800 py-1.5 px-2"></td>
-                  <td className="border border-gray-800 py-1.5 px-2"></td>
-                </tr>
-                <tr>
+                {loading ? (
+                  <tr>
+                    <td colSpan="5" className="border border-gray-800 py-4 text-center">
+                      <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-500" />
+                    </td>
+                  </tr>
+                ) : reportData.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="border border-gray-800 py-4 text-center text-gray-500 text-[13px]">
+                      No sales found for the selected criteria.
+                    </td>
+                  </tr>
+                ) : (
+                  reportData.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="border border-gray-800 py-1.5 px-2 text-center">{idx + 1}</td>
+                      <td className="border border-gray-800 py-1.5 px-2">{row.brandName}</td>
+                      <td className="border border-gray-800 py-1.5 px-2 text-right">{row.totalQuantity}</td>
+                      <td className="border border-gray-800 py-1.5 px-2 text-right">{row.totalAmount?.toFixed(2)}</td>
+                      <td className="border border-gray-800 py-1.5 px-2 text-right">{row.totalDiscount?.toFixed(2)}</td>
+                    </tr>
+                  ))
+                )}
+                <tr className="bg-gray-100">
                   <td className="border border-gray-800 py-1.5 px-2"></td>
                   <td className="border border-gray-800 py-1.5 px-2 text-right pr-4">
                     <span className="font-bold text-[13px] text-gray-900">Totals :</span>
                   </td>
-                  <td className="border border-gray-800 py-1.5 px-2"></td>
-                  <td className="border border-gray-800 py-1.5 px-2 text-right pr-2">
-                    <span className="font-bold text-[13px] text-gray-900">0</span>
+                  <td className="border border-gray-800 py-1.5 px-2 text-right">
+                    <span className="font-bold text-[13px] text-gray-900">{totalQty}</span>
                   </td>
-                  <td className="border border-gray-800 py-1.5 px-2 text-right pr-2">
-                    <span className="font-bold text-[13px] text-gray-900">0</span>
+                  <td className="border border-gray-800 py-1.5 px-2 text-right">
+                    <span className="font-bold text-[13px] text-gray-900">{totalAmt?.toFixed(2)}</span>
+                  </td>
+                  <td className="border border-gray-800 py-1.5 px-2 text-right">
+                    <span className="font-bold text-[13px] text-gray-900">{totalDisc?.toFixed(2)}</span>
                   </td>
                 </tr>
               </tbody>

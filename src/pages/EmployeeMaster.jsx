@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../api/apiClient';
 import { 
   X, 
   Plus, 
@@ -15,20 +16,104 @@ import { EmployeeMasterModal } from '../components/EmployeeMasterModal';
 export function EmployeeMaster() {
   const navigate = useNavigate();
   const [mergeModalOpen, setMergeModalOpen] = useState(false);
+  const [mergeIncorrect, setMergeIncorrect] = useState('');
+  const [mergeCorrect, setMergeCorrect] = useState('');
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editingRow, setEditingRow] = useState(null);
-  const [rows, setRows] = useState([
-    { id: 1, employeeName: 'kiann', mobileNumber: '1234512345', city: 'indore', designation: 'sudma nagar', salary: '1200' }
-  ]);
+  const [rows, setRows] = useState([]);
   const [searchFilter, setSearchFilter] = useState('Employee Name');
   const [searchQuery, setSearchQuery] = useState('');
 
+  const fetchEmployees = async () => {
+    try {
+      const res = await apiClient.get('/employees');
+      if (res.data.success) {
+        setRows(res.data.data.map(emp => ({
+          id: emp.id,
+          employeeName: emp.name,
+          mobileNumber: emp.mobile || '',
+          city: emp.city || '',
+          joiningDate: emp.joiningDate || '',
+          designation: emp.designation || '',
+          salary: emp.salary || 0,
+          paidHoliday: emp.paidHoliday || 0,
+          commission: emp.commission || 0,
+          specialCommission: emp.specialCommission || 0,
+          totalSaleCommission: emp.totalSaleCommission || 0,
+          commissionOnManufacturing: emp.commissionOnManufacturing || 0
+        })));
+      }
+    } catch (err) {
+      console.error('Error fetching employees:', err);
+    }
+  };
+
   useEffect(() => {
-    const handleEmployeeAdded = (e) => {
-      setRows(prev => [...prev, e.detail]);
+    fetchEmployees();
+  }, []);
+
+  const handleMerge = async () => {
+    if (!mergeIncorrect || !mergeCorrect || mergeIncorrect === mergeCorrect) {
+      alert('Please select two different employees to merge.');
+      return;
+    }
+    try {
+      await apiClient.delete(`/employees/${mergeIncorrect}`);
+      fetchEmployees();
+      setMergeIncorrect('');
+      setMergeCorrect('');
+      setMergeModalOpen(false);
+      alert('Merge successful! Incorrect employee has been removed.');
+    } catch (error) {
+      console.error('Merge failed:', error);
+      alert('Merge failed. Please try again.');
+    }
+  };
+
+  useEffect(() => {
+    const handleEmployeeAdded = async (e) => {
+      try {
+        const res = await apiClient.post('/employees', {
+          name: e.detail.employeeName,
+          mobile: e.detail.mobileNumber,
+          city: e.detail.city,
+          joiningDate: e.detail.joiningDate,
+          designation: e.detail.designation,
+          salary: e.detail.salary,
+          paidHoliday: e.detail.paidHoliday,
+          commission: e.detail.commission,
+          specialCommission: e.detail.specialCommission,
+          totalSaleCommission: e.detail.totalSaleCommission,
+          commissionOnManufacturing: e.detail.commissionOnManufacturing === 'YES' ? 1 : 0
+        });
+        if (res.data.success) {
+          fetchEmployees();
+        }
+      } catch (err) {
+        console.error('Error creating employee:', err);
+      }
     };
-    const handleEmployeeUpdated = (e) => {
-      setRows(prev => prev.map(r => r.id === e.detail.id ? e.detail : r));
+    const handleEmployeeUpdated = async (e) => {
+      try {
+        const res = await apiClient.put(`/employees/${e.detail.id}`, {
+          name: e.detail.employeeName,
+          mobile: e.detail.mobileNumber,
+          city: e.detail.city,
+          joiningDate: e.detail.joiningDate,
+          designation: e.detail.designation,
+          salary: e.detail.salary,
+          paidHoliday: e.detail.paidHoliday,
+          commission: e.detail.commission,
+          specialCommission: e.detail.specialCommission,
+          totalSaleCommission: e.detail.totalSaleCommission,
+          commissionOnManufacturing: e.detail.commissionOnManufacturing === 'YES' ? 1 : 0
+        });
+        if (res.data.success) {
+          fetchEmployees();
+        }
+      } catch (err) {
+        console.error('Error updating employee:', err);
+      }
     };
     window.addEventListener('employeeAdded', handleEmployeeAdded);
     window.addEventListener('employeeUpdated', handleEmployeeUpdated);
@@ -195,9 +280,16 @@ export function EmployeeMaster() {
                     setEditingRow(row);
                     setCreateModalOpen(true);
                   }} />
-                  <ActionButton type="delete" onClick={() => {
+                  <ActionButton type="delete" onClick={async () => {
                     if (window.confirm('Are you sure you want to delete this employee?')) {
-                      setRows(rows.filter(r => r.id !== row.id));
+                      try {
+                        const res = await apiClient.delete(`/employees/${row.id}`);
+                        if (res.data.success) {
+                          fetchEmployees();
+                        }
+                      } catch (err) {
+                        console.error('Error deleting employee:', err);
+                      }
                     }
                   }} />
                 </div>
@@ -230,22 +322,32 @@ export function EmployeeMaster() {
             <div className="p-5 flex flex-col gap-4">
               <div className="flex flex-col gap-2">
                 <label className="text-[13px] font-bold text-gray-800">Incorrect Employee Name</label>
-                <select className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-2 text-[14px] text-gray-800 focus:outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] w-full font-bold">
+                <select 
+                  value={mergeIncorrect}
+                  onChange={(e) => setMergeIncorrect(e.target.value)}
+                  className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-2 text-[14px] text-gray-800 focus:outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] w-full font-bold"
+                >
                   <option value="">Select Name</option>
+                  {rows.map(row => <option key={row.id} value={row.id}>{row.employeeName}</option>)}
                 </select>
               </div>
               
               <div className="flex flex-col gap-2">
                 <label className="text-[13px] font-bold text-gray-800">Correct Employee Name</label>
-                <select className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] text-gray-800 focus:outline-none focus:border-[#4F46E5] w-full">
+                <select 
+                  value={mergeCorrect}
+                  onChange={(e) => setMergeCorrect(e.target.value)}
+                  className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] text-gray-800 focus:outline-none focus:border-[#4F46E5] w-full"
+                >
                   <option value="">Select Name</option>
+                  {rows.map(row => <option key={row.id} value={row.id}>{row.employeeName}</option>)}
                 </select>
               </div>
             </div>
             
             <div className="bg-[#f8f9fa] px-4 py-3 border-t border-gray-200 flex justify-end gap-2">
               <button 
-                onClick={() => setMergeModalOpen(false)}
+                onClick={handleMerge}
                 className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[4px] text-[14px] font-bold transition-colors shadow-sm"
               >
                 Merge

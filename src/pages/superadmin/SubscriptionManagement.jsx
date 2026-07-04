@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CreditCard, CheckCircle2, X } from 'lucide-react';
+import apiClient from '../../api/apiClient';
 
 export function SubscriptionManagement() {
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -8,11 +9,48 @@ export function SubscriptionManagement() {
   const [editingIndex, setEditingIndex] = useState(null);
   const [activePlanIndex, setActivePlanIndex] = useState(1);
   const [billingPeriod, setBillingPeriod] = useState('monthly');
-  const [plans, setPlans] = useState([
-    { name: 'Basic', monthlyPrice: '₹999/mo', yearlyPrice: '₹799/mo', companies: 45, features: ['1 User License', 'Basic Reporting', 'Email Support'] },
-    { name: 'Pro', monthlyPrice: '₹2499/mo', yearlyPrice: '₹1999/mo', companies: 65, features: ['5 User Licenses', 'Advanced Analytics', 'Priority Support', 'API Access'], highlight: true },
-    { name: 'Enterprise', monthlyPrice: 'Custom', yearlyPrice: 'Custom', companies: 18, features: ['Unlimited Users', 'Custom Integrations', 'Dedicated Account Manager', '24/7 Phone Support'] }
-  ]);
+  const [plans, setPlans] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const response = await apiClient.get('/plans');
+        if (response.data.success) {
+          // Map backend data to frontend structure
+          const formattedPlans = response.data.data.map(p => {
+            let featuresList = [];
+            if (Array.isArray(p.features)) featuresList = p.features;
+            else if (p.features && typeof p.features === 'object') {
+              featuresList = [
+                `${p.features.maxUsers || 'Unlimited'} User Licenses`,
+                `${p.features.maxProducts || 'Unlimited'} Products Max`,
+                'Email Support'
+              ];
+            } else {
+              featuresList = ['Standard Features', 'Email Support'];
+            }
+
+            return {
+              id: p.id,
+              name: p.name,
+              monthlyPrice: `₹${p.price}/mo`,
+              yearlyPrice: `₹${p.price * 10}/yr`, 
+              companies: p._count ? p._count.companies : 0, 
+              features: featuresList,
+              highlight: p.name.toLowerCase() === 'pro'
+            };
+          });
+          setPlans(formattedPlans);
+        }
+      } catch (error) {
+        console.error('Failed to fetch plans:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchPlans();
+  }, []);
 
   const handleSaveChanges = () => {
     if (editingIndex !== null) {
@@ -39,7 +77,11 @@ export function SubscriptionManagement() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {plans.map((plan, index) => (
+        {isLoading ? (
+          <div className="col-span-3 text-center py-10 text-gray-500">Loading plans...</div>
+        ) : plans.length === 0 ? (
+          <div className="col-span-3 text-center py-10 text-gray-500">No subscription plans found.</div>
+        ) : plans.map((plan, index) => (
           <div 
             key={index} 
             onClick={() => setActivePlanIndex(index)}

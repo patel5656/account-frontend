@@ -1,12 +1,48 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Building2, CreditCard, Headset, TrendingUp, Users, Activity } from 'lucide-react';
+import apiClient from '../../api/apiClient';
 
 export function SuperadminDashboard() {
+  const [metrics, setMetrics] = useState({
+    totalActiveCompanies: 0,
+    mrr: 0,
+    activeSubscriptions: 0,
+    inactiveSubscriptions: 0,
+  });
+  const [recentCompanies, setRecentCompanies] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const [metricsRes, companiesRes] = await Promise.all([
+          apiClient.get('/dashboard/metrics'),
+          apiClient.get('/companies')
+        ]);
+        
+        if (metricsRes.data.success) {
+          setMetrics(metricsRes.data.data);
+        }
+        if (companiesRes.data.success) {
+          // Take the 3 most recently created companies
+          const sorted = companiesRes.data.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          setRecentCompanies(sorted.slice(0, 3));
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchDashboardData();
+  }, []);
+
   const stats = [
-    { title: 'Total Active Companies', value: '142', icon: Building2, color: 'text-blue-600', bg: 'bg-blue-100' },
-    { title: 'Monthly Recurring Revenue', value: '₹4,50,000', icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-    { title: 'Active Subscriptions', value: '128', icon: CreditCard, color: 'text-indigo-600', bg: 'bg-indigo-100' },
-    { title: 'Inactive Subscriptions', value: '14', icon: CreditCard, color: 'text-rose-600', bg: 'bg-rose-100' },
+    { title: 'Total Active Companies', value: metrics.totalActiveCompanies, icon: Building2, color: 'text-blue-600', bg: 'bg-blue-100' },
+    { title: 'Monthly Recurring Revenue', value: `₹${metrics.mrr.toLocaleString('en-IN')}`, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+    { title: 'Active Subscriptions', value: metrics.activeSubscriptions, icon: CreditCard, color: 'text-indigo-600', bg: 'bg-indigo-100' },
+    { title: 'Inactive Subscriptions', value: metrics.inactiveSubscriptions, icon: CreditCard, color: 'text-rose-600', bg: 'bg-rose-100' },
   ];
 
   return (
@@ -41,21 +77,23 @@ export function SuperadminDashboard() {
             Recently Onboarded Companies
           </h3>
           <div className="space-y-4">
-            {[
-              { name: 'Tech Solutions Inc', plan: 'Enterprise', date: '2 hours ago' },
-              { name: 'Global Logistics', plan: 'Pro', date: '5 hours ago' },
-              { name: 'Retail Plus', plan: 'Basic', date: '1 day ago' },
-            ].map((company, i) => (
-              <div key={i} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors border border-gray-100">
-                <div>
-                  <p className="font-semibold text-gray-900">{company.name}</p>
-                  <p className="text-xs text-gray-500">{company.date}</p>
+            {isLoading ? (
+              <p className="text-gray-500 text-sm">Loading recent companies...</p>
+            ) : recentCompanies.length > 0 ? (
+              recentCompanies.map((company) => (
+                <div key={company.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors border border-gray-100">
+                  <div>
+                    <p className="font-semibold text-gray-900">{company.name}</p>
+                    <p className="text-xs text-gray-500">Owner: {company.ownerName}</p>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${company.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'}`}>
+                    {company.status}
+                  </span>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
-                  {company.plan}
-                </span>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-gray-500 text-sm">No companies found.</p>
+            )}
           </div>
         </div>
       </div>

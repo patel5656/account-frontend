@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../api/apiClient';
 import { 
   X, 
   Plus, 
@@ -36,45 +37,45 @@ export function BankDetails() {
   const [searchFilter, setSearchFilter] = useState('Bank Name');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const [rows, setRows] = useState(() => {
-    const saved = localStorage.getItem('bankDetailsRows');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Error parsing bank details from local storage', e);
+  const [incorrectBankId, setIncorrectBankId] = useState('');
+  const [correctBankId, setCorrectBankId] = useState('');
+  const [correctBankName, setCorrectBankName] = useState('Select Name');
+
+  const [rows, setRows] = useState([]);
+
+  const fetchBanks = async () => {
+    try {
+      const res = await apiClient.get('/banks');
+      if (res.data.success) {
+        setRows(res.data.data);
       }
+    } catch (err) {
+      console.error('Error fetching banks from backend:', err);
     }
-    return [
-      { id: 1, name: 'Cash Account', type: 'CASH BOOK', balance: 0 },
-      { id: 2, name: 'Other Account', type: 'NON-PAYMENT BOOK', balance: 0 }
-    ];
-  });
+  };
 
   useEffect(() => {
-    localStorage.setItem('bankDetailsRows', JSON.stringify(rows));
-  }, [rows]);
-
-  useEffect(() => {
-    const handleBankAdded = (e) => {
-      setRows(prev => [...prev, e.detail]);
-    };
-    window.addEventListener('bankAdded', handleBankAdded);
-    return () => window.removeEventListener('bankAdded', handleBankAdded);
+    fetchBanks();
   }, []);
 
-  const handleInternalSubmit = () => {
+  const handleInternalSubmit = async () => {
     if (newBookName.trim() !== '') {
-      setRows([...rows, { 
-        id: Date.now(), 
-        name: newBookName, 
-        type: newType, 
-        balance: 0, 
-        address: newAddress,
-        branch: newBranch,
-        ifsc: newIfsc,
-        accountNo: newAccountNo
-      }]);
+      try {
+        const res = await apiClient.post('/banks', {
+          name: newBookName,
+          type: newType,
+          balance: 0,
+          address: newAddress,
+          branch: newBranch,
+          ifsc: newIfsc,
+          accountNo: newAccountNo
+        });
+        if (res.data.success) {
+          fetchBanks();
+        }
+      } catch (err) {
+        console.error('Error creating bank account:', err);
+      }
     }
     setNewBookName('');
     setNewType('CASH BOOK');
@@ -110,18 +111,56 @@ export function BankDetails() {
     setViewModalOpen(true);
   };
 
-  const handleDeleteClick = (id) => {
-    setRows(rows.filter(row => row.id !== id));
+  const handleDeleteClick = async (id) => {
+    if (window.confirm('Are you sure you want to delete this bank account?')) {
+      try {
+        const res = await apiClient.delete(`/banks/${id}`);
+        if (res.data.success) {
+          fetchBanks();
+        }
+      } catch (err) {
+        console.error('Error deleting bank:', err);
+      }
+    }
   };
 
-  const handleUpdateSubmit = () => {
+  const handleUpdateSubmit = async () => {
     if (editBookName.trim() !== '' && selectedRow) {
-      setRows(rows.map(row => 
-        row.id === selectedRow.id 
-          ? { ...row, name: editBookName, type: editType } 
-          : row
-      ));
+      try {
+        const res = await apiClient.put(`/banks/${selectedRow.id}`, {
+          name: editBookName,
+          type: editType
+        });
+        if (res.data.success) {
+          fetchBanks();
+        }
+      } catch (err) {
+        console.error('Error updating bank:', err);
+      }
       setEditModalOpen(false);
+    }
+  };
+  const handleMergeSubmit = async () => {
+    if (!incorrectBankId || !correctBankId) {
+      alert('Please select both incorrect and correct bank accounts');
+      return;
+    }
+    try {
+      const res = await apiClient.post('/banks/merge', {
+        sourceBankId: incorrectBankId,
+        targetBankId: correctBankId
+      });
+      if (res.data.success) {
+        alert('Bank accounts merged successfully');
+        fetchBanks();
+        setMergeModalOpen(false);
+        setIncorrectBankId('');
+        setCorrectBankId('');
+        setCorrectBankName('Select Name');
+      }
+    } catch (err) {
+      console.error('Error merging banks:', err);
+      alert(err.response?.data?.message || 'Error merging bank accounts');
     }
   };
 
@@ -383,9 +422,13 @@ export function BankDetails() {
             <div className="p-5 flex flex-col gap-4">
               <div className="flex flex-col gap-1">
                 <label className="text-[13px] font-bold text-gray-800">Incorrect Bank Name</label>
-                <select className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-2 text-[14px] text-gray-500 outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold">
-                  <option>Select Name</option>
-                  {rows.map(row => <option key={row.id}>{row.name}</option>)}
+                <select 
+                  value={incorrectBankId}
+                  onChange={(e) => setIncorrectBankId(e.target.value)}
+                  className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-2 text-[14px] text-gray-800 outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold"
+                >
+                  <option value="">Select Name</option>
+                  {rows.map(row => <option value={row.id} key={row.id}>{row.name}</option>)}
                 </select>
               </div>
               
@@ -395,7 +438,7 @@ export function BankDetails() {
                   onClick={() => setMergeDropdownOpen(!mergeDropdownOpen)}
                   className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] text-gray-800 outline-none flex justify-between items-center cursor-pointer bg-white"
                 >
-                  <span className="text-gray-400">Select Name</span>
+                  <span className={correctBankName === 'Select Name' ? "text-gray-400" : "text-gray-800 font-bold"}>{correctBankName}</span>
                   <ChevronsUpDown className="w-4 h-4 text-gray-400" />
                 </div>
                 
@@ -406,7 +449,11 @@ export function BankDetails() {
                       <div 
                         key={row.id} 
                         className={`p-3 hover:bg-[#add8e6] cursor-pointer border-b border-gray-200 last:border-b-0 flex justify-between items-start transition-colors`}
-                        onClick={() => { setMergeDropdownOpen(false); }}
+                        onClick={() => { 
+                          setCorrectBankId(row.id);
+                          setCorrectBankName(row.name);
+                          setMergeDropdownOpen(false); 
+                        }}
                       >
                         <div className="flex flex-col">
                           <div className="font-bold text-[14px] text-gray-800">{row.name}</div>
@@ -433,7 +480,10 @@ export function BankDetails() {
             </div>
             
             <div className="bg-[#f8f9fa] px-4 py-3 border-t border-gray-200 flex justify-end gap-2 rounded-b-[4px]">
-              <button className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[4px] text-[14px] font-medium transition-colors shadow-sm">
+              <button 
+                onClick={handleMergeSubmit}
+                className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[4px] text-[14px] font-medium transition-colors shadow-sm"
+              >
                 Merge
               </button>
               <button onClick={() => setMergeModalOpen(false)} className="bg-[#dc3545] hover:bg-[#c82333] text-white px-4 py-1.5 rounded-[4px] text-[14px] transition-colors shadow-sm">

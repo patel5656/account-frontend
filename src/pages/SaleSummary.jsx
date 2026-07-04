@@ -1,9 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronsLeft, ArrowRight, Upload, Download, ExternalLink } from 'lucide-react';
+import apiClient from '../api/apiClient';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export function SaleSummary() {
   const navigate = useNavigate();
+  const [invoices, setInvoices] = useState([]);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, []);
+
+  const fetchInvoices = async () => {
+    try {
+      const res = await apiClient.get('/inventory/sales');
+      if (res.data.data) {
+        setInvoices(res.data.data);
+      } else if (Array.isArray(res.data)) {
+        setInvoices(res.data);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const totalSale = invoices.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0);
+  const totalPaid = invoices.reduce((acc, curr) => acc + (curr.status === 'PAID' ? curr.totalAmount : 0), 0);
+  const totalDue = totalSale - totalPaid;
 
   const getFormattedDate = () => {
     const date = new Date();
@@ -15,14 +40,25 @@ export function SaleSummary() {
   const currentDate = getFormattedDate();
 
   const handleWhatsApp = () => {
-    const msg = encodeURIComponent(`Sales Summary\nFrom ${currentDate} to ${currentDate}\nTotal Sale: 0\nSale Return: 0\nTotal Due: 0`);
+    const msg = encodeURIComponent(`Sales Summary\nFrom ${currentDate} to ${currentDate}\nTotal Sale: ${totalSale}\nSale Return: 0\nTotal Due: ${totalDue}`);
     window.open(`https://wa.me/?text=${msg}`, '_blank');
   };
 
   const handleExport = () => {
     const csvContent = [
       ['#', 'Date', 'Invoice No', 'Party Name', 'Type', 'Total Sale', 'Sale Return', 'Paid Amount', 'Total Due'],
-      ['', '', '', 'Totals :', '', '0', '0', '0', '0']
+      ...invoices.map((inv, idx) => [
+        idx + 1,
+        new Date(inv.date).toLocaleDateString(),
+        inv.invoiceNo,
+        inv.customer?.name || 'Cash',
+        inv.type || 'SALES',
+        (inv.totalAmount || 0).toFixed(2),
+        '0.00',
+        (inv.status === 'PAID' ? inv.totalAmount : 0).toFixed(2),
+        (inv.status === 'PAID' ? 0 : inv.totalAmount).toFixed(2)
+      ]),
+      ['', '', '', 'Totals :', '', totalSale.toFixed(2), '0.00', totalPaid.toFixed(2), totalDue.toFixed(2)]
     ].map(e => e.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
@@ -32,15 +68,51 @@ export function SaleSummary() {
   };
 
   const handleDownload = () => {
-    const csvContent = [
-      ['#', 'Date', 'Invoice No', 'Party Name', 'Type', 'Total Sale', 'Sale Return', 'Paid Amount', 'Total Due'],
-      ['', '', '', 'Totals :', '', '0', '0', '0', '0']
-    ].map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "sale_summary_download.csv";
-    link.click();
+    const doc = new jsPDF('landscape');
+    
+    doc.setFontSize(16);
+    doc.text('Sales Summary', 14, 15);
+    
+    doc.setFontSize(10);
+    doc.text(`From ${currentDate} to ${currentDate}`, 14, 22);
+
+    const tableColumn = ['#', 'Date', 'Invoice No', 'Party Name', 'Type', 'Total Sale', 'Sale Return', 'Paid Amount', 'Total Due'];
+    
+    const tableRows = invoices.map((inv, idx) => [
+      idx + 1,
+      new Date(inv.date).toLocaleDateString(),
+      inv.invoiceNo,
+      inv.customer?.name || 'Cash',
+      inv.type || 'SALES',
+      (inv.totalAmount || 0).toFixed(2),
+      '0.00',
+      (inv.status === 'PAID' ? inv.totalAmount : 0).toFixed(2),
+      (inv.status === 'PAID' ? 0 : inv.totalAmount).toFixed(2)
+    ]);
+
+    tableRows.push([
+      '', '', '', 'Totals :', '',
+      totalSale.toFixed(2),
+      '0.00',
+      totalPaid.toFixed(2),
+      totalDue.toFixed(2)
+    ]);
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 28,
+      theme: 'grid',
+      headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+      styles: { fontSize: 9 },
+      didParseCell: function (data) {
+        if (data.row.index === tableRows.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+        }
+      }
+    });
+
+    doc.save('sale_summary_download.pdf');
   };
 
   return (
@@ -101,7 +173,20 @@ export function SaleSummary() {
                 </tr>
               </thead>
               <tbody>
-                <tr>
+                {invoices.map((inv, idx) => (
+                  <tr key={inv.id}>
+                    <td className="border border-gray-800 py-1 px-2 text-center text-[13px]">{idx + 1}</td>
+                    <td className="border border-gray-800 py-1 px-2 text-center text-[13px]">{new Date(inv.date).toLocaleDateString()}</td>
+                    <td className="border border-gray-800 py-1 px-2 text-center text-[13px]">{inv.invoiceNo}</td>
+                    <td className="border border-gray-800 py-1 px-2 text-center text-[13px]">{inv.customer?.name || 'Cash'}</td>
+                    <td className="border border-gray-800 py-1 px-2 text-center text-[13px]">{inv.type || 'SALES'}</td>
+                    <td className="border border-gray-800 py-1 px-2 text-right text-[13px]">₹{(inv.totalAmount || 0).toFixed(2)}</td>
+                    <td className="border border-gray-800 py-1 px-2 text-right text-[13px]">0.00</td>
+                    <td className="border border-gray-800 py-1 px-2 text-right text-[13px]">₹{(inv.status === 'PAID' ? inv.totalAmount : 0).toFixed(2)}</td>
+                    <td className="border border-gray-800 py-1 px-2 text-right text-[13px]">₹{(inv.status === 'PAID' ? 0 : inv.totalAmount).toFixed(2)}</td>
+                  </tr>
+                ))}
+                <tr className="bg-gray-100">
                   <td className="border border-gray-800 py-1 px-2 h-[26px]"></td>
                   <td className="border border-gray-800 py-1 px-2"></td>
                   <td className="border border-gray-800 py-1 px-2"></td>
@@ -110,16 +195,16 @@ export function SaleSummary() {
                   </td>
                   <td className="border border-gray-800 py-1 px-2"></td>
                   <td className="border border-gray-800 py-1 px-2 text-right">
-                    <span className="font-bold text-[13px] text-gray-900">0</span>
+                    <span className="font-bold text-[13px] text-gray-900">₹{totalSale.toFixed(2)}</span>
                   </td>
                   <td className="border border-gray-800 py-1 px-2 text-right">
-                    <span className="font-bold text-[13px] text-gray-900">0</span>
+                    <span className="font-bold text-[13px] text-gray-900">0.00</span>
                   </td>
                   <td className="border border-gray-800 py-1 px-2 text-right">
-                    <span className="font-bold text-[13px] text-gray-900">0</span>
+                    <span className="font-bold text-[13px] text-gray-900">₹{totalPaid.toFixed(2)}</span>
                   </td>
                   <td className="border border-gray-800 py-1 px-2 text-right">
-                    <span className="font-bold text-[13px] text-gray-900">0</span>
+                    <span className="font-bold text-[13px] text-gray-900">₹{totalDue.toFixed(2)}</span>
                   </td>
                 </tr>
               </tbody>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../api/apiClient';
 import { 
   X, 
   Plus, 
@@ -10,6 +11,8 @@ import {
   Trash2
 } from 'lucide-react';
 import { BranchMasterModal } from '../components/BranchMasterModal';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export function BranchMaster() {
   const navigate = useNavigate();
@@ -19,12 +22,32 @@ export function BranchMaster() {
   
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [selectedRow, setSelectedRow] = useState(null);
+  const [editFormData, setEditFormData] = useState({ id: null, name: '', code: '', contact: '', gstin: '', status: 'Active' });
 
-  const [rows, setRows] = useState([
-    { id: 1, name: 'Delhi South Branch', code: 'DEL-01', contact: '9876543210', gstin: '07AABCU9603R1ZN', status: 'Active' },
-    { id: 2, name: 'Mumbai North Branch', code: 'MUM-02', contact: '9876543211', gstin: '27AABCU9603R1ZN', status: 'Active' }
-  ]);
+  const [rows, setRows] = useState([]);
+
+  const fetchBranches = async () => {
+    try {
+      const res = await apiClient.get('/branches');
+      if (res.data.data) {
+        const mapped = res.data.data.map(b => ({
+          id: b.id,
+          name: b.name,
+          code: b.code || '',
+          contact: b.contact || '',
+          gstin: b.gstin || '',
+          status: b.isActive ? 'Active' : 'Inactive'
+        }));
+        setRows(mapped);
+      }
+    } catch (error) {
+      console.error('Failed to fetch branches', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchBranches();
+  }, []);
 
   useEffect(() => {
     const handleBranchAdded = (e) => {
@@ -53,12 +76,78 @@ export function BranchMaster() {
   });
 
   const handleEditClick = (row) => {
-    setSelectedRow(row);
+    setEditFormData({ ...row });
     setEditModalOpen(true);
   };
 
-  const handleDeleteClick = (id) => {
-    setRows(rows.filter(row => row.id !== id));
+  const handleUpdate = async () => {
+    try {
+      await apiClient.put(`/branches/${editFormData.id}`, {
+        name: editFormData.name,
+        code: editFormData.code,
+        contact: editFormData.contact,
+        gstin: editFormData.gstin,
+        isActive: editFormData.status === 'Active'
+      });
+      setEditModalOpen(false);
+      fetchBranches();
+    } catch (error) {
+      console.error('Update failed', error);
+    }
+  };
+
+  const handleDeleteClick = async (id) => {
+    try {
+      await apiClient.delete(`/branches/${id}`);
+      fetchBranches();
+    } catch (error) {
+      console.error('Delete failed', error);
+    }
+  };
+
+  const handleExportPDF = () => {
+    if (filteredRows.length === 0) {
+      alert('No data to export');
+      return;
+    }
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(18);
+    doc.text('Branch Master Report', 14, 22);
+    
+    // Add date
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+    
+    // Generate table
+    const tableColumn = ["#", "Branch Name", "Branch Code", "Contact", "GSTIN", "Status"];
+    const tableRows = [];
+    
+    filteredRows.forEach((row, index) => {
+      const rowData = [
+        index + 1,
+        row.name || '-',
+        row.code || '-',
+        row.contact || '-',
+        row.gstin || '-',
+        row.status || '-'
+      ];
+      tableRows.push(rowData);
+    });
+    
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 35,
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 3 },
+      headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [248, 249, 250] }
+    });
+    
+    doc.save(`Branch_Master_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
   };
 
   return (
@@ -70,7 +159,10 @@ export function BranchMaster() {
           <h2 className="text-white text-[16px] font-medium tracking-wide">Branch Master</h2>
           
           <div className="flex flex-wrap items-center gap-2">
-            <button className="flex items-center gap-1.5 bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm">
+            <button 
+              onClick={handleExportPDF}
+              className="flex items-center gap-1.5 bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm"
+            >
               <Upload className="w-4 h-4" strokeWidth={2.5} />
               Export
             </button>
@@ -164,7 +256,7 @@ export function BranchMaster() {
       </div>
 
       {/* Edit Modal */}
-      {editModalOpen && selectedRow && (
+      {editModalOpen && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-[4px] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
             <div className="bg-[#4F46E5] px-4 py-3 flex items-center justify-between">
@@ -180,7 +272,8 @@ export function BranchMaster() {
                   <label className="text-[13px] font-bold text-gray-800">Branch Name</label>
                   <input 
                     type="text" 
-                    defaultValue={selectedRow.name}
+                    value={editFormData.name}
+                    onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
                     className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 focus:outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)]"
                   />
                 </div>
@@ -188,7 +281,8 @@ export function BranchMaster() {
                   <label className="text-[13px] font-bold text-gray-800">Branch Code</label>
                   <input 
                     type="text" 
-                    defaultValue={selectedRow.code}
+                    value={editFormData.code}
+                    onChange={(e) => setEditFormData({...editFormData, code: e.target.value})}
                     className="border border-gray-300 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 focus:outline-none focus:border-[#4F46E5]"
                   />
                 </div>
@@ -196,7 +290,8 @@ export function BranchMaster() {
                   <label className="text-[13px] font-bold text-gray-800">Contact Number</label>
                   <input 
                     type="text" 
-                    defaultValue={selectedRow.contact}
+                    value={editFormData.contact}
+                    onChange={(e) => setEditFormData({...editFormData, contact: e.target.value})}
                     className="border border-gray-300 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 focus:outline-none focus:border-[#4F46E5]"
                   />
                 </div>
@@ -204,26 +299,31 @@ export function BranchMaster() {
                   <label className="text-[13px] font-bold text-gray-800">GSTIN</label>
                   <input 
                     type="text" 
-                    defaultValue={selectedRow.gstin}
+                    value={editFormData.gstin}
+                    onChange={(e) => setEditFormData({...editFormData, gstin: e.target.value})}
                     className="border border-gray-300 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 focus:outline-none focus:border-[#4F46E5]"
                   />
                 </div>
               </div>
               <div className="flex items-center gap-2 mt-4">
                 <label className="text-[13px] font-bold text-gray-800">Status</label>
-                <select 
-                  defaultValue={selectedRow.status}
-                  className="border border-gray-300 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-600 outline-none focus:border-[#4F46E5]"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
+                <div className="flex items-center gap-2">
+                  <div 
+                    className={`w-[36px] h-[20px] rounded-full relative cursor-pointer transition-colors ${editFormData.status === 'Active' ? 'bg-[#28a745]' : 'bg-gray-400'}`}
+                    onClick={() => setEditFormData({...editFormData, status: editFormData.status === 'Active' ? 'Inactive' : 'Active'})}
+                  >
+                    <div className={`w-[16px] h-[16px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${editFormData.status === 'Active' ? 'translate-x-[18px]' : 'translate-x-[2px]'}`}></div>
+                  </div>
+                  <span className={`text-[13px] font-bold ${editFormData.status === 'Active' ? 'text-green-600' : 'text-gray-500'} select-none`}>
+                    {editFormData.status}
+                  </span>
+                </div>
               </div>
             </div>
             
             <div className="bg-[#f8f9fa] px-4 py-3 border-t border-gray-200 flex justify-end gap-2">
               <button 
-                onClick={() => setEditModalOpen(false)}
+                onClick={handleUpdate}
                 className="bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 px-4 py-1.5 rounded-[4px] text-[14px] font-bold transition-colors shadow-sm"
               >
                 Update

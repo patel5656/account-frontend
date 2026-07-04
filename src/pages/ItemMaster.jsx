@@ -1,40 +1,204 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../api/apiClient';
 import { 
   X, 
   Plus, 
   Upload,
   Search,
-  Filter
+  Filter,
+  Edit,
+  Trash2,
+  Eye
 } from 'lucide-react';
 import { ItemMasterModal } from '../components/ItemMasterModal';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
 
 export function ItemMaster() {
   const navigate = useNavigate();
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [rows, setRows] = useState([
-    { id: 1, name: 'IPhone 15 Pro', category: 'Mobile Phones', brand: 'Apple', sku: 'SKU001', barcode: '1234567890', mrp: 130000, price: 120000, qty: 15, status: 'Active', hasBom: false, synced: true, memorySize: '256GB', colorVariant: 'Natural Titanium', designNo: 'A2848', enableImei: true },
-    { id: 2, name: 'Finished Product A', category: 'Finished Goods', brand: 'Brand B', sku: 'SKU002', barcode: '0987654321', mrp: 600, price: 500, qty: 10, status: 'Active', hasBom: true, synced: false }
-  ]);
+  const [editRow, setEditRow] = useState(null);
+  const [rows, setRows] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState('items'); // 'items' | 'boms'
 
+  // Filter & Search States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOption, setSearchOption] = useState('All Search Options');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterBrand, setFilterBrand] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+
+  // Extract real dynamic data from database rows
+  const uniqueCategories = [...new Set(rows.map(r => r.category).filter(Boolean))].sort();
+  const uniqueBrands = [...new Set(rows.map(r => r.brand).filter(Boolean))].sort();
+
+  // Apply filters
+  const filteredRows = rows.filter(r => {
+    if (viewMode === 'boms' && !r.hasBom) return false;
+    if (filterCategory && r.category !== filterCategory) return false;
+    if (filterBrand && r.brand !== filterBrand) return false;
+    if (filterStatus === 'instock' && r.qty <= 0) return false;
+    if (filterStatus === 'outofstock' && r.qty > 0) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (searchOption === 'Item Name') return r.name?.toLowerCase().includes(q);
+      if (searchOption === 'Item Code / SKU') return r.sku?.toLowerCase().includes(q);
+      if (searchOption === 'Barcode') return r.barcode?.toLowerCase().includes(q);
+      return r.name?.toLowerCase().includes(q) || r.sku?.toLowerCase().includes(q) || r.barcode?.toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      setIsLoading(true);
+      const res = await apiClient.get('/products');
+      if (res.data.success) {
+        setRows(res.data.data.map((p) => ({
+          ...p,
+          qty: p.stock,
+          hasBom: Boolean(p.hasBom),
+          synced: true
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to fetch products:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateProduct = async (newItem) => {
+    try {
+      const payload = {
+        ...newItem,
+        sku: newItem.sku || `SKU${Date.now()}`,
+        price: parseFloat(newItem.price) || 0,
+        mrp: parseFloat(newItem.mrp) || 0,
+        stock: parseInt(newItem.qty) || 0,
+      };
+      
+      if (editRow) {
+        const res = await apiClient.put(`/products/${editRow.id}`, payload);
+        if (res.data.success) {
+          fetchProducts();
+        }
+      } else {
+        const res = await apiClient.post('/products', payload);
+        if (res.data.success) {
+          fetchProducts();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save product:', error);
+    }
+  };
+
+  const handleEdit = (row) => {
+    setEditRow(row);
+    setCreateModalOpen(true);
+  };
+
+  const handleDelete = async (id) => {
+    if(window.confirm('Are you sure you want to delete this item?')) {
+      try {
+        const res = await apiClient.delete(`/products/${id}`);
+        if (res.data.success) {
+          setRows(prev => prev.filter(r => r.id !== id));
+        }
+      } catch (error) {
+        console.error('Failed to delete product:', error);
+        alert(error.response?.data?.message || 'Failed to delete product');
+      }
+    }
+  };
+
   const handleExport = () => {
-    if (rows.length === 0) {
-      const headers = ['#', 'Item Name', 'Item Category', 'Item Code', 'Unit', 'MRP', 'Sale Price', 'Purchase Price', 'Stock Qty', 'Status'];
-      const csvRows = [headers.join(',')];
-      const csvContent = csvRows.join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'item_master.csv');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+    const doc = new jsPDF({ orientation: 'landscape' }); // Landscape to fit more columns
+    
+    // Add professional header
+    doc.setFontSize(18);
+    doc.setTextColor(79, 70, 229); // Indigo 600
+    doc.text('Os Books - Item Master Report', 14, 22);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+    doc.text(`View Mode: ${viewMode === 'boms' ? 'BOM List' : 'Item List'}`, 14, 36);
+
+    let headers = [['#', 'Item Name', 'Variants/IMEI', 'Category', 'Brand', 'SKU', 'Barcode', 'MRP', 'Sale Price', 'Stock', 'Is BOM']];
+    if (viewMode === 'boms') {
+      headers = [['#', 'Item Name', 'BOM Name', 'Components', 'Variants/IMEI', 'Category', 'Brand', 'SKU', 'MRP', 'Sale Price', 'Stock']];
+    }
+
+    const tableData = filteredRows.map((row, idx) => {
+      let bomCount = 0;
+      if (row.bomRecipe) {
+        try {
+          const recipe = typeof row.bomRecipe === 'string' ? JSON.parse(row.bomRecipe) : row.bomRecipe;
+          if (Array.isArray(recipe)) bomCount = recipe.length;
+        } catch(e) {}
+      }
+
+      const variants = [row.memorySize, row.colorVariant].filter(Boolean).join(' | ') + (row.enableImei ? ' (IMEI)' : '');
+
+      if (viewMode === 'boms') {
+        return [
+          idx + 1,
+          row.name || '-',
+          row.bomName || '-',
+          bomCount.toString(),
+          variants || '-',
+          row.category || '-',
+          row.brand || '-',
+          row.sku || '-',
+          `Rs.${row.mrp || 0}`,
+          `Rs.${row.price || 0}`,
+          (row.qty || 0).toString()
+        ];
+      } else {
+        return [
+          idx + 1,
+          row.name || '-',
+          variants || '-',
+          row.category || '-',
+          row.brand || '-',
+          row.sku || '-',
+          row.barcode || '-',
+          `Rs.${row.mrp || 0}`,
+          `Rs.${row.price || 0}`,
+          (row.qty || 0).toString(),
+          row.hasBom ? 'Yes' : 'No'
+        ];
+      }
+    });
+
+    // Generate PDF table using autoTable function
+    try {
+      autoTable(doc, {
+        startY: 45,
+        head: headers,
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' },
+        styles: { fontSize: 8, cellPadding: 3 },
+        alternateRowStyles: { fillColor: [249, 250, 251] },
+      });
+    } catch (err) {
+      console.error('Error generating PDF table:', err);
+      alert('Failed to generate PDF. See console for details.');
       return;
     }
-    
-    // In a real application, logic to export actual rows would go here
+
+    console.log('Exporting', viewMode, filteredRows.length, 'rows');
+    doc.save(viewMode === 'boms' ? 'BOM_List_Report.pdf' : 'Item_Master_Report.pdf');
   };
 
   return (
@@ -54,7 +218,7 @@ export function ItemMaster() {
               Export
             </button>
             <button 
-              onClick={() => setCreateModalOpen(true)}
+              onClick={() => { setEditRow(null); setCreateModalOpen(true); }}
               className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm"
             >
               <Plus className="w-4 h-4" strokeWidth={3} />
@@ -93,7 +257,7 @@ export function ItemMaster() {
               <div className="px-3 text-blue-500 bg-gray-50 border-r border-gray-300 h-full flex items-center justify-center">
                 <FilterIcon className="w-4 h-4" />
               </div>
-              <select className="px-2 py-2 text-[13px] outline-none bg-transparent text-gray-700 border-r border-gray-300 min-w-[120px] font-medium">
+              <select value={searchOption} onChange={e => setSearchOption(e.target.value)} className="px-2 py-2 text-[13px] outline-none bg-transparent text-gray-700 border-r border-gray-300 min-w-[120px] font-medium">
                 <option>All Search Options</option>
                 <option>Item Name</option>
                 <option>Item Code / SKU</option>
@@ -101,27 +265,30 @@ export function ItemMaster() {
               </select>
               <input 
                 type="text" 
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search products..." 
                 className="flex-1 px-3 py-2 text-[13px] outline-none bg-transparent text-gray-800 placeholder-gray-400"
               />
             </div>
             
-            <select className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none bg-white text-gray-700 w-full sm:w-[150px] shadow-sm">
+            <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none bg-white text-gray-700 w-full sm:w-[150px] shadow-sm">
               <option value="">All Categories</option>
-              <option value="raw">Raw Material</option>
-              <option value="finished">Finished Goods</option>
+              {uniqueCategories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
             </select>
 
-            <select className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none bg-white text-gray-700 w-full sm:w-[140px] shadow-sm">
+            <select value={filterBrand} onChange={e => setFilterBrand(e.target.value)} className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none bg-white text-gray-700 w-full sm:w-[140px] shadow-sm">
               <option value="">All Brands</option>
-              <option value="branda">Brand A</option>
-              <option value="brandb">Brand B</option>
+              {uniqueBrands.map(brand => (
+                <option key={brand} value={brand}>{brand}</option>
+              ))}
             </select>
 
-            <select className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none bg-white text-gray-700 w-full sm:w-[130px] shadow-sm">
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none bg-white text-gray-700 w-full sm:w-[130px] shadow-sm">
               <option value="">Stock Status</option>
               <option value="instock">In Stock</option>
-              <option value="lowstock">Low Stock</option>
               <option value="outofstock">Out of Stock</option>
             </select>
           </div>
@@ -140,26 +307,48 @@ export function ItemMaster() {
                 <tr className="bg-gray-50 border-y border-gray-200 text-gray-600 text-[13px]">
                   <th className="py-2 px-3 font-medium">#</th>
                   <th className="py-2 px-3 font-medium">Item Name</th>
+                  {viewMode === 'boms' && <th className="py-2 px-3 font-medium">BOM Name</th>}
+                  {viewMode === 'boms' && <th className="py-2 px-3 font-medium text-center">Components</th>}
                   <th className="py-2 px-3 font-medium">Variants & IMEI</th>
                   <th className="py-2 px-3 font-medium">Category</th>
                   <th className="py-2 px-3 font-medium">Brand</th>
                   <th className="py-2 px-3 font-medium">Code/SKU</th>
                   <th className="py-2 px-3 font-medium">Barcode</th>
+                  <th className="py-2 px-3 font-medium text-right">Purchase Price</th>
                   <th className="py-2 px-3 font-medium text-right">MRP</th>
                   <th className="py-2 px-3 font-medium text-right">Sale Price</th>
                   <th className="py-2 px-3 font-medium text-right">Stock</th>
-                  <th className="py-2 px-3 font-medium text-center">Status</th>
                   <th className="py-2 px-3 font-medium text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.filter(r => viewMode === 'items' ? true : r.hasBom).map((row, idx) => (
+                {filteredRows.map((row, idx) => {
+                  let bomCount = 0;
+                  if (viewMode === 'boms' && row.bomRecipe) {
+                    try {
+                      const recipe = typeof row.bomRecipe === 'string' ? JSON.parse(row.bomRecipe) : row.bomRecipe;
+                      if (Array.isArray(recipe)) bomCount = recipe.length;
+                    } catch(e) {}
+                  }
+
+                  return (
                   <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50 text-[13px] transition-colors">
                     <td className="py-2 px-3 text-gray-500">{idx + 1}</td>
                     <td className="py-2 px-3 font-bold text-[#4F46E5]">
                       {row.name}
                       {row.hasBom && <span className="ml-2 bg-blue-100 text-blue-800 text-[9px] px-1.5 py-0.5 rounded-[3px] font-bold uppercase tracking-wide">BOM</span>}
                     </td>
+                    {viewMode === 'boms' && (
+                      <td className="py-2 px-3 text-gray-700 font-medium">
+                        {row.bomName || '-'}
+                        {row.isMultiLevel && <span className="ml-1 bg-purple-100 text-purple-800 text-[9px] px-1.5 py-0.5 rounded-[3px] font-bold uppercase tracking-wide">Multi</span>}
+                      </td>
+                    )}
+                    {viewMode === 'boms' && (
+                      <td className="py-2 px-3 text-center">
+                        <span className="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full text-[11px] font-bold text-gray-700">{bomCount} items</span>
+                      </td>
+                    )}
                     <td className="py-2 px-3">
                       <div className="flex flex-wrap gap-1">
                         {row.memorySize && <span className="bg-gray-100 border border-gray-200 text-gray-700 text-[10px] px-1.5 py-0.5 rounded-[3px] leading-tight">{row.memorySize}</span>}
@@ -171,6 +360,7 @@ export function ItemMaster() {
                     <td className="py-2 px-3 text-gray-600 font-medium">{row.brand}</td>
                     <td className="py-2 px-3 text-gray-600">{row.sku}</td>
                     <td className="py-2 px-3 text-gray-600 font-mono text-[12px]">{row.barcode}</td>
+                    <td className="py-2 px-3 text-gray-500 font-medium text-right">₹{row.purchasePrice || 0}</td>
                     <td className="py-2 px-3 text-gray-500 font-medium text-right">₹{row.mrp}</td>
                     <td className="py-2 px-3 text-gray-800 font-bold text-right">₹{row.price}</td>
                     <td className="py-2 px-3 text-gray-800 font-bold text-right">
@@ -180,24 +370,39 @@ export function ItemMaster() {
                         row.qty
                       )}
                     </td>
-                    <td className="py-2 px-3 text-center">
-                      <span className="bg-green-100 text-green-800 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase">
-                        {row.status}
-                      </span>
-                    </td>
                     <td className="py-2 px-3">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button onClick={() => setCreateModalOpen(true)} className="text-[#4F46E5] hover:bg-indigo-50 px-2 py-1 rounded-[3px] font-bold transition-colors">Edit</button>
+                        <button 
+                          onClick={() => handleEdit(row)} 
+                          className="text-[#28a745] hover:bg-green-50 p-1.5 rounded-[3px] transition-colors"
+                          title="View"
+                        >
+                          <Eye className="w-4 h-4" strokeWidth={2.5} />
+                        </button>
                         <div className="w-[1px] h-3 bg-gray-300 mx-0.5"></div>
-                        <button onClick={() => { if(window.confirm('Are you sure you want to delete this item?')) { setRows(prev => prev.filter(r => r.id !== row.id)); } }} className="text-[#dc3545] hover:bg-red-50 px-2 py-1 rounded-[3px] font-bold transition-colors">Delete</button>
+                        <button 
+                          onClick={() => handleEdit(row)} 
+                          className="text-[#4F46E5] hover:bg-indigo-50 p-1.5 rounded-[3px] transition-colors"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4" strokeWidth={2.5} />
+                        </button>
+                        <div className="w-[1px] h-3 bg-gray-300 mx-0.5"></div>
+                        <button 
+                          onClick={() => handleDelete(row.id)} 
+                          className="text-[#dc3545] hover:bg-red-50 p-1.5 rounded-[3px] transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" strokeWidth={2.5} />
+                        </button>
                       </div>
                     </td>
                   </tr>
-                ))}
-                {rows.filter(r => viewMode === 'items' ? true : r.hasBom).length === 0 && (
+                )})}
+                {filteredRows.length === 0 && (
                   <tr>
-                    <td colSpan="10" className="py-8 text-center text-gray-500 text-[13px]">
-                      No {viewMode === 'boms' ? 'BOMs' : 'Items'} found matching your criteria.
+                    <td colSpan={viewMode === 'boms' ? "13" : "11"} className="py-8 text-center text-gray-500 text-[13px]">
+                      No {viewMode === 'boms' ? 'BOMs' : 'Items'} found matching your filters.
                     </td>
                   </tr>
                 )}
@@ -210,8 +415,10 @@ export function ItemMaster() {
 
       <ItemMasterModal 
         isOpen={createModalOpen} 
-        onClose={() => setCreateModalOpen(false)} 
-        onSave={(newItem) => setRows([newItem, ...rows])}
+        onClose={() => { setCreateModalOpen(false); setEditRow(null); }} 
+        onSave={handleCreateProduct}
+        editData={editRow}
+        products={rows}
       />
 
     </div>

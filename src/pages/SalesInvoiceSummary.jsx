@@ -24,12 +24,8 @@ import {
 import { cn } from '../utils';
 import { useSettings } from '../context/SettingsContext';
 
-const DUMMY_DATA = [
-  { id: 1, invoiceId: "18", customerName: "Siddu", user: "SIDDALING A PADASALAGI", phone: "", location: "", date: "2026-06-13", totalAmt: 2000, paidAmt: 2000, balance: 0, currentBalance: 9800 },
-  { id: 2, invoiceId: "19", customerName: "Anandamoyee Hardware & Tools", location: "(Ichapur)", user: "SIDDALING A PADASALAGI", phone: "+91 9830015666", date: "2026-06-13", totalAmt: 6999, paidAmt: 6999, balance: 0, currentBalance: -6999 },
-  { id: 3, invoiceId: "17", customerName: "Siddu", user: "SIDDALING A PADASALAGI", phone: "", location: "", date: "2026-06-11", totalAmt: 500, paidAmt: 500, balance: 0, currentBalance: 9800 },
-  { id: 4, invoiceId: "16", customerName: "Sures", user: "", phone: "+91 9845974586", location: "", date: "2026-06-09", totalAmt: 800, paidAmt: 800, balance: 0, currentBalance: 0 },
-];
+import { getTransactions } from '../api/inventory';
+import { getCollectionReport } from '../api/financial';
 
 export function SalesInvoiceSummary() {
   const navigate = useNavigate();
@@ -37,29 +33,77 @@ export function SalesInvoiceSummary() {
   const { formatAmount, currentCurrency } = useSettings();
   const [collectionModalOpen, setCollectionModalOpen] = useState(false);
   const [loadingSheetModalOpen, setLoadingSheetModalOpen] = useState(false);
-  const [reportDate, setReportDate] = useState("2026-05-27");
+  const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
   const [dateFilter, setDateFilter] = useState("Last 30 Days");
   const [searchText, setSearchText] = useState("");
   const [isToggleOn, setIsToggleOn] = useState(false);
-  const [salesData, setSalesData] = useState(() => {
-    const saved = localStorage.getItem('dummy_sales_data');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return DUMMY_DATA;
-      }
-    }
-    return DUMMY_DATA;
+  const [salesData, setSalesData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [collectionData, setCollectionData] = useState({
+    todaySales: 0,
+    cashSales: 0,
+    creditSales: 0,
+    moneyIn: { total: 0, cashSale: 0, creditRecovery: 0, otherIncome: 0 },
+    moneyOut: { total: 0, companyPaid: 0, employeePaid: 0, expensesPaid: 0 },
+    netCollection: 0,
+    accounts: { cash: 0, bank: 0 }
   });
+
+  React.useEffect(() => {
+    if (collectionModalOpen) {
+      const fetchCollectionData = async () => {
+        try {
+          const res = await getCollectionReport(reportDate, reportDate);
+          if (res.data.success) {
+            setCollectionData(res.data.data);
+          }
+        } catch (error) {
+          console.error("Failed to fetch collection data", error);
+        }
+      };
+      fetchCollectionData();
+    }
+  }, [collectionModalOpen, reportDate]);
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        // Determine transaction type based on pathname
+        let type = 'sales';
+        if (location.pathname.includes('customer_sale_order')) type = 'sales_order';
+        if (location.pathname.includes('customer_challan_invoice')) type = 'challan';
+        if (location.pathname.includes('customer_sale')) type = 'sales'; // customer invoice
+
+        const res = await getTransactions(type);
+        // Map backend format to frontend format
+        const mappedData = (res.data || []).map(item => ({
+          id: item.id,
+          invoiceId: item.invoiceNo,
+          customerName: item.customer?.name || 'Unknown',
+          user: item.companyId ? 'Admin' : '', 
+          phone: item.customer?.phone || item.customer?.mobile || '',
+          location: item.customer?.city ? `(${item.customer.city})` : '',
+          date: item.date,
+          totalAmt: item.totalAmount || 0,
+          paidAmt: item.status === 'PAID' ? item.totalAmount : 0, // Simplified for demo
+          balance: item.status === 'PAID' ? 0 : item.totalAmount, // Simplified for demo
+          currentBalance: item.customer?.balance || 0
+        }));
+        setSalesData(mappedData);
+      } catch (error) {
+        console.error("Failed to fetch transactions", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [location.pathname]);
   const dateInputRef = useRef(null);
 
   const handleDelete = (id) => {
-    setSalesData(prevData => {
-      const newData = prevData.filter(item => item.id !== id);
-      localStorage.setItem('dummy_sales_data', JSON.stringify(newData));
-      return newData;
-    });
+    // In future, call delete API here
+    setSalesData(prevData => prevData.filter(item => item.id !== id));
   };
 
   const handlePrint = () => {
@@ -80,7 +124,7 @@ export function SalesInvoiceSummary() {
       );
     }
     
-    const today = new Date('2026-06-15');
+    const today = new Date();
     today.setHours(0, 0, 0, 0);
     
     filtered = filtered.filter(item => {
@@ -186,10 +230,7 @@ export function SalesInvoiceSummary() {
         <div className="p-3 border-b border-gray-200 flex flex-col md:flex-row gap-4 items-start md:items-end">
           <div className="flex-1 w-full md:w-auto relative">
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
-              <div onClick={() => setIsToggleOn(!isToggleOn)} className={`w-8 h-[18px] rounded-full relative cursor-pointer flex items-center transition-colors duration-200 ${isToggleOn ? 'bg-[#4F46E5]' : 'bg-gray-300'}`}>
-                <div className={`w-[14px] h-[14px] bg-white rounded-full absolute shadow-sm transition-transform duration-200 ease-in-out ${isToggleOn ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
-              </div>
-              <span className="text-[13px] font-bold text-gray-800 select-none cursor-pointer" onClick={() => setIsToggleOn(!isToggleOn)}>
+              <span className="text-[13px] font-bold text-gray-800 select-none">
                 Customer Name
               </span>
             </div>
@@ -394,7 +435,7 @@ export function SalesInvoiceSummary() {
                     <BarChart2 className="w-4 h-4" strokeWidth={3} />
                     <span className="font-bold text-[14px]">Today's Sales</span>
                   </div>
-                  <span className="text-[18px] font-bold">{formatAmount(0)}</span>
+                  <span className="text-[18px] font-bold">{formatAmount(collectionData.todaySales)}</span>
                 </div>
                 
                 <div className="bg-[#28a745] rounded-[4px] p-3 text-white flex flex-col shadow-sm">
@@ -402,7 +443,7 @@ export function SalesInvoiceSummary() {
                     <Banknote className="w-4 h-4" strokeWidth={3} />
                     <span className="font-bold text-[14px]">Cash Sales</span>
                   </div>
-                  <span className="text-[18px] font-bold">{formatAmount(0)}</span>
+                  <span className="text-[18px] font-bold">{formatAmount(collectionData.cashSales)}</span>
                 </div>
                 
                 <div className="bg-[#dc3545] rounded-[4px] p-3 text-white flex flex-col shadow-sm">
@@ -410,7 +451,7 @@ export function SalesInvoiceSummary() {
                     <Layers className="w-4 h-4" strokeWidth={3} />
                     <span className="font-bold text-[14px]">Credit Sales</span>
                   </div>
-                  <span className="text-[18px] font-bold">{formatAmount(0)}</span>
+                  <span className="text-[18px] font-bold">{formatAmount(collectionData.creditSales)}</span>
                 </div>
               </div>
 
@@ -430,34 +471,34 @@ export function SalesInvoiceSummary() {
                          <Banknote className="w-4 h-4 text-[#28a745]" />
                          <span>Total Cash Sale</span>
                        </div>
-                       <span className="font-bold text-gray-800">{formatAmount(0)}</span>
+                       <span className="font-bold text-gray-800">{formatAmount(collectionData.moneyIn.cashSale)}</span>
                     </div>
                     <div className="flex items-center justify-between py-1 border-b border-gray-100">
                        <div className="flex items-center gap-2">
                          <Banknote className="w-4 h-4 text-[#28a745]" />
                          <span>Total Credit Recovery</span>
                        </div>
-                       <span className="font-bold text-gray-800">{formatAmount(0)}</span>
+                       <span className="font-bold text-gray-800">{formatAmount(collectionData.moneyIn.creditRecovery)}</span>
                     </div>
                     <div className="flex items-center justify-between py-1 border-b border-gray-100">
                        <div className="flex items-center gap-2">
                          <Banknote className="w-4 h-4 text-[#28a745]" />
                          <span>Total Other Income</span>
                        </div>
-                       <span className="font-bold text-gray-800">{formatAmount(0)}</span>
+                       <span className="font-bold text-gray-800">{formatAmount(collectionData.moneyIn.otherIncome)}</span>
                     </div>
                     <div className="flex items-center justify-between py-1">
                        <div className="flex items-center gap-2">
                          <Download className="w-4 h-4 text-[#28a745]" />
                          <span>Total Payment In</span>
                        </div>
-                       <span className="font-bold text-gray-800">{formatAmount(0)}</span>
+                       <span className="font-bold text-gray-800">{formatAmount(collectionData.moneyIn.total)}</span>
                     </div>
                   </div>
                   
                   <div className="bg-[#28a745] text-white px-3 py-2.5 flex items-center justify-between mt-auto">
                     <span className="font-bold text-[14px] uppercase tracking-wide">Total Money In</span>
-                    <span className="font-bold text-[15px]">{formatAmount(0)}</span>
+                    <span className="font-bold text-[15px]">{formatAmount(collectionData.moneyIn.total)}</span>
                   </div>
                 </div>
 
@@ -474,34 +515,34 @@ export function SalesInvoiceSummary() {
                          <Building className="w-4 h-4 text-[#dc3545]" />
                          <span>Total Company Paid</span>
                        </div>
-                       <span className="font-bold text-gray-800">{formatAmount(0)}</span>
+                       <span className="font-bold text-gray-800">{formatAmount(collectionData.moneyOut.companyPaid)}</span>
                     </div>
                     <div className="flex items-center justify-between py-1 border-b border-gray-100">
                        <div className="flex items-center gap-2">
                          <Users className="w-4 h-4 text-[#dc3545]" />
                          <span>Total Employee Paid</span>
                        </div>
-                       <span className="font-bold text-gray-800">{formatAmount(0)}</span>
+                       <span className="font-bold text-gray-800">{formatAmount(collectionData.moneyOut.employeePaid)}</span>
                     </div>
                     <div className="flex items-center justify-between py-1 border-b border-gray-100">
                        <div className="flex items-center gap-2">
                          <FileText className="w-4 h-4 text-[#dc3545]" />
                          <span>Total Expenses Paid</span>
                        </div>
-                       <span className="font-bold text-gray-800">{formatAmount(0)}</span>
+                       <span className="font-bold text-gray-800">{formatAmount(collectionData.moneyOut.expensesPaid)}</span>
                     </div>
                     <div className="flex items-center justify-between py-1">
                        <div className="flex items-center gap-2">
                          <Upload className="w-4 h-4 text-[#dc3545]" />
                          <span>Total Payment Out</span>
                        </div>
-                       <span className="font-bold text-gray-800">{formatAmount(0)}</span>
+                       <span className="font-bold text-gray-800">{formatAmount(collectionData.moneyOut.total)}</span>
                     </div>
                   </div>
                   
                   <div className="bg-[#dc3545] text-white px-3 py-2.5 flex items-center justify-between mt-auto">
                     <span className="font-bold text-[14px] uppercase tracking-wide">Total Money Out</span>
-                    <span className="font-bold text-[15px]">{formatAmount(0)}</span>
+                    <span className="font-bold text-[15px]">{formatAmount(collectionData.moneyOut.total)}</span>
                   </div>
                 </div>
 
@@ -514,10 +555,10 @@ export function SalesInvoiceSummary() {
                     <Calculator className="w-5 h-5 opacity-90" />
                     <span className="font-bold text-[16px] tracking-wide uppercase">Net Collection</span>
                   </div>
-                  <span className="text-[12px] opacity-90 mt-0.5">(Total Money In {formatAmount(0)} - Total Money Out {formatAmount(0)})</span>
+                  <span className="text-[12px] opacity-90 mt-0.5">(Total Money In {formatAmount(collectionData.moneyIn.total)} - Total Money Out {formatAmount(collectionData.moneyOut.total)})</span>
                 </div>
                 <div className="font-bold text-[22px]">
-                  {formatAmount(0)}
+                  {formatAmount(collectionData.netCollection)}
                 </div>
               </div>
 
@@ -539,7 +580,7 @@ export function SalesInvoiceSummary() {
                         <span className="text-[13px] font-bold text-[#28a745]">Cash (Balance)</span>
                       </div>
                     </div>
-                    <span className="font-bold text-[16px] text-[#007bff]">{formatAmount(-22020)}</span>
+                    <span className="font-bold text-[16px] text-[#007bff]">{formatAmount(collectionData.accounts.cash)}</span>
                   </div>
                   
                   <div className="bg-[#17a2b8] text-white p-3 flex items-center justify-between">
@@ -548,9 +589,9 @@ export function SalesInvoiceSummary() {
                         <Building className="w-4 h-4" strokeWidth={2} />
                         <span className="font-bold text-[15px]">Total Cash & Bank Balance</span>
                       </div>
-                      <span className="text-[13px] opacity-90 mt-1">Cash {formatAmount(-22020)} + Bank {formatAmount(0)}</span>
+                      <span className="text-[13px] opacity-90 mt-1">Cash {formatAmount(collectionData.accounts.cash)} + Bank {formatAmount(collectionData.accounts.bank)}</span>
                     </div>
-                    <span className="font-bold text-[16px]">{formatAmount(-22020)}</span>
+                    <span className="font-bold text-[16px]">{formatAmount(collectionData.accounts.cash + collectionData.accounts.bank)}</span>
                   </div>
                 </div>
               </div>

@@ -1,17 +1,125 @@
 import React, { useState, useEffect } from 'react';
 import { X, Edit, Trash2, Plus, Calculator } from 'lucide-react';
+import apiClient from '../api/apiClient';
 
 export function UnitConversionModal({ isOpen, onClose }) {
   const [isActive, setIsActive] = useState(true);
+  const [catalogUnits, setCatalogUnits] = useState([]);
+  const [conversions, setConversions] = useState([]);
+  const [editId, setEditId] = useState(null);
   
   // State for Auto Calculation Demo
   const [demoBaseQty, setDemoBaseQty] = useState(1);
-  const [baseUnit, setBaseUnit] = useState('BOX');
-  const [convUnit, setConvUnit] = useState('PCS');
-  const [convQty, setConvQty] = useState(12);
+  const [baseUnit, setBaseUnit] = useState('');
+  const [convUnit, setConvUnit] = useState('');
+  const [convQty, setConvQty] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Auto calculated result
   const calculatedResult = demoBaseQty * (convQty || 0);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchData();
+    }
+  }, [isOpen]);
+
+  const fetchData = async () => {
+    try {
+      const [unitsRes, convRes] = await Promise.all([
+        apiClient.get('/units'),
+        apiClient.get('/unit-conversions')
+      ]);
+      if (unitsRes.data && unitsRes.data.data) {
+        setCatalogUnits(unitsRes.data.data);
+        if (unitsRes.data.data.length > 0 && !baseUnit) {
+          setBaseUnit(unitsRes.data.data[0].name);
+        }
+        if (unitsRes.data.data.length > 1 && !convUnit) {
+          setConvUnit(unitsRes.data.data[1].name);
+        } else if (unitsRes.data.data.length > 0 && !convUnit) {
+          setConvUnit(unitsRes.data.data[0].name);
+        }
+      }
+      if (convRes.data && convRes.data.data) {
+        setConversions(convRes.data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+    }
+  };
+
+  const handleAddOrUpdate = async () => {
+    if (!baseUnit || !convUnit || !convQty) {
+      alert("Please fill in all conversion fields.");
+      return;
+    }
+    
+    const payload = {
+      baseUnit,
+      baseQty: 1,
+      targetUnit: convUnit,
+      targetQty: convQty,
+      isActive
+    };
+
+    try {
+      if (editId) {
+        await apiClient.put(`/unit-conversions/${editId}`, payload);
+        setEditId(null);
+      } else {
+        await apiClient.post('/unit-conversions', payload);
+      }
+      
+      setConvQty('');
+      setIsActive(true);
+      fetchData();
+    } catch (error) {
+      console.error("Failed to save conversion:", error);
+      alert("Failed to save conversion.");
+    }
+  };
+
+  const handleEdit = (conv) => {
+    setEditId(conv.id);
+    setBaseUnit(conv.baseUnit);
+    setConvUnit(conv.targetUnit);
+    setConvQty(conv.targetQty);
+    setIsActive(conv.isActive);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this conversion?")) return;
+    try {
+      await apiClient.delete(`/unit-conversions/${id}`);
+      if (editId === id) {
+        setEditId(null);
+        setConvQty('');
+        setIsActive(true);
+      }
+      fetchData();
+    } catch (error) {
+      console.error("Failed to delete conversion:", error);
+      alert("Failed to delete conversion.");
+    }
+  };
+
+  const handleToggleStatus = async (conv) => {
+    try {
+      await apiClient.put(`/unit-conversions/${conv.id}`, {
+        isActive: !conv.isActive
+      });
+      fetchData();
+    } catch (error) {
+      console.error("Failed to update status:", error);
+      alert("Failed to update status.");
+    }
+  };
+
+  const filteredConversions = conversions.filter(c => 
+    c.baseUnit.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    c.targetUnit.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (!isOpen) return null;
 
@@ -64,10 +172,9 @@ export function UnitConversionModal({ isOpen, onClose }) {
                     onChange={(e) => setBaseUnit(e.target.value)}
                     className="w-full border border-[#4F46E5] bg-[#e8e5ff] rounded-r-[3px] px-2 py-1.5 text-[14px] outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold text-gray-800"
                   >
-                    <option value="BOX">BOX</option>
-                    <option value="BAG">BAG</option>
-                    <option value="KGS">KGS</option>
-                    <option value="CARTON">CARTON</option>
+                    {catalogUnits.map((u) => (
+                      <option key={u.id} value={u.name}>{u.name}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -94,9 +201,9 @@ export function UnitConversionModal({ isOpen, onClose }) {
                     onChange={(e) => setConvUnit(e.target.value)}
                     className="w-full border border-[#4F46E5] bg-[#e8e5ff] rounded-[3px] px-2 py-1.5 text-[14px] outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold text-gray-800"
                   >
-                    <option value="PCS">PCS</option>
-                    <option value="GRAM">GRAM</option>
-                    <option value="NOS">NOS</option>
+                    {catalogUnits.map((u) => (
+                      <option key={u.id} value={u.name}>{u.name}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -122,9 +229,12 @@ export function UnitConversionModal({ isOpen, onClose }) {
             </div>
 
             <div className="flex justify-end">
-              <button className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-4 py-[7px] rounded-[3px] text-[13px] font-bold transition-colors shadow-sm">
-                <Plus className="w-4 h-4" strokeWidth={3} />
-                Add Conversion
+              <button 
+                onClick={handleAddOrUpdate}
+                className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-4 py-[7px] rounded-[3px] text-[13px] font-bold transition-colors shadow-sm"
+              >
+                {editId ? <Edit className="w-4 h-4" strokeWidth={3} /> : <Plus className="w-4 h-4" strokeWidth={3} />}
+                {editId ? 'Update Conversion' : 'Add Conversion'}
               </button>
             </div>
           </div>
@@ -136,6 +246,8 @@ export function UnitConversionModal({ isOpen, onClose }) {
               <input 
                 type="text" 
                 placeholder="Search conversion..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] w-[200px]"
               />
             </div>
@@ -153,40 +265,38 @@ export function UnitConversionModal({ isOpen, onClose }) {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                    <td className="py-2 px-3 text-center text-[13px] text-gray-700 border-r border-gray-200">1</td>
-                    <td className="py-2 px-3 text-center text-[13px] font-bold text-blue-700 border-r border-gray-200 bg-blue-50/50">1 BOX</td>
-                    <td className="py-2 px-3 text-center text-[13px] text-gray-500 font-bold border-r border-gray-200">=</td>
-                    <td className="py-2 px-3 text-center text-[13px] font-bold text-green-700 border-r border-gray-200 bg-green-50/50">12 PCS</td>
-                    <td className="py-2 px-3 text-center text-[12px] font-bold text-green-600 border-r border-gray-200">Active</td>
-                    <td className="py-2 px-3 text-center">
-                      <div className="flex items-center justify-center gap-0">
-                        <button className="bg-[#4F46E5] hover:bg-[#4338ca] text-white p-1.5 rounded-l-[3px] transition-colors shadow-sm">
-                          <Edit className="w-3.5 h-3.5" />
-                        </button>
-                        <button className="bg-[#dc3545] hover:bg-[#c82333] text-white p-1.5 rounded-r-[3px] transition-colors shadow-sm">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-gray-50 transition-colors">
-                    <td className="py-2 px-3 text-center text-[13px] text-gray-700 border-r border-gray-200">2</td>
-                    <td className="py-2 px-3 text-center text-[13px] font-bold text-blue-700 border-r border-gray-200 bg-blue-50/50">1 BAG</td>
-                    <td className="py-2 px-3 text-center text-[13px] text-gray-500 font-bold border-r border-gray-200">=</td>
-                    <td className="py-2 px-3 text-center text-[13px] font-bold text-green-700 border-r border-gray-200 bg-green-50/50">50 PCS</td>
-                    <td className="py-2 px-3 text-center text-[12px] font-bold text-green-600 border-r border-gray-200">Active</td>
-                    <td className="py-2 px-3 text-center">
-                      <div className="flex items-center justify-center gap-0">
-                        <button className="bg-[#4F46E5] hover:bg-[#4338ca] text-white p-1.5 rounded-l-[3px] transition-colors shadow-sm">
-                          <Edit className="w-3.5 h-3.5" />
-                        </button>
-                        <button className="bg-[#dc3545] hover:bg-[#c82333] text-white p-1.5 rounded-r-[3px] transition-colors shadow-sm">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                  {filteredConversions.map((conv, index) => (
+                    <tr key={conv.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                      <td className="py-2 px-3 text-center text-[13px] text-gray-700 border-r border-gray-200">{index + 1}</td>
+                      <td className="py-2 px-3 text-center text-[13px] font-bold text-blue-700 border-r border-gray-200 bg-blue-50/50">{conv.baseQty} {conv.baseUnit}</td>
+                      <td className="py-2 px-3 text-center text-[13px] text-gray-500 font-bold border-r border-gray-200">=</td>
+                      <td className="py-2 px-3 text-center text-[13px] font-bold text-green-700 border-r border-gray-200 bg-green-50/50">{conv.targetQty} {conv.targetUnit}</td>
+                      <td className="py-2 px-3 text-center border-r border-gray-200">
+                        <div 
+                          className={`mx-auto w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${conv.isActive ? 'bg-[#28a745]' : 'bg-gray-300'}`}
+                          onClick={() => handleToggleStatus(conv)}
+                          title={conv.isActive ? "Click to deactivate" : "Click to activate"}
+                        >
+                          <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${conv.isActive ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
+                        </div>
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        <div className="flex items-center justify-center gap-0">
+                          <button onClick={() => handleEdit(conv)} className="bg-[#4F46E5] hover:bg-[#4338ca] text-white p-1.5 rounded-l-[3px] transition-colors shadow-sm">
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => handleDelete(conv.id)} className="bg-[#dc3545] hover:bg-[#c82333] text-white p-1.5 rounded-r-[3px] transition-colors shadow-sm">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredConversions.length === 0 && (
+                    <tr>
+                      <td colSpan="6" className="py-4 text-center text-[13px] text-gray-500">No conversions found.</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

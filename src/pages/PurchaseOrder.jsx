@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import apiClient from '../api/apiClient';
 import { 
   X, 
   Search, 
@@ -32,6 +33,102 @@ export function PurchaseOrder() {
   const location = useLocation();
   
   const pageTitle = 'Purchase Order';
+
+  const [customers, setCustomers] = useState([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [paymentMode, setPaymentMode] = useState('Credit');
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  const fetchCustomers = async () => {
+    try {
+      const res = await apiClient.get('/customers');
+      if (res.data.success) {
+        setCustomers(res.data.data);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!selectedCustomerId) return alert('Please select a supplier/customer.');
+    if (qty <= 0) return alert('Please enter valid quantity.');
+
+    const payload = {
+      customerId: selectedCustomerId,
+      date: invoiceDate,
+      paymentMode,
+      remark: 'Purchase Order',
+      subTotal: baseAmount,
+      totalDiscount: totalDiscAmount,
+      freightCharges: 0,
+      totalAmount: finalAmount,
+      items: [{
+        productId: 1, // Dummy product ID since we don't have a product selector in this raw template
+        quantity: Number(qty) || 1,
+        freeQty: Number(freeQty) || 0,
+        price: Number(price) || 0,
+        discount1: Number(d1Amt) || 0,
+        discount2: Number(d2Amt) || 0,
+        amount: Number(finalAmount) || 0
+      }]
+    };
+
+    try {
+      await apiClient.post('/inventory/PURCHASE_ORDER', payload);
+      alert('Purchase Order Saved Successfully!');
+      navigate('/admin/invoice-details/company_purchase_order');
+    } catch (error) {
+      console.error(error);
+      alert('Failed to save Purchase Order.');
+    }
+  };
+
+  const handleHoldInvoice = async (note) => {
+    if (!selectedCustomerId) return alert('Please select a supplier/customer before holding.');
+    if (qty <= 0) return alert('Please enter valid quantity.');
+
+    const payload = {
+      customerId: selectedCustomerId,
+      date: invoiceDate,
+      paymentMode,
+      remark: note || 'Purchase Order',
+      status: 'HOLD',
+      subTotal: baseAmount,
+      totalDiscount: totalDiscAmount,
+      freightCharges: 0,
+      totalAmount: finalAmount,
+      items: [{
+        productId: 1, 
+        quantity: Number(qty) || 0,
+        freeQty: Number(freeQty) || 0,
+        price: Number(price) || 0,
+        discount1: Number(d1Amt) || 0,
+        discount2: Number(d2Amt) || 0,
+        amount: Number(finalAmount) || 0
+      }]
+    };
+
+    try {
+      await apiClient.post('/inventory/PURCHASE_ORDER', payload);
+      alert('Purchase Order put on hold successfully!');
+      
+      // Reset form
+      setSelectedCustomerId('');
+      setQty(10);
+      setFreeQty(2);
+      setPrice(1000);
+      setDisc1(10);
+      setDisc2(5);
+
+    } catch (error) {
+      console.error(error);
+      alert('Failed to hold Purchase Order.');
+    }
+  };
 
   const [isHoldModalOpen, setIsHoldModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -126,8 +223,15 @@ export function PurchaseOrder() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex-1 flex items-center">
-                <select className="w-full min-w-0 border border-gray-300 border-r-0 rounded-l-[3px] px-3 py-1.5 text-[13px] focus:outline-none focus:border-[#17a2b8] appearance-none bg-white text-gray-400">
-                  <option value="">Select Name</option>
+                <select 
+                  value={selectedCustomerId}
+                  onChange={(e) => setSelectedCustomerId(Number(e.target.value))}
+                  className="w-full min-w-0 border border-gray-300 border-r-0 rounded-l-[3px] px-3 py-1.5 text-[13px] focus:outline-none focus:border-[#17a2b8] bg-white text-gray-800"
+                >
+                  <option value="">Select Supplier</option>
+                  {customers.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
                 </select>
                 <button className="bg-[#17a2b8] text-white px-3 py-1.5 border border-[#17a2b8] rounded-r-[3px]">
                   <Search className="w-4 h-4" />
@@ -402,7 +506,7 @@ export function PurchaseOrder() {
         </div>
         
         <div className="flex items-center justify-center gap-1.5 flex-1 max-w-[400px] mx-auto">
-          <button className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] transition-colors">
+          <button onClick={handleSave} className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] transition-colors">
             <Check className="w-4 h-4" strokeWidth={3} />
             Save
           </button>
@@ -443,6 +547,7 @@ export function PurchaseOrder() {
       <HoldInvoiceModal 
         isOpen={isHoldModalOpen} 
         onClose={() => setIsHoldModalOpen(false)} 
+        onConfirm={handleHoldInvoice}
       />
       <ImportInvoiceAIModal 
         isOpen={isImportModalOpen} 

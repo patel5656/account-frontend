@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   BarChart2, 
@@ -10,11 +10,32 @@ import {
 } from 'lucide-react';
 import { CollectionReportModal } from '../components/CollectionReportModal';
 import { LoadingSheetModal } from '../components/LoadingSheetModal';
+import apiClient from '../api/apiClient';
 
 export function StockAdjustment() {
   const navigate = useNavigate();
   const [isCollectionReportModalOpen, setIsCollectionReportModalOpen] = useState(false);
   const [isLoadingSheetModalOpen, setIsLoadingSheetModalOpen] = useState(false);
+  const [invoices, setInvoices] = useState([]);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, []);
+
+  const fetchInvoices = async () => {
+    try {
+      const res = await apiClient.get('/inventory/ADJUSTMENT');
+      if (res.data.data) {
+        setInvoices(res.data.data);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const totalAmount = invoices.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0);
+  const totalPaid = invoices.reduce((acc, curr) => acc + (curr.status === 'PAID' ? curr.totalAmount : 0), 0);
+  const totalBalance = totalAmount - totalPaid;
 
   return (
     <div className="bg-[#f8f9fa] min-h-[calc(100vh-45px)] flex flex-col p-3">
@@ -92,21 +113,45 @@ export function StockAdjustment() {
         <div className="bg-[#343a40] text-white flex flex-col sm:grid sm:grid-cols-3 text-center py-2 px-4 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)]">
           <div className="flex flex-col items-center border-r border-gray-600">
             <span className="text-[15px] font-bold tracking-wider">TOTAL AMT:</span>
-            <span className="text-[18px] font-bold leading-none mt-0.5">0</span>
+            <span className="text-[18px] font-bold leading-none mt-0.5">₹{totalAmount.toFixed(2)}</span>
           </div>
           <div className="flex flex-col items-center border-r border-gray-600">
             <span className="text-[15px] font-bold tracking-wider">TOTAL PAID:</span>
-            <span className="text-[18px] font-bold leading-none mt-0.5">0</span>
+            <span className="text-[18px] font-bold leading-none mt-0.5">₹{totalPaid.toFixed(2)}</span>
           </div>
           <div className="flex flex-col items-center">
             <span className="text-[15px] font-bold tracking-wider">BALANCE:</span>
-            <span className="text-[18px] font-bold leading-none mt-0.5">0</span>
+            <span className="text-[18px] font-bold leading-none mt-0.5">₹{totalBalance.toFixed(2)}</span>
           </div>
         </div>
 
-        {/* Empty Area for table body */}
-        <div className="flex-1 bg-white">
-          {/* Table rows would go here */}
+        {/* Table Body */}
+        <div className="flex-1 bg-white overflow-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-[#f8f9fa] sticky top-0">
+              <tr>
+                <th className="px-4 py-3 text-[13px] font-bold text-gray-700 border-b border-gray-200">#</th>
+                <th className="px-4 py-3 text-[13px] font-bold text-gray-700 border-b border-gray-200">Adjustment No</th>
+                <th className="px-4 py-3 text-[13px] font-bold text-gray-700 border-b border-gray-200">Date</th>
+                <th className="px-4 py-3 text-[13px] font-bold text-gray-700 border-b border-gray-200 text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {invoices.map((row, idx) => (
+                <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="px-4 py-3 text-[13px] text-gray-600">{idx + 1}</td>
+                  <td className="px-4 py-3 text-[13px] font-medium text-gray-800">{row.invoiceNo}</td>
+                  <td className="px-4 py-3 text-[13px] text-gray-600">{new Date(row.date).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-[13px] font-bold text-gray-800 text-right">₹{(row.totalAmount || 0).toFixed(2)}</td>
+                </tr>
+              ))}
+              {invoices.length === 0 && (
+                <tr>
+                  <td colSpan="4" className="text-center py-8 text-gray-500 text-[14px]">No Stock Adjustment records found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
 
       </div>

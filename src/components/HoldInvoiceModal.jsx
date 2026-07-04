@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { X, PauseCircle, Check } from 'lucide-react';
 
-export function HoldInvoiceModal({ isOpen, onClose }) {
+export function HoldInvoiceModal({ isOpen, onClose, onConfirm }) {
+  const [note, setNote] = useState('');
+
   if (!isOpen) return null;
 
   return (
@@ -34,6 +36,8 @@ export function HoldInvoiceModal({ isOpen, onClose }) {
             <label className="text-[13px] font-bold text-gray-700">Reference Note (Optional)</label>
             <input 
               type="text" 
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
               placeholder="E.g. Waiting for customer confirmation..."
               className="w-full border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] focus:outline-none focus:border-[#4F46E5]"
             />
@@ -51,7 +55,10 @@ export function HoldInvoiceModal({ isOpen, onClose }) {
           </button>
           <button 
             onClick={() => {
-              alert("Invoice has been put on hold.");
+              if (onConfirm) {
+                onConfirm(note);
+              }
+              setNote('');
               onClose();
             }}
             className="flex items-center gap-1.5 bg-[#6c757d] hover:bg-[#5a6268] text-white px-4 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm"

@@ -32,7 +32,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }) {
       <button
         onClick={handlePrev}
         disabled={currentPage === 1}
-        className="px-3 py-1 rounded-[3px] text-[13px] bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+        className="px-3 py-1 rounded-[3px] text-[13px] bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         ‹ Prev
       </button>
@@ -40,7 +40,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }) {
       <button
         onClick={handleNext}
         disabled={currentPage === totalPages}
-        className="px-3 py-1 rounded-[3px] text-[13px] bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+        className="px-3 py-1 rounded-[3px] text-[13px] bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Next ›
       </button>

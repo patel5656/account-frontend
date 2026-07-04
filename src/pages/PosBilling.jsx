@@ -16,18 +16,54 @@ import {
 } from 'lucide-react';
 import { cn } from '../utils';
 import { ProductMasterModal } from '../components/ProductMasterModal';
+import apiClient from '../api/apiClient';
 
 export function PosBilling() {
   const navigate = useNavigate();
   
   // States
   const [barcodeInput, setBarcodeInput] = useState('');
-  const [cart, setCart] = useState([]);
+  
+  // Persist states to prevent data loss on refresh
+  const [cart, setCart] = useState(() => {
+    const saved = localStorage.getItem('pos_cart');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
   const [customerName, setCustomerName] = useState('Cash Customer');
-  const [paymentMode, setPaymentMode] = useState('Cash'); // Cash, Card, UPI
+  
+  const [paymentMode, setPaymentMode] = useState(() => {
+    return localStorage.getItem('pos_paymentMode') || 'Cash';
+  });
+  
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
-  const [billDiscount, setBillDiscount] = useState(0);
+  
+  const [billDiscount, setBillDiscount] = useState(() => {
+    const saved = localStorage.getItem('pos_billDiscount');
+    return saved ? Number(saved) : 0;
+  });
+
+  const [isWholesale, setIsWholesale] = useState(() => {
+    const saved = localStorage.getItem('pos_isWholesale');
+    return saved === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('pos_cart', JSON.stringify(cart));
+  }, [cart]);
+
+  useEffect(() => {
+    localStorage.setItem('pos_paymentMode', paymentMode);
+  }, [paymentMode]);
+
+  useEffect(() => {
+    localStorage.setItem('pos_billDiscount', billDiscount.toString());
+  }, [billDiscount]);
+
+  useEffect(() => {
+    localStorage.setItem('pos_isWholesale', isWholesale.toString());
+  }, [isWholesale]);
 
   // Focus ref for quick barcode scanning
   const barcodeRef = useRef(null);
@@ -39,43 +75,39 @@ export function PosBilling() {
     }
   }, []);
 
-  // Products database
-  // Products database - Mocking Centralized Item Master configurations
-  const [products, setProducts] = useState([
-    { 
-      id: 1, name: 'Smartphone X', barcode: '12345', 
-      mrp: 1200, base_price: 1000, price: 1000, tax: 5,
-      wholesale_price: 900, credit_sale_price: 1050,
-      qty_slabs: [{ min: 10, max: 49, price: 950 }, { min: 50, max: 99999, price: 850 }]
-    },
-    { 
-      id: 2, name: 'Amul Butter 100g', barcode: '12346', 
-      mrp: 60, base_price: 55, price: 55, tax: 5,
-      wholesale_price: 50, credit_sale_price: 58,
-      qty_slabs: [{ min: 10, max: 999, price: 48 }]
-    },
-    { id: 3, name: 'Aashirvaad Atta 5kg', barcode: '12347', mrp: 250, base_price: 210, price: 210, tax: 0, wholesale_price: 200, credit_sale_price: 215, qty_slabs: [] },
-    { id: 4, name: 'Maggi Masala 140g', barcode: '12348', mrp: 30, base_price: 28, price: 28, tax: 12, wholesale_price: 26, credit_sale_price: 30, qty_slabs: [] },
-    { id: 5, name: 'Tata Salt 1kg', barcode: '12349', mrp: 28, base_price: 25, price: 25, tax: 0, wholesale_price: 23, credit_sale_price: 26, qty_slabs: [] },
-    { id: 6, name: 'Surf Excel 1kg', barcode: '12350', mrp: 150, base_price: 135, price: 135, tax: 18, wholesale_price: 125, credit_sale_price: 140, qty_slabs: [] },
-    { id: 7, name: 'Santoor Soap 125g', barcode: '12351', mrp: 40, base_price: 35, price: 35, tax: 18, wholesale_price: 32, credit_sale_price: 38, qty_slabs: [] },
-    { id: 8, name: 'Fortune Oil 1L', barcode: '12352', mrp: 160, base_price: 145, price: 145, tax: 5, wholesale_price: 135, credit_sale_price: 150, qty_slabs: [] },
-  ]);
+  // Products database from API
+  const [products, setProducts] = useState([]);
+  const [quickItems, setQuickItems] = useState([]);
 
-  const [isWholesale, setIsWholesale] = useState(false);
+  useEffect(() => {
+    const fetchPOSData = async () => {
+      try {
+        const prodRes = await apiClient.get('/products');
+        if (prodRes.data.success) {
+          const activeProducts = prodRes.data.data.filter(p => p.status === 'Active' || p.status === 'ACTIVE');
+          setProducts(activeProducts);
+        }
+        
+        const quickRes = await apiClient.get('/pos/quick-items');
+        if (quickRes.data.success) setQuickItems(quickRes.data.data);
+      } catch (err) {
+        console.error("Failed to load POS data:", err);
+      }
+    };
+    fetchPOSData();
+  }, []);
 
   // Dynamic Price Calculation from Item Master
   const calculateItemPrice = (product, currentQty, currentPaymentMode, wholesaleStatus) => {
-    if (!product.base_price) return product.price; // Fallback
-    
-    let newPrice = product.base_price;
+    const basePrice = parseFloat(product.price) || 0;
+    let newPrice = basePrice;
     let reason = "Standard Retail";
 
     if (currentPaymentMode === 'Credit') {
-      newPrice = product.credit_sale_price || product.base_price;
+      newPrice = product.creditSalePrice || product.price;
       reason = "Credit Sale Price";
     } else if (wholesaleStatus) {
-      newPrice = product.wholesale_price || product.base_price;
+      newPrice = product.wholesalePrice || product.price;
       reason = "Wholesale Price";
     }
 
@@ -152,19 +184,42 @@ export function PosBilling() {
     setCart(prevCart => prevCart.filter(item => item.id !== id));
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) {
       alert("Cart is empty!");
       return;
     }
-    // Open Print Modal simulating save
-    setIsPrintModalOpen(true);
+    
+    try {
+      const payload = {
+        customerId: null, // Hardcoded for cash customer for now
+        items: cart.map(item => ({
+          productId: item.id,
+          qty: item.qty,
+          price: item.price,
+          discount1: item.discount || 0,
+          amount: item.total
+        })),
+        paymentModes: [{ mode: paymentMode, amount: finalAmount }],
+        totalAmount: finalAmount,
+        loyaltyDiscountValue: discountAmount
+      };
+      
+      const res = await apiClient.post('/pos/checkout', payload);
+      if (res.data.success) {
+        setIsPrintModalOpen(true);
+      }
+    } catch (error) {
+      console.error("Checkout failed:", error);
+      alert(error.response?.data?.message || "Checkout failed");
+    }
   };
 
   // Calculations
   const subtotal = cart.reduce((acc, item) => acc + item.total, 0);
   const totalTax = cart.reduce((acc, item) => acc + (item.total * (item.tax / 100)), 0);
-  const finalAmount = Math.max(0, subtotal + totalTax - billDiscount);
+  const discountAmount = (subtotal + totalTax) * (billDiscount / 100);
+  const finalAmount = Math.max(0, subtotal + totalTax - discountAmount);
   const totalItems = cart.reduce((acc, item) => acc + item.qty, 0);
 
   return (
@@ -267,7 +322,7 @@ export function PosBilling() {
                       {item.name}
                       <span className="text-[10px] font-normal text-blue-500">{item.priceReason}</span>
                     </div>
-                    <div className="py-2 text-[13px] font-bold text-gray-500">₹{(item.mrp || item.base_price || item.price).toFixed(2)}</div>
+                    <div className="py-2 text-[13px] font-bold text-gray-500">₹{(item.mrp || item.price || 0).toFixed(2)}</div>
                     <div className="py-2 text-[13px] font-bold text-gray-700">₹{item.price.toFixed(2)}</div>
                     <div className="py-2 px-2">
                       <div className="flex items-center border border-gray-300 rounded-[3px] bg-white overflow-hidden">
@@ -309,7 +364,7 @@ export function PosBilling() {
                  <span className="text-[20px] font-bold text-red-400">+₹{totalTax.toFixed(2)}</span>
                </div>
                <div className="flex flex-col px-2">
-                 <span className="text-[12px] text-gray-400 font-medium">DISCOUNT (₹)</span>
+                 <span className="text-[12px] text-gray-400 font-medium">DISCOUNT (%)</span>
                  <input 
                    type="number" 
                    value={billDiscount || ''} 
@@ -370,7 +425,7 @@ export function PosBilling() {
              </div>
              
              <div className="grid grid-cols-2 gap-2">
-               {products.map(p => (
+               {quickItems.map(p => (
                  <button 
                    key={p.id}
                    onClick={() => addToCart(p)}
@@ -463,8 +518,8 @@ export function PosBilling() {
                </div>
                {billDiscount > 0 && (
                  <div className="flex justify-between mb-2 text-green-600">
-                   <span>Discount:</span>
-                   <span>-{billDiscount.toFixed(2)}</span>
+                   <span>Discount ({billDiscount}%):</span>
+                   <span>-{discountAmount.toFixed(2)}</span>
                  </div>
                )}
                <div className="flex justify-between font-bold text-[14px] border-t border-dashed border-gray-300 pt-2 mb-6">
@@ -510,8 +565,9 @@ export function PosBilling() {
         isOpen={isProductModalOpen}
         onClose={() => setIsProductModalOpen(false)}
         onSubmit={(newProduct) => {
+          setProducts(prev => [newProduct, ...prev]);
           if (newProduct.isQuickItem) {
-            setProducts(prev => [...prev, newProduct]);
+            setQuickItems(prev => [newProduct, ...prev]);
           }
         }}
       />

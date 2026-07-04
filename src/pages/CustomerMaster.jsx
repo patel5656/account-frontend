@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../api/apiClient';
 import { useTranslation } from 'react-i18next';
 import { 
   X, 
@@ -23,67 +24,225 @@ export function CustomerMaster() {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [mergeModalOpen, setMergeModalOpen] = useState(false);
+  const [mergeIncorrect, setMergeIncorrect] = useState('');
+  const [mergeCorrect, setMergeCorrect] = useState('');
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
   
   const [editData, setEditData] = useState({});
 
+  const [followReason, setFollowReason] = useState('');
+  const [reminderDate, setReminderDate] = useState('');
+  const [followupHistory, setFollowupHistory] = useState([]);
+
   const [searchFilter, setSearchFilter] = useState('Party Name');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const [rows, setRows] = useState([
-    {
-      id: 1,
-      customerName: 'Demo',
-      address: '',
-      gstin: '',
-      mobileNo: '',
-      balance: '0',
-      partyTags: '',
-      msgSent: '0'
-    }
-  ]);
+  const [rows, setRows] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  React.useEffect(() => {
-    const handlePartyAdded = (e) => {
-      if (e.detail.type === 'CUSTOMER') {
-        setRows(prev => [...prev, {
-          ...e.detail,
-          customerName: e.detail.name,
-          address: e.detail.address || e.detail.city || '',
-          gstin: e.detail.gstin || '',
-          mobileNo: e.detail.mobile,
-          balance: '0',
-          partyTags: e.detail.partyTags || '',
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  const fetchCustomers = async () => {
+    try {
+      setIsLoading(true);
+      const res = await apiClient.get('/customers?type=CUSTOMER');
+      if (res.data.success) {
+        setRows(res.data.data.map((c, i) => ({
+          ...c,
+          customerName: c.name,
+          mobileNo: c.phone || c.mobile || '',
+          address: c.address || '',
+          gstin: c.gstin || '',
+          balance: c.balance || '0',
+          partyTags: c.partyTags || '',
           msgSent: '0'
-        }]);
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to fetch customers:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMerge = async () => {
+    if (!mergeIncorrect || !mergeCorrect || mergeIncorrect === mergeCorrect) {
+      alert('Please select two different parties to merge.');
+      return;
+    }
+    try {
+      await apiClient.delete(`/customers/${mergeIncorrect}`);
+      fetchCustomers();
+      setMergeIncorrect('');
+      setMergeCorrect('');
+      setMergeModalOpen(false);
+      alert('Merge successful! Incorrect party has been removed.');
+    } catch (error) {
+      console.error('Merge failed:', error);
+      alert('Merge failed. Please try again.');
+    }
+  };
+
+  useEffect(() => {
+    const handlePartyAdded = async (e) => {
+      if (e.detail.type === 'CUSTOMER') {
+        try {
+          const payload = {
+            name: e.detail.name,
+            phone: e.detail.mobile,
+            mobile: e.detail.mobile,
+            city: e.detail.city || '',
+            address: e.detail.address || '',
+            gstin: e.detail.gstin || '',
+            partyTags: e.detail.partyTags || '',
+            balance: 0,
+            status: 'Active',
+            type: 'CUSTOMER',
+            dueDays: parseInt(e.detail.dueDays, 10),
+            drugLicense: e.detail.drugLicense,
+            pinCode: e.detail.pinCode,
+            gstApplicable: e.detail.gstApplicable,
+            state: e.detail.state,
+            email: e.detail.emailAddress,
+            partyType: e.detail.partyType,
+            otherMobileNo: e.detail.otherMobileNo,
+            partyLimit: parseFloat(e.detail.partyLimit),
+            interestRate: parseFloat(e.detail.interestRate),
+            loyaltyPoints: parseInt(e.detail.loyaltyPoints, 10),
+            joiningDate: e.detail.joiningDate,
+            wholeParty: e.detail.wholeParty,
+            sezParty: e.detail.sezParty,
+            focParty: e.detail.focParty
+          };
+          const res = await apiClient.post('/customers', payload);
+          if (res.data.success) {
+            fetchCustomers(); // refresh list
+          }
+        } catch (error) {
+          console.error('Failed to create customer:', error);
+        }
       }
     };
     window.addEventListener('partyAdded', handlePartyAdded);
     return () => window.removeEventListener('partyAdded', handlePartyAdded);
   }, []);
 
+  const fetchFollowups = async (customerId) => {
+    try {
+      const res = await apiClient.get(`/followups/customer/${customerId}`);
+      if (res.data.success) {
+        setFollowupHistory(res.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch followups:', error);
+    }
+  };
+
   const handleViewClick = (row) => {
     setSelectedRow(row);
+    setFollowReason('');
+    const today = new Date();
+    setReminderDate(today.toISOString().split('T')[0]);
+    fetchFollowups(row.id);
     setViewModalOpen(true);
+  };
+
+  const handleSubmitFollowup = async () => {
+    if (!selectedRow || !followReason.trim()) return;
+    try {
+      const payload = {
+        reason: followReason,
+        reminderDate: reminderDate
+      };
+      const res = await apiClient.post(`/followups/customer/${selectedRow.id}`, payload);
+      if (res.data.success) {
+        setFollowReason('');
+        fetchFollowups(selectedRow.id);
+      }
+    } catch (error) {
+      console.error('Failed to submit followup:', error);
+    }
+  };
+
+  const handleDeleteFollowup = async (id) => {
+    if (window.confirm('Are you sure you want to delete this followup?')) {
+      try {
+        const res = await apiClient.delete(`/followups/${id}`);
+        if (res.data.success) {
+          fetchFollowups(selectedRow.id);
+        }
+      } catch (error) {
+        console.error('Failed to delete followup:', error);
+      }
+    }
   };
 
   const handleEditClick = (row) => {
     setSelectedRow(row);
     setEditData({
       ...row,
-      toggles: row.toggles || { moreInfo: true, wholeParty: false, sezParty: false, focParty: false }
+      toggles: { 
+        moreInfo: true, 
+        wholeParty: row.wholeParty || false, 
+        sezParty: row.sezParty || false, 
+        focParty: row.focParty || false 
+      }
     });
     setEditModalOpen(true);
   };
 
-  const handleUpdate = () => {
-    setRows(rows.map(r => r.id === selectedRow.id ? { ...r, ...editData, customerName: editData.name || editData.customerName, mobileNo: editData.mobile || editData.mobileNo } : r));
-    setEditModalOpen(false);
+  const handleUpdate = async () => {
+    if (selectedRow) {
+      try {
+        const payload = {
+          name: editData.customerName || editData.name,
+          phone: editData.mobileNo || editData.mobile,
+          mobile: editData.mobileNo || editData.mobile,
+          address: editData.address || '',
+          gstin: editData.gstin || '',
+          partyTags: editData.partyTags || '',
+          status: editData.status || 'Active',
+          dueDays: parseInt(editData.dueDays, 10),
+          drugLicense: editData.drugLicense,
+          pinCode: editData.pinCode,
+          gstApplicable: editData.gstApplicable,
+          state: editData.stateName || editData.state,
+          email: editData.emailAddress || editData.email,
+          partyType: editData.partyType,
+          otherMobileNo: editData.otherMobileNo,
+          partyLimit: parseFloat(editData.partyLimit),
+          interestRate: parseFloat(editData.interestRate),
+          loyaltyPoints: parseInt(editData.loyaltyPoints, 10),
+          joiningDate: editData.joiningDate,
+          wholeParty: editData.toggles?.wholeParty || false,
+          sezParty: editData.toggles?.sezParty || false,
+          focParty: editData.toggles?.focParty || false
+        };
+        const res = await apiClient.put(`/customers/${selectedRow.id}`, payload);
+        if (res.data.success) {
+          fetchCustomers();
+        }
+      } catch (error) {
+        console.error('Failed to update customer:', error);
+      }
+      setEditModalOpen(false);
+    }
   };
 
-  const handleDeleteClick = (id) => {
-    setRows(rows.filter(row => row.id !== id));
+  const handleDeleteClick = async (id) => {
+    if (window.confirm('Are you sure you want to delete this customer?')) {
+      try {
+        const res = await apiClient.delete(`/customers/${id}`);
+        if (res.data.success) {
+          fetchCustomers();
+        }
+      } catch (error) {
+        console.error('Failed to delete customer:', error);
+      }
+    }
   };
 
   const filteredRows = rows.filter(row => {
@@ -224,9 +383,10 @@ export function CustomerMaster() {
         <div className="flex-1 data-grid-scroll">
           <div className="min-w-[900px]">
             {/* Table Header */}
-            <div className="grid grid-cols-[40px_minmax(150px,1.5fr)_minmax(150px,1.5fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_120px] border-b border-gray-200">
+            <div className="grid grid-cols-[40px_minmax(150px,1.5fr)_minmax(120px,1fr)_minmax(150px,1.5fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_120px] border-b border-gray-200">
               <HeaderCell text="#" noSort />
               <HeaderCell text={t('customer_master.customer_name')} />
+              <HeaderCell text="City" />
               <HeaderCell text={t('customer_master.address')} />
               <HeaderCell text={t('customer_master.gstin')} />
               <HeaderCell text={t('customer_master.mobile_no')} />
@@ -242,11 +402,12 @@ export function CustomerMaster() {
                 <div 
                   key={row.id} 
                   onClick={() => setSelectedRow(row)}
-                  className={`grid grid-cols-[40px_minmax(150px,1.5fr)_minmax(150px,1.5fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_120px] border-b border-gray-200 hover:bg-indigo-50/50 cursor-pointer transition-colors ${selectedRow?.id === row.id ? 'bg-indigo-50/70 font-semibold' : 'bg-white'}`}
+                  className={`grid grid-cols-[40px_minmax(150px,1.5fr)_minmax(120px,1fr)_minmax(150px,1.5fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_120px] border-b border-gray-200 hover:bg-indigo-50/50 cursor-pointer transition-colors ${selectedRow?.id === row.id ? 'bg-indigo-50/70 font-semibold' : 'bg-white'}`}
                 >
                   <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{index + 1}</div>
-                  <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.customerName}</div>
-                  <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.address}</div>
+                  <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.name || row.customerName}</div>
+                  <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center truncate" title={row.city}>{row.city || ''}</div>
+                  <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center truncate" title={row.address}>{row.address || ''}</div>
                   <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.gstin}</div>
                   <div className="py-2.5 px-3 text-[13px] text-[#0d6efd] font-bold flex items-center">{row.mobileNo}</div>
                   <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.balance}</div>
@@ -298,21 +459,23 @@ export function CustomerMaster() {
                   <label className="text-[13px] font-bold text-gray-800">Last Reason for Follow-up:</label>
                   <input 
                     type="text" 
+                    value={followReason}
+                    onChange={(e) => setFollowReason(e.target.value)}
                     className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 focus:outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold w-full"
                   />
                 </div>
                 <div className="flex flex-col gap-2 w-full sm:w-[180px]">
                   <div className="flex justify-between items-center">
                     <label className="text-[13px] font-bold text-gray-800">Set Reminder Date:</label>
-                    <Trash2 className="w-4 h-4 text-[#dc3545] cursor-pointer" />
+                    <Trash2 className="w-4 h-4 text-[#dc3545] cursor-pointer invisible" />
                   </div>
                   <div className="relative">
                     <input 
-                      type="text" 
-                      defaultValue="26-05-2026"
+                      type="date" 
+                      value={reminderDate}
+                      onChange={(e) => setReminderDate(e.target.value)}
                       className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 w-full"
                     />
-                    <CalendarDays className="w-4 h-4 text-gray-600 absolute right-3 top-2 pointer-events-none" />
                   </div>
                 </div>
               </div>
@@ -320,29 +483,43 @@ export function CustomerMaster() {
               <div className="flex flex-col gap-2 mt-2">
                 <h4 className="text-[13px] font-bold text-gray-800">Follow-up History</h4>
                 <div className="border border-gray-200 rounded-[4px] overflow-hidden">
-                  <div className="table-scroll w-full overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-                    <thead className="bg-[#f8f9fa]">
-                      <tr>
-                        <th className="py-2 px-3 text-[13px] font-bold text-[#495057] border-b border-gray-200 whitespace-nowrap">Date</th>
-                        <th className="py-2 px-3 text-[13px] font-bold text-[#495057] border-b border-gray-200 whitespace-nowrap">Reason</th>
-                        <th className="py-2 px-3 text-[13px] font-bold text-[#495057] border-b border-gray-200 text-right whitespace-nowrap">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td colSpan="3" className="py-8 bg-[#f4f6f9] border-b border-gray-200"></td>
-                      </tr>
-                    </tbody>
-                  </table>
-          </div>
+                  <div className="table-scroll w-full overflow-x-auto h-[200px] overflow-y-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-[#f8f9fa] sticky top-0">
+                        <tr>
+                          <th className="py-2 px-3 text-[13px] font-bold text-[#495057] border-b border-gray-200 whitespace-nowrap">Date</th>
+                          <th className="py-2 px-3 text-[13px] font-bold text-[#495057] border-b border-gray-200 whitespace-nowrap">Reason</th>
+                          <th className="py-2 px-3 text-[13px] font-bold text-[#495057] border-b border-gray-200 text-center whitespace-nowrap w-[60px]">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {followupHistory.length > 0 ? (
+                          followupHistory.map(f => (
+                            <tr key={f.id} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="py-2 px-3 text-[13px] text-gray-800">{new Date(f.reminderDate).toLocaleDateString('en-GB')}</td>
+                              <td className="py-2 px-3 text-[13px] text-gray-800">{f.reason}</td>
+                              <td className="py-2 px-3 text-center">
+                                <button onClick={() => handleDeleteFollowup(f.id)} className="text-red-500 hover:text-red-700">
+                                  <Trash2 className="w-4 h-4 inline" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="3" className="py-8 text-center text-[13px] text-gray-500 bg-[#f4f6f9]">No follow-ups found</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>
 
             <div className="bg-[#f8f9fa] px-4 py-3 border-t border-gray-200 flex justify-end gap-2">
               <button 
-                onClick={() => setViewModalOpen(false)}
+                onClick={handleSubmitFollowup}
                 className="flex items-center gap-1.5 bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[4px] text-[14px] font-bold transition-colors shadow-sm"
               >
                 <Save className="w-4 h-4" />
@@ -431,41 +608,33 @@ export function CustomerMaster() {
                   </div>
                   <div className="flex-1 flex flex-col gap-1 relative">
                     <label className="text-[14px] font-bold text-gray-800">City</label>
-                    <div className="relative">
-                      <select
-                        value={editData?.city || ''}
-                        onChange={(e) => setEditData({...editData, city: e.target.value})}
-                        className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] appearance-none"
-                      >
-                        <option value=""></option>
-                        <option value="Delhi">Delhi</option>
-                        <option value="Mumbai">Mumbai</option>
-                      </select>
-                      <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                        <X className="w-3 h-3 text-gray-400 mr-1" />
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                      </div>
-                    </div>
+                    <input
+                      type="text"
+                      value={editData?.city || ''}
+                      onChange={(e) => setEditData({...editData, city: e.target.value})}
+                      placeholder="Enter city"
+                      className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+                    />
                   </div>
                 </div>
 
                 {/* Row 3: Party Tags */}
                 <div className="flex flex-col gap-1 relative">
                   <label className="text-[14px] font-bold text-gray-800">Party Tags</label>
-                  <div className="relative">
-                    <select
-                      value={editData?.partyTags || ''}
-                      onChange={(e) => setEditData({...editData, partyTags: e.target.value})}
-                      className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] appearance-none"
-                    >
-                      <option value="">Enter Tags</option>
-                      <option value="Tag 1">Tag 1</option>
-                      <option value="Tag 2">Tag 2</option>
-                    </select>
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                  </div>
+                  <input
+                    type="text"
+                    list="edit-party-tags-list"
+                    value={editData?.partyTags || ''}
+                    onChange={(e) => setEditData({...editData, partyTags: e.target.value})}
+                    placeholder="Select or enter tag"
+                    className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+                  />
+                  <datalist id="edit-party-tags-list">
+                    <option value="Distributor" />
+                    <option value="Retailer" />
+                    <option value="Wholesaler" />
+                    <option value="VIP" />
+                  </datalist>
                 </div>
 
                 {/* Row 4: Four Toggles */}
@@ -547,21 +716,20 @@ export function CustomerMaster() {
                       </div>
                       <div className="flex flex-col gap-1 relative">
                         <label className="text-[14px] font-bold text-gray-800">Gst Applicable</label>
-                        <div className="relative">
-                          <select
+                          <input
+                            type="text"
+                            list="edit-gst-applicable-list"
                             value={editData?.gstApplicable || 'GST'}
                             onChange={(e) => setEditData({...editData, gstApplicable: e.target.value})}
-                            className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] appearance-none"
-                          >
-                            <option value="GST">GST</option>
-                            <option value="COMPOSITION">COMPOSITION</option>
-                            <option value="UNREGISTERED">UNREGISTERED</option>
-                            <option value="CONSUMER">CONSUMER</option>
-                          </select>
-                          <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                          </div>
-                        </div>
+                            placeholder="Select or enter GST type"
+                            className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+                          />
+                          <datalist id="edit-gst-applicable-list">
+                            <option value="GST" />
+                            <option value="COMPOSITION" />
+                            <option value="UNREGISTERED" />
+                            <option value="CONSUMER" />
+                          </datalist>
                       </div>
                     </div>
 
@@ -569,26 +737,21 @@ export function CustomerMaster() {
                     <div className="grid grid-cols-[1.2fr_2fr_1.2fr] gap-4">
                       <div className="flex flex-col gap-1 relative">
                         <label className="text-[14px] font-bold text-gray-800">State</label>
-                        <div className="relative">
-                          <select
+                          <input
+                            type="text"
+                            list="edit-state-list"
                             value={editData?.state || 'Karnataka'}
                             onChange={(e) => setEditData({...editData, state: e.target.value})}
-                            className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] appearance-none"
-                          >
-                            <option value="Karnataka">Karnataka</option>
-                            <option value="Delhi">Delhi</option>
-                            <option value="Maharashtra">Maharashtra</option>
-                            <option value="Uttar Pradesh">Uttar Pradesh</option>
-                            <option value="Gujarat">Gujarat</option>
-                          </select>
-                          <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                            <X 
-                              className="w-3 h-3 text-gray-400 mr-1 cursor-pointer pointer-events-auto" 
-                              onClick={() => setEditData({...editData, state: ''})} 
-                            />
-                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                          </div>
-                        </div>
+                            placeholder="Select or enter state"
+                            className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+                          />
+                          <datalist id="edit-state-list">
+                            <option value="Karnataka" />
+                            <option value="Delhi" />
+                            <option value="Maharashtra" />
+                            <option value="Uttar Pradesh" />
+                            <option value="Gujarat" />
+                          </datalist>
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className="text-[14px] font-bold text-gray-800">Email Address</label>
@@ -602,20 +765,19 @@ export function CustomerMaster() {
                       </div>
                       <div className="flex flex-col gap-1 relative">
                         <label className="text-[14px] font-bold text-gray-800">Party Type</label>
-                        <div className="relative">
-                          <select
+                          <input
+                            type="text"
+                            list="edit-party-type-list"
                             value={editData?.partyType || 'company'}
                             onChange={(e) => setEditData({...editData, partyType: e.target.value})}
-                            className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] appearance-none"
-                          >
-                            <option value="company">company</option>
-                            <option value="retailer">retailer</option>
-                            <option value="distributor">distributor</option>
-                          </select>
-                          <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                          </div>
-                        </div>
+                            placeholder="Select or enter party type"
+                            className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+                          />
+                          <datalist id="edit-party-type-list">
+                            <option value="company" />
+                            <option value="retailer" />
+                            <option value="distributor" />
+                          </datalist>
                       </div>
                     </div>
 
@@ -701,7 +863,11 @@ export function CustomerMaster() {
             <div className="p-5 flex flex-col gap-4">
               <div className="flex flex-col gap-2">
                 <label className="text-[13px] font-bold text-gray-800">Incorrect Party Name</label>
-                <select className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-2 text-[14px] text-gray-800 focus:outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] w-full font-bold">
+                <select 
+                  value={mergeIncorrect}
+                  onChange={(e) => setMergeIncorrect(e.target.value)}
+                  className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-2 text-[14px] text-gray-800 focus:outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] w-full font-bold"
+                >
                   <option value="">Select Name</option>
                   {rows.map(row => (
                     <option key={row.id} value={row.id}>{row.customerName}</option>
@@ -711,7 +877,11 @@ export function CustomerMaster() {
               
               <div className="flex flex-col gap-2">
                 <label className="text-[13px] font-bold text-gray-800">Correct Party Name</label>
-                <select className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] text-gray-800 focus:outline-none focus:border-[#4F46E5] w-full">
+                <select 
+                  value={mergeCorrect}
+                  onChange={(e) => setMergeCorrect(e.target.value)}
+                  className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] text-gray-800 focus:outline-none focus:border-[#4F46E5] w-full"
+                >
                   <option value="">Select Name</option>
                   {rows.map(row => (
                     <option key={row.id} value={row.id}>{row.customerName}</option>
@@ -722,7 +892,7 @@ export function CustomerMaster() {
             
             <div className="bg-[#f8f9fa] px-4 py-3 border-t border-gray-200 flex justify-end gap-2">
               <button 
-                onClick={() => setMergeModalOpen(false)}
+                onClick={handleMerge}
                 className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[4px] text-[14px] font-bold transition-colors shadow-sm"
               >
                 Merge

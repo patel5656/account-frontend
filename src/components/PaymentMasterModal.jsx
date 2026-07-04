@@ -1,28 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 
-export function PaymentMasterModal({ isOpen, onClose }) {
+export function PaymentMasterModal({ isOpen, onClose, payment }) {
   const [isActive, setIsActive] = useState(true);
   const [partyName, setPartyName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [city, setCity] = useState('');
 
-  const handleSubmit = () => {
-    if (partyName.trim() !== '') {
-      window.dispatchEvent(new CustomEvent('paymentAdded', {
-        detail: {
-          id: Date.now(),
-          partyName,
-          mobileNumber,
-          city,
-          isActive
-        }
-      }));
+  useEffect(() => {
+    if (payment) {
+      setPartyName(payment.partyName || '');
+      setMobileNumber(payment.mobileNumber || '');
+      setCity(payment.city || '');
+      setIsActive(payment.isActive !== false);
+    } else {
+      setPartyName('');
+      setMobileNumber('');
+      setCity('');
+      setIsActive(true);
     }
-    setPartyName('');
-    setMobileNumber('');
-    setCity('');
-    setIsActive(true);
+  }, [payment, isOpen]);
+
+  const handleSubmit = () => {
+    if (partyName.trim() === '') {
+      alert('Party Name is required.');
+      return;
+    }
+
+    const eventName = payment ? 'paymentUpdated' : 'paymentAdded';
+    const detail = {
+      partyName,
+      mobileNumber,
+      city,
+      isActive
+    };
+
+    if (payment) {
+      detail.id = payment.id;
+    }
+
+    window.dispatchEvent(new CustomEvent(eventName, { detail }));
     onClose();
   };
 
@@ -34,7 +51,9 @@ export function PaymentMasterModal({ isOpen, onClose }) {
         
         {/* Header */}
         <div className="bg-[#4F46E5] flex items-center justify-between">
-          <h2 className="text-[15px] text-white font-medium tracking-wide pl-4 py-2.5">Payment Book</h2>
+          <h2 className="text-[15px] text-white font-medium tracking-wide pl-4 py-2.5">
+            {payment ? 'Edit Payment Entry' : 'Payment Book'}
+          </h2>
           <button 
             onClick={onClose} 
             className="bg-[#dc3545] hover:bg-[#c82333] h-full px-3 py-2.5 focus:outline-none transition-colors"
@@ -58,7 +77,7 @@ export function PaymentMasterModal({ isOpen, onClose }) {
                   >
                     <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${isActive ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
                   </div>
-                  <span className="text-[13px] font-bold text-gray-800 select-none">Active</span>
+                  <span className="text-[13px] font-bold text-gray-800 select-none w-[50px]">{isActive ? 'Active' : 'Inactive'}</span>
                 </div>
               </div>
               <input 
@@ -79,7 +98,7 @@ export function PaymentMasterModal({ isOpen, onClose }) {
                   value={mobileNumber}
                   onChange={(e) => setMobileNumber(e.target.value)}
                   placeholder="Enter Mobile Number"
-                  className="w-full border border-gray-300 rounded-[3px] px-3 py-[6px] text-[14px] outline-none focus:border-[#4F46E5]"
+                  className="w-full border border-gray-300 rounded-[3px] px-3 py-[6px] text-[14px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white"
                 />
               </div>
               <div className="flex flex-col gap-1">
@@ -89,7 +108,7 @@ export function PaymentMasterModal({ isOpen, onClose }) {
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   placeholder="Enter City"
-                  className="w-full border border-gray-300 rounded-[3px] px-3 py-[6px] text-[14px] outline-none focus:border-[#4F46E5]"
+                  className="w-full border border-gray-300 rounded-[3px] px-3 py-[6px] text-[14px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white"
                 />
               </div>
             </div>

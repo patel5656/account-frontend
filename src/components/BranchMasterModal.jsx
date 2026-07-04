@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import apiClient from '../api/apiClient';
 
 export function BranchMasterModal({ isOpen, onClose }) {
   const [isActive, setIsActive] = useState(true);
@@ -9,27 +10,35 @@ export function BranchMasterModal({ isOpen, onClose }) {
   const [gstin, setGstin] = useState('');
   const [address, setAddress] = useState('');
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (branchName.trim() !== '') {
-      window.dispatchEvent(new CustomEvent('branchAdded', { 
-        detail: { 
-          id: Date.now(), 
-          name: branchName, 
+      try {
+        const payload = {
+          name: branchName,
           code: branchCode,
           contact: contactNumber,
           gstin: gstin,
-          isActive
-        } 
-      }));
+          address: address,
+          isActive: isActive
+        };
+        const res = await apiClient.post('/branches', payload);
+        
+        window.dispatchEvent(new CustomEvent('branchAdded', { 
+          detail: res.data.data 
+        }));
+        
+        // Reset
+        setBranchName('');
+        setBranchCode('');
+        setContactNumber('');
+        setGstin('');
+        setAddress('');
+        setIsActive(true);
+        onClose();
+      } catch (error) {
+        console.error('Failed to create branch', error);
+      }
     }
-    // Reset
-    setBranchName('');
-    setBranchCode('');
-    setContactNumber('');
-    setGstin('');
-    setAddress('');
-    setIsActive(true);
-    onClose();
   };
 
   if (!isOpen) return null;
@@ -63,7 +72,7 @@ export function BranchMasterModal({ isOpen, onClose }) {
                 >
                   <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${isActive ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
                 </div>
-                <span className="text-[13px] font-bold text-gray-800 select-none">Active</span>
+                <span className="text-[13px] font-bold text-gray-800 select-none">{isActive ? 'Active' : 'Inactive'}</span>
               </div>
             </div>
 

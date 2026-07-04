@@ -91,6 +91,7 @@ import { WarehouseMaster } from './pages/WarehouseMaster';
 import { GodownTransfer } from './pages/GodownTransfer';
 import { BillBook } from './pages/BillBook';
 import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 import { BankStatementImport } from './pages/BankStatementImport';
 import { LandingPage } from './pages/LandingPage';
 
@@ -112,6 +113,7 @@ function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           
           {/* Superadmin Routes */}
           <Route path="/superadmin/*" element={

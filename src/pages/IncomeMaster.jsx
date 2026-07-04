@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../api/apiClient';
 import { 
   X, 
   Plus, 
   GitMerge, 
-  Upload
+  Upload,
+  Trash2,
+  Edit
 } from 'lucide-react';
 import { IncomeMasterModal } from '../components/IncomeMasterModal';
 
@@ -12,32 +15,118 @@ export function IncomeMaster() {
   const navigate = useNavigate();
   const [mergeModalOpen, setMergeModalOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editingRow, setEditingRow] = useState(null);
   const [rows, setRows] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const handleExport = () => {
-    if (rows.length === 0) {
-      const headers = ['#', 'Income Name', 'Income Head'];
-      const csvRows = [headers.join(',')];
-      const csvContent = csvRows.join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'income_master.csv');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+  // Merge states
+  const [sourceIncomeId, setSourceIncomeId] = useState('');
+  const [targetIncomeId, setTargetIncomeId] = useState('');
+
+  const fetchIncomes = async () => {
+    try {
+      const res = await apiClient.get('/incomes');
+      if (res.data.success) {
+        setRows(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch incomes:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchIncomes();
+  }, []);
+
+  useEffect(() => {
+    const handleIncomeAdded = async (e) => {
+      try {
+        const res = await apiClient.post('/incomes', {
+          name: e.detail.name,
+          head: e.detail.head,
+          isActive: e.detail.isActive
+        });
+        if (res.data.success) {
+          fetchIncomes();
+        }
+      } catch (err) {
+        console.error('Error creating income:', err);
+      }
+    };
+
+    const handleIncomeUpdated = async (e) => {
+      try {
+        const res = await apiClient.put(`/incomes/${e.detail.id}`, {
+          name: e.detail.name,
+          head: e.detail.head,
+          isActive: e.detail.isActive
+        });
+        if (res.data.success) {
+          fetchIncomes();
+        }
+      } catch (err) {
+        console.error('Error updating income:', err);
+      }
+    };
+
+    window.addEventListener('incomeAdded', handleIncomeAdded);
+    window.addEventListener('incomeUpdated', handleIncomeUpdated);
+    return () => {
+      window.removeEventListener('incomeAdded', handleIncomeAdded);
+      window.removeEventListener('incomeUpdated', handleIncomeUpdated);
+    };
+  }, []);
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this income entry?')) {
+      try {
+        const res = await apiClient.delete(`/incomes/${id}`);
+        if (res.data.success) {
+          fetchIncomes();
+        }
+      } catch (err) {
+        console.error('Error deleting income:', err);
+      }
+    }
+  };
+
+  const handleMerge = async () => {
+    if (!sourceIncomeId || !targetIncomeId) {
+      alert('Please select both source and target incomes.');
       return;
     }
-    
-    const headers = ['#', 'Income Name', 'Income Head'];
+    if (sourceIncomeId === targetIncomeId) {
+      alert('Source and target incomes must be different.');
+      return;
+    }
+    try {
+      const res = await apiClient.post('/incomes/merge', {
+        sourceIncomeId,
+        targetIncomeId
+      });
+      if (res.data.success) {
+        fetchIncomes();
+        setMergeModalOpen(false);
+        setSourceIncomeId('');
+        setTargetIncomeId('');
+        alert('Incomes merged successfully.');
+      }
+    } catch (err) {
+      console.error('Error merging incomes:', err);
+      alert(err.response?.data?.message || 'Error merging incomes');
+    }
+  };
+
+  const handleExport = () => {
+    const headers = ['#', 'Income Name', 'Income Head', 'Status'];
     const csvRows = [headers.join(',')];
     
     rows.forEach((row, index) => {
       const csvRow = [
         index + 1,
-        `"${row.incomeName || ''}"`,
-        `"${row.incomeHead || ''}"`
+        `"${row.name || ''}"`,
+        `"${row.head || ''}"`,
+        `"${row.isActive ? 'Active' : 'Inactive'}"`
       ];
       csvRows.push(csvRow.join(','));
     });
@@ -53,6 +142,12 @@ export function IncomeMaster() {
     link.click();
     document.body.removeChild(link);
   };
+
+  const filteredRows = rows.filter(row => 
+    !searchQuery || 
+    (row.name && row.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (row.head && row.head.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] flex flex-col p-3 relative">
@@ -78,7 +173,10 @@ export function IncomeMaster() {
               Export
             </button>
             <button 
-              onClick={() => setCreateModalOpen(true)}
+              onClick={() => {
+                setEditingRow(null);
+                setCreateModalOpen(true);
+              }}
               className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm"
             >
               <Plus className="w-4 h-4" strokeWidth={3} />
@@ -94,20 +192,74 @@ export function IncomeMaster() {
         </div>
 
         {/* Filter Bar */}
-        <div className="p-3 bg-white">
-          <div className="flex items-center w-full max-w-full">
+        <div className="p-3 bg-white border-b border-gray-200">
+          <div className="flex items-center w-full max-w-[600px]">
             <div className="flex items-center bg-white min-w-0 border border-gray-300 border-r-0 rounded-l-[3px] px-3 py-2 text-blue-500">
               <FilterIcon className="w-4 h-4" />
             </div>
-            <select className="min-w-0 border border-gray-300 border-l-0 px-3 py-2 text-[13px] outline-none appearance-none bg-white text-gray-600 w-full">
-              <option>Income Head</option>
+            <select className="min-w-[140px] border border-gray-300 border-l-0 px-3 py-2 text-[13px] outline-none bg-white text-gray-600 cursor-pointer">
+              <option>Income Name</option>
             </select>
             <input 
               type="text" 
-              placeholder="Search for..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search Income Name or Head" 
               className="flex-1 min-w-0 border border-gray-300 border-l-0 rounded-r-[3px] px-3 py-2 text-[13px] outline-none bg-white text-gray-800 placeholder-gray-400"
             />
           </div>
+        </div>
+
+        {/* Table */}
+        <div className="flex-1 overflow-auto bg-white p-4">
+          {filteredRows.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">No incomes found.</div>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-y border-gray-200 text-gray-600 text-[13px]">
+                  <th className="py-2.5 px-3 font-medium">#</th>
+                  <th className="py-2.5 px-3 font-medium">Income Name</th>
+                  <th className="py-2.5 px-3 font-medium">Income Head</th>
+                  <th className="py-2.5 px-3 font-medium text-center">Status</th>
+                  <th className="py-2.5 px-3 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRows.map((row, idx) => (
+                  <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50 text-[13px] transition-colors">
+                    <td className="py-2.5 px-3 text-gray-500">{idx + 1}</td>
+                    <td className="py-2.5 px-3 font-bold text-[#4F46E5]">{row.name}</td>
+                    <td className="py-2.5 px-3 text-gray-700">{row.head || '-'}</td>
+                    <td className="py-2.5 px-3 text-center">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${row.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {row.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button 
+                          onClick={() => {
+                            setEditingRow(row);
+                            setCreateModalOpen(true);
+                          }} 
+                          className="text-[#4F46E5] hover:bg-indigo-50 p-1.5 rounded-[3px] transition-colors"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(row.id)} 
+                          className="text-[#dc3545] hover:bg-red-50 p-1.5 rounded-[3px] transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
       </div>
@@ -129,22 +281,32 @@ export function IncomeMaster() {
             <div className="p-5 flex flex-col gap-4">
               <div className="flex flex-col gap-2">
                 <label className="text-[13px] font-bold text-gray-800">Incorrect Income Name</label>
-                <select className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-2 text-[14px] text-gray-800 focus:outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] w-full font-bold">
+                <select 
+                  value={sourceIncomeId} 
+                  onChange={(e) => setSourceIncomeId(e.target.value)}
+                  className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-2 text-[14px] text-gray-800 focus:outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] w-full font-bold"
+                >
                   <option value="">Select Name</option>
+                  {rows.map(row => <option value={row.id} key={row.id}>{row.name}</option>)}
                 </select>
               </div>
               
               <div className="flex flex-col gap-2">
                 <label className="text-[13px] font-bold text-gray-800">Correct Income Name</label>
-                <select className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] text-gray-800 focus:outline-none focus:border-[#4F46E5] w-full">
+                <select 
+                  value={targetIncomeId}
+                  onChange={(e) => setTargetIncomeId(e.target.value)}
+                  className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] text-gray-800 focus:outline-none focus:border-[#4F46E5] w-full"
+                >
                   <option value="">Select Name</option>
+                  {rows.map(row => <option value={row.id} key={row.id}>{row.name}</option>)}
                 </select>
               </div>
             </div>
             
             <div className="bg-[#f8f9fa] px-4 py-3 border-t border-gray-200 flex justify-end gap-2">
               <button 
-                onClick={() => setMergeModalOpen(false)}
+                onClick={handleMerge}
                 className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[4px] text-[14px] font-bold transition-colors shadow-sm"
               >
                 Merge
@@ -159,7 +321,11 @@ export function IncomeMaster() {
 
       <IncomeMasterModal 
         isOpen={createModalOpen} 
-        onClose={() => setCreateModalOpen(false)} 
+        onClose={() => {
+          setCreateModalOpen(false);
+          setEditingRow(null);
+        }} 
+        income={editingRow}
       />
 
     </div>

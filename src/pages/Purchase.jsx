@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   X, 
@@ -37,7 +37,62 @@ export function Purchase() {
   const [dateFilter, setDateFilter] = useState('Today');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
-  const [collectionDate, setCollectionDate] = useState('2026-05-30');
+  const getTodayDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
+  const [collectionDate, setCollectionDate] = useState(getTodayDate());
+  const [invoices, setInvoices] = useState([]);
+  const [selectedInvoices, setSelectedInvoices] = useState([]);
+  const [collectionData, setCollectionData] = useState({
+    todaySales: 0,
+    cashSales: 0,
+    creditSales: 0,
+    moneyIn: { cashSale: 0, creditRecovery: 0, otherIncome: 0, total: 0 },
+    moneyOut: { companyPaid: 0, employeePaid: 0, expensesPaid: 0, total: 0 },
+    netCollection: 0,
+    accounts: { cash: 0, bank: 0 }
+  });
+
+  useEffect(() => {
+    if (collectionModalOpen) {
+      fetchCollectionReport();
+    }
+  }, [collectionModalOpen, collectionDate]);
+
+  const fetchCollectionReport = async () => {
+    try {
+      const { default: apiClient } = await import('../api/apiClient');
+      const res = await apiClient.get('/financial/collections', {
+        params: { startDate: collectionDate, endDate: collectionDate }
+      });
+      if (res.data.success) {
+        setCollectionData(res.data.data);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [isPurchaseOrder]);
+
+  const fetchInvoices = async () => {
+    try {
+      const { default: apiClient } = await import('../api/apiClient');
+      const res = await apiClient.get(`/inventory/${isPurchaseOrder ? 'PURCHASE_ORDER' : 'PURCHASE'}`);
+      if (res.data.data) {
+        setInvoices(res.data.data);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const totalAmount = invoices.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0);
+  const totalPaid = invoices.reduce((acc, curr) => acc + (curr.status === 'PAID' ? curr.totalAmount : 0), 0);
+  const totalBalance = totalAmount - totalPaid;
 
   const handleSearch = () => {
     console.log("Searching with Party:", partyName, "Date:", dateFilter, "Custom Range:", customStartDate, customEndDate);
@@ -87,12 +142,6 @@ export function Purchase() {
           <div className="flex flex-col gap-2">
             <div className="flex justify-between items-center px-1">
               <div className="flex flex-wrap items-center gap-2">
-                <div 
-                  onClick={() => setCompanyToggle(!companyToggle)}
-                  className={`w-8 h-4 rounded-full relative cursor-pointer transition-colors ${companyToggle ? 'bg-[#007bff]' : 'bg-gray-300'}`}
-                >
-                  <div className={`absolute top-[2px] w-3 h-3 bg-white rounded-full transition-all shadow-sm ${companyToggle ? 'left-[18px]' : 'left-[2px]'}`} />
-                </div>
                 <span className="text-[13px] font-bold text-gray-800">Company Name</span>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -169,21 +218,49 @@ export function Purchase() {
         <div className="bg-[#343a40] text-white flex flex-col sm:grid sm:grid-cols-3 text-center border-b border-gray-600 py-1.5">
            <div className="flex flex-col items-center justify-center">
              <span className="font-bold text-[13px] tracking-wide">TOTAL AMT:</span>
-             <span className="font-bold text-[14px]">{formatAmount(0)}</span>
+             <span className="font-bold text-[14px]">{formatAmount(totalAmount)}</span>
            </div>
            <div className="flex flex-col items-center justify-center">
              <span className="font-bold text-[13px] tracking-wide">TOTAL PAID:</span>
-             <span className="font-bold text-[14px]">{formatAmount(0)}</span>
+             <span className="font-bold text-[14px]">{formatAmount(totalPaid)}</span>
            </div>
            <div className="flex flex-col items-center justify-center">
              <span className="font-bold text-[13px] tracking-wide">BALANCE:</span>
-             <span className="font-bold text-[14px]">{formatAmount(0)}</span>
+             <span className="font-bold text-[14px]">{formatAmount(totalBalance)}</span>
            </div>
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 bg-white">
-          {/* Empty space */}
+        <div className="flex-1 bg-white overflow-auto custom-scrollbar">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-[#343a40] text-white sticky top-0">
+              <tr>
+                <th className="px-3 py-2 text-[13px] font-bold border-r border-gray-600 whitespace-nowrap">Date</th>
+                <th className="px-3 py-2 text-[13px] font-bold border-r border-gray-600 whitespace-nowrap">Invoice No</th>
+                <th className="px-3 py-2 text-[13px] font-bold border-r border-gray-600 whitespace-nowrap w-full">Party Name</th>
+                <th className="px-3 py-2 text-[13px] font-bold border-r border-gray-600 text-right whitespace-nowrap">Amount</th>
+                <th className="px-3 py-2 text-[13px] font-bold border-r border-gray-600 text-center whitespace-nowrap">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {invoices.map((invoice, index) => (
+                <tr key={invoice.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                  <td className="px-3 py-2 border-r border-gray-200 text-[13px] text-gray-700 whitespace-nowrap">{new Date(invoice.date).toLocaleDateString()}</td>
+                  <td className="px-3 py-2 border-r border-gray-200 text-[13px] text-[#007bff] font-medium whitespace-nowrap">{invoice.invoiceNo}</td>
+                  <td className="px-3 py-2 border-r border-gray-200 text-[13px] text-[#007bff] font-bold w-full">{invoice.customer?.name || 'Unknown'}</td>
+                  <td className="px-3 py-2 border-r border-gray-200 text-right text-[13px] text-gray-800 font-bold whitespace-nowrap">{formatAmount(invoice.totalAmount)}</td>
+                  <td className="px-3 py-2 border-r border-gray-200 text-center whitespace-nowrap">
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${invoice.status === 'PAID' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{invoice.status}</span>
+                  </td>
+                </tr>
+              ))}
+              {invoices.length === 0 && (
+                <tr>
+                  <td colSpan="5" className="px-3 py-8 text-center text-[14px] text-gray-500">No data found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
 
       </div>
@@ -194,7 +271,7 @@ export function Purchase() {
           <div className="bg-white rounded-[4px] shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col">
             
             {/* Modal Header */}
-            <div className="bg-[#17a2b8] px-4 py-2 flex items-center justify-between">
+            <div className="bg-[#4F46E5] px-4 py-2 flex items-center justify-between">
               <div className="flex flex-wrap items-center gap-2">
                 <BarChart2 className="w-5 h-5 text-white" strokeWidth={3} />
                 <h3 className="text-white font-bold text-[16px]">Collection Report</h3>
@@ -248,7 +325,7 @@ export function Purchase() {
                     <BarChart2 className="w-4 h-4" strokeWidth={3} />
                     <span className="font-bold text-[13px]">Today's Sales</span>
                   </div>
-                  <span className="text-[18px] font-bold leading-none">{formatAmount(0)}</span>
+                  <span className="text-[18px] font-bold leading-none">{formatAmount(collectionData.todaySales)}</span>
                 </div>
                 {/* Cash Sales */}
                 <div className="bg-[#28a745] rounded-[4px] p-2 text-white flex flex-col justify-center shadow-sm">
@@ -256,7 +333,7 @@ export function Purchase() {
                     <Coins className="w-4 h-4" strokeWidth={3} />
                     <span className="font-bold text-[13px]">Cash Sales</span>
                   </div>
-                  <span className="text-[18px] font-bold leading-none">{formatAmount(0)}</span>
+                  <span className="text-[18px] font-bold leading-none">{formatAmount(collectionData.cashSales)}</span>
                 </div>
                 {/* Credit Sales */}
                 <div className="bg-[#dc3545] rounded-[4px] p-2 text-white flex flex-col justify-center shadow-sm">
@@ -264,7 +341,7 @@ export function Purchase() {
                     <BadgeDollarSign className="w-4 h-4" strokeWidth={3} />
                     <span className="font-bold text-[13px]">Credit Sales</span>
                   </div>
-                  <span className="text-[18px] font-bold leading-none">{formatAmount(0)}</span>
+                  <span className="text-[18px] font-bold leading-none">{formatAmount(collectionData.creditSales)}</span>
                 </div>
               </div>
 
@@ -282,7 +359,7 @@ export function Purchase() {
                         <Layers className="w-4 h-4 text-[#28a745]" />
                         Total Cash Sale
                       </div>
-                      <span className="font-bold text-black">{formatAmount(0)}</span>
+                      <span className="font-bold text-black">{formatAmount(collectionData.moneyIn.cashSale)}</span>
                     </div>
                     <div className="border-b border-gray-100"></div>
                     <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
@@ -290,7 +367,7 @@ export function Purchase() {
                         <Users className="w-4 h-4 text-[#28a745]" />
                         Total Credit Recovery
                       </div>
-                      <span className="font-bold text-black">{formatAmount(0)}</span>
+                      <span className="font-bold text-black">{formatAmount(collectionData.moneyIn.creditRecovery)}</span>
                     </div>
                     <div className="border-b border-gray-100"></div>
                     <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
@@ -298,7 +375,7 @@ export function Purchase() {
                         <Banknote className="w-4 h-4 text-[#28a745]" />
                         Total Other Income
                       </div>
-                      <span className="font-bold text-black">{formatAmount(0)}</span>
+                      <span className="font-bold text-black">{formatAmount(collectionData.moneyIn.otherIncome)}</span>
                     </div>
                     <div className="border-b border-gray-100"></div>
                     <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
@@ -311,7 +388,7 @@ export function Purchase() {
                   </div>
                   <div className="bg-[#28a745] text-white font-bold text-[13px] px-3 py-2 flex justify-between items-center mt-auto">
                     <span>TOTAL MONEY IN</span>
-                    <span>{formatAmount(0)}</span>
+                    <span>{formatAmount(collectionData.moneyIn.total)}</span>
                   </div>
                 </div>
 
@@ -327,7 +404,7 @@ export function Purchase() {
                         <Building className="w-4 h-4 text-[#dc3545]" />
                         Total Company Paid
                       </div>
-                      <span className="font-bold text-black">{formatAmount(0)}</span>
+                      <span className="font-bold text-black">{formatAmount(collectionData.moneyOut.companyPaid)}</span>
                     </div>
                     <div className="border-b border-gray-100"></div>
                     <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
@@ -335,7 +412,7 @@ export function Purchase() {
                         <Users className="w-4 h-4 text-[#dc3545]" />
                         Total Employee Paid
                       </div>
-                      <span className="font-bold text-black">{formatAmount(0)}</span>
+                      <span className="font-bold text-black">{formatAmount(collectionData.moneyOut.employeePaid)}</span>
                     </div>
                     <div className="border-b border-gray-100"></div>
                     <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
@@ -343,7 +420,7 @@ export function Purchase() {
                         <FileText className="w-4 h-4 text-[#dc3545]" />
                         Total Expenses Paid
                       </div>
-                      <span className="font-bold text-black">{formatAmount(0)}</span>
+                      <span className="font-bold text-black">{formatAmount(collectionData.moneyOut.expensesPaid)}</span>
                     </div>
                     <div className="border-b border-gray-100"></div>
                     <div className="flex justify-between items-center text-[12px] text-gray-600 font-medium px-1 py-1">
@@ -356,7 +433,7 @@ export function Purchase() {
                   </div>
                   <div className="bg-[#dc3545] text-white font-bold text-[13px] px-3 py-2 flex justify-between items-center mt-auto">
                     <span>TOTAL MONEY OUT</span>
-                    <span>{formatAmount(0)}</span>
+                    <span>{formatAmount(collectionData.moneyOut.total)}</span>
                   </div>
                 </div>
               </div>
@@ -368,10 +445,10 @@ export function Purchase() {
                     <Calculator className="w-5 h-5" strokeWidth={2.5} />
                     <span className="font-bold text-[14px] uppercase">NET COLLECTION</span>
                   </div>
-                  <span className="text-[10.5px] font-medium opacity-90 mt-0.5">(Total Money In {formatAmount(0)} - Total Money Out {formatAmount(0)})</span>
+                  <span className="text-[10.5px] font-medium opacity-90 mt-0.5">(Total Money In {formatAmount(collectionData.moneyIn.total)} - Total Money Out {formatAmount(collectionData.moneyOut.total)})</span>
                 </div>
                 <div className="font-bold text-[20px]">
-                  {formatAmount(0)}
+                  {formatAmount(collectionData.netCollection)}
                 </div>
               </div>
 
@@ -393,7 +470,7 @@ export function Purchase() {
                         <span className="text-[#28a745] font-bold text-[10px]">Cash (Balance)</span>
                       </div>
                     </div>
-                    <span className="text-[#007bff] font-bold text-[14px]">{formatAmount(-22020)}</span>
+                    <span className="text-[#007bff] font-bold text-[14px]">{formatAmount(collectionData.accounts.cash)}</span>
                   </div>
                   
                   <div className="bg-[#17a2b8] p-3 flex items-center justify-between text-white">
@@ -402,9 +479,9 @@ export function Purchase() {
                         <Building className="w-4 h-4" strokeWidth={2.5} />
                         <span className="font-bold text-[13px]">Total Cash & Bank Balance</span>
                       </div>
-                      <span className="text-[10.5px] font-medium mt-0.5 opacity-90">Cash {formatAmount(-22020)} + Bank {formatAmount(0)}</span>
+                      <span className="text-[10.5px] font-medium mt-0.5 opacity-90">Cash {formatAmount(collectionData.accounts.cash)} + Bank {formatAmount(collectionData.accounts.bank)}</span>
                     </div>
-                    <span className="font-bold text-[16px]">{formatAmount(-22020)}</span>
+                    <span className="font-bold text-[16px]">{formatAmount(collectionData.accounts.cash + collectionData.accounts.bank)}</span>
                   </div>
                 </div>
               </div>
@@ -444,10 +521,16 @@ export function Purchase() {
               <div className="flex justify-between items-center mb-4">
                 <span className="text-[14px] text-gray-700">Select Invoices</span>
                 <div className="flex flex-wrap items-center gap-2">
-                  <button className="border border-[#007bff] text-[#007bff] hover:bg-blue-50 px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors">
+                  <button 
+                    onClick={() => setSelectedInvoices(invoices.map(inv => inv.id))}
+                    className="border border-[#007bff] text-[#007bff] hover:bg-blue-50 px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors"
+                  >
                     Select All
                   </button>
-                  <button className="border border-gray-400 text-gray-600 hover:bg-gray-50 px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors">
+                  <button 
+                    onClick={() => setSelectedInvoices([])}
+                    className="border border-gray-400 text-gray-600 hover:bg-gray-50 px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors"
+                  >
                     Deselect All
                   </button>
                 </div>
@@ -475,7 +558,33 @@ export function Purchase() {
                     </tr>
                   </thead>
                   <tbody>
-                    {/* Empty table rows */}
+                    {invoices.map((invoice, index) => (
+                      <tr key={invoice.id} className="border-b border-gray-200 hover:bg-gray-50 cursor-pointer" onClick={() => {
+                        if (selectedInvoices.includes(invoice.id)) {
+                          setSelectedInvoices(selectedInvoices.filter(i => i !== invoice.id));
+                        } else {
+                          setSelectedInvoices([...selectedInvoices, invoice.id]);
+                        }
+                      }}>
+                        <td className="px-3 py-2 border-r border-gray-200">
+                          <input 
+                            type="checkbox" 
+                            checked={selectedInvoices.includes(invoice.id)} 
+                            readOnly
+                            className="cursor-pointer"
+                          />
+                        </td>
+                        <td className="px-3 py-2 border-r border-gray-200 text-[13px] text-[#007bff] font-medium whitespace-nowrap">{invoice.invoiceNo}</td>
+                        <td className="px-3 py-2 border-r border-gray-200 text-[13px] text-gray-800 font-bold whitespace-nowrap">{invoice.customer?.name || 'Unknown'}</td>
+                        <td className="px-3 py-2 border-r border-gray-200 text-[13px] text-gray-700 whitespace-nowrap">{new Date(invoice.date).toLocaleDateString()}</td>
+                        <td className="px-3 py-2 text-[13px] text-gray-800 font-bold whitespace-nowrap">{formatAmount(invoice.totalAmount)}</td>
+                      </tr>
+                    ))}
+                    {invoices.length === 0 && (
+                      <tr>
+                        <td colSpan="5" className="px-3 py-8 text-center text-[14px] text-gray-500">No invoices available for loading sheet.</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
           </div>
@@ -485,7 +594,7 @@ export function Purchase() {
             {/* Modal Footer */}
             <div className="bg-[#f8f9fa] border-t border-gray-200 px-4 py-3 flex justify-between items-center">
               <div className="text-[14px] text-gray-600">
-                Selected: 0 of 0
+                Selected: {selectedInvoices.length} of {invoices.length}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button 
@@ -494,10 +603,35 @@ export function Purchase() {
                 >
                   Cancel
                 </button>
-                <button className="bg-[#28a745] hover:bg-[#218838] opacity-80 text-white px-4 py-1.5 rounded-[3px] text-[14px] font-medium transition-colors shadow-sm">
+                <button 
+                  onClick={() => {
+                    if (selectedInvoices.length === 0) return alert('Select invoices first');
+                    alert('This will connect to a WhatsApp API in the future. For now, please click Generate Loading Sheet, download the PDF, and attach it to your WhatsApp messages manually.');
+                  }}
+                  className="bg-[#28a745] hover:bg-[#218838] opacity-80 text-white px-4 py-1.5 rounded-[3px] text-[14px] font-medium transition-colors shadow-sm"
+                >
                   Send WhatsApp PDFs
                 </button>
-                <button className="bg-[#28a745] hover:bg-[#218838] opacity-80 text-white px-4 py-1.5 rounded-[3px] text-[14px] font-medium transition-colors shadow-sm">
+                <button 
+                  onClick={async () => {
+                    if (selectedInvoices.length === 0) return alert('Select invoices first');
+                    try {
+                      const { default: apiClient } = await import('../api/apiClient');
+                      const response = await apiClient.post('/loading-sheet/generate-pdf', { invoiceIds: selectedInvoices }, { responseType: 'blob' });
+                      const url = window.URL.createObjectURL(new Blob([response.data]));
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.setAttribute('download', `LoadingSheet_${Date.now()}.pdf`);
+                      document.body.appendChild(link);
+                      link.click();
+                      link.parentNode.removeChild(link);
+                    } catch (error) {
+                      console.error('PDF Error:', error);
+                      alert('Failed to generate PDF');
+                    }
+                  }}
+                  className="bg-[#28a745] hover:bg-[#218838] opacity-80 text-white px-4 py-1.5 rounded-[3px] text-[14px] font-medium transition-colors shadow-sm"
+                >
                   Generate Loading Sheet
                 </button>
               </div>

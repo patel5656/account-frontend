@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Edit, Trash2, Plus } from 'lucide-react';
+import apiClient from '../api/apiClient';
 
 export function UnitCatalogMasterModal({ isOpen, onClose }) {
-  const [units, setUnits] = useState([
-    { id: 1, name: 'pcs', uqc: 'PCS-PIECES', value: '1', compareTo: '—' }
-  ]);
+  const [units, setUnits] = useState([]);
   const [editId, setEditId] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -13,22 +12,44 @@ export function UnitCatalogMasterModal({ isOpen, onClose }) {
     compareTo: '—'
   });
 
+  useEffect(() => {
+    if (isOpen) {
+      fetchUnits();
+    }
+  }, [isOpen]);
+
+  const fetchUnits = async () => {
+    try {
+      const response = await apiClient.get('/units');
+      if (response.data && response.data.data) {
+        setUnits(response.data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch units:", error);
+    }
+  };
+
   if (!isOpen) return null;
 
-  const handleAddOrUpdate = () => {
+  const handleAddOrUpdate = async () => {
     if (!formData.name.trim()) {
       alert("Please enter a Unit Name.");
       return;
     }
     
-    if (editId) {
-      setUnits(units.map(u => u.id === editId ? { ...formData, id: editId } : u));
-      setEditId(null);
-    } else {
-      setUnits([...units, { ...formData, id: Date.now() }]);
+    try {
+      if (editId) {
+        await apiClient.put(`/units/${editId}`, formData);
+        setEditId(null);
+      } else {
+        await apiClient.post('/units', formData);
+      }
+      setFormData({ name: '', uqc: 'PCS-PIECES', value: '1', compareTo: '—' });
+      fetchUnits();
+    } catch (error) {
+      console.error("Failed to save unit:", error);
+      alert("Failed to save unit. Ensure the server is running.");
     }
-    
-    setFormData({ name: '', uqc: 'PCS-PIECES', value: '1', compareTo: '—' });
   };
 
   const handleEdit = (unit) => {
@@ -36,11 +57,18 @@ export function UnitCatalogMasterModal({ isOpen, onClose }) {
     setFormData({ name: unit.name, uqc: unit.uqc, value: unit.value, compareTo: unit.compareTo });
   };
 
-  const handleDelete = (id) => {
-    setUnits(units.filter(u => u.id !== id));
-    if (editId === id) {
-      setEditId(null);
-      setFormData({ name: '', uqc: 'PCS-PIECES', value: '1', compareTo: '—' });
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this unit?")) return;
+    try {
+      await apiClient.delete(`/units/${id}`);
+      if (editId === id) {
+        setEditId(null);
+        setFormData({ name: '', uqc: 'PCS-PIECES', value: '1', compareTo: '—' });
+      }
+      fetchUnits();
+    } catch (error) {
+      console.error("Failed to delete unit:", error);
+      alert("Failed to delete unit.");
     }
   };
 

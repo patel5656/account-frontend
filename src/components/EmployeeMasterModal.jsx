@@ -178,19 +178,7 @@ export function EmployeeMasterModal({ isOpen, onClose, employee }) {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-[14px] font-bold text-gray-800">Salary</label>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-[12px] font-bold text-gray-800">Day</span>
-                    <div 
-                      className={`w-[28px] h-[14px] rounded-full relative cursor-pointer transition-colors ${isSalaryMonth ? 'bg-[#4F46E5]' : 'bg-gray-300'}`}
-                      onClick={() => setIsSalaryMonth(!isSalaryMonth)}
-                    >
-                      <div className={`w-[12px] h-[12px] bg-gray-800 rounded-full absolute top-[1px] shadow-sm transition-transform ${isSalaryMonth ? 'translate-x-[14px]' : 'translate-x-[1px]'}`}></div>
-                    </div>
-                    <span className="text-[12px] text-gray-500">Month</span>
-                  </div>
-                </div>
+                <label className="text-[14px] font-bold text-gray-800">Salary</label>
                 <input 
                   type="text" 
                   value={salary}

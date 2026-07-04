@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import apiClient from '../api/apiClient';
 import { 
   X, 
   Plus, 
@@ -10,64 +11,219 @@ import {
   Menu,
   Edit,
   Trash2,
-  CalendarDays
+  CalendarDays,
+  Save
 } from 'lucide-react';
 import { PartyMasterModal } from '../components/PartyMasterModal';
 
 export function CompanyMaster() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   
   const [mergeModalOpen, setMergeModalOpen] = useState(false);
+  const [mergeIncorrect, setMergeIncorrect] = useState('');
+  const [mergeCorrect, setMergeCorrect] = useState('');
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
   const [editRow, setEditRow] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
+
+  const [followReason, setFollowReason] = useState('');
+  const [reminderDate, setReminderDate] = useState('');
+  const [followupHistory, setFollowupHistory] = useState([]);
   
-  const [rows, setRows] = useState([
-    {
-      id: 1,
-      name: 'Suplier Demo',
-      address: '',
-      gstin: '',
-      mobile: '',
-      balance: '2850',
-      partyTags: '',
-      msgSent: '0'
-    },
-    {
-      id: 2,
-      name: 'New Vendor',
-      address: '',
-      gstin: '',
-      mobile: '',
-      balance: '0',
-      partyTags: '',
-      msgSent: '0'
+  const [rows, setRows] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchCompanies = async () => {
+    try {
+      setIsLoading(true);
+      const res = await apiClient.get('/customers?type=COMPANY');
+      if (res.data.success) {
+        setRows(res.data.data.map(p => ({
+          ...p,
+          mobile: p.phone || p.mobile || '',
+          msgSent: '0'
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to fetch companies:', error);
+    } finally {
+      setIsLoading(false);
     }
-  ]);
+  };
 
   useEffect(() => {
-    const handlePartyAdded = (e) => {
-      setRows(prev => [...prev, e.detail]);
+    fetchCompanies();
+  }, []);
+
+  const handleMerge = async () => {
+    if (!mergeIncorrect || !mergeCorrect || mergeIncorrect === mergeCorrect) {
+      alert('Please select two different parties to merge.');
+      return;
+    }
+    try {
+      await apiClient.delete(`/customers/${mergeIncorrect}`);
+      fetchCompanies();
+      setMergeIncorrect('');
+      setMergeCorrect('');
+      setMergeModalOpen(false);
+      alert('Merge successful! Incorrect party has been removed.');
+    } catch (error) {
+      console.error('Merge failed:', error);
+      alert('Merge failed. Please try again.');
+    }
+  };
+
+  useEffect(() => {
+    const handlePartyAdded = async (e) => {
+      if (e.detail.type === 'COMPANY') {
+        try {
+          const payload = {
+            name: e.detail.name,
+            phone: e.detail.mobile,
+            mobile: e.detail.mobile,
+            city: e.detail.city || '',
+            address: e.detail.address || '',
+            gstin: e.detail.gstin || '',
+            partyTags: e.detail.partyTags || '',
+            balance: 0,
+            status: 'Active',
+            type: 'COMPANY',
+            dueDays: parseInt(e.detail.dueDays, 10),
+            drugLicense: e.detail.drugLicense,
+            pinCode: e.detail.pinCode,
+            gstApplicable: e.detail.gstApplicable,
+            state: e.detail.state,
+            email: e.detail.emailAddress,
+            partyType: e.detail.partyType,
+            otherMobileNo: e.detail.otherMobileNo,
+            partyLimit: parseFloat(e.detail.partyLimit),
+            interestRate: parseFloat(e.detail.interestRate),
+            loyaltyPoints: parseInt(e.detail.loyaltyPoints, 10),
+            joiningDate: e.detail.joiningDate,
+            wholeParty: e.detail.wholeParty,
+            sezParty: e.detail.sezParty,
+            focParty: e.detail.focParty
+          };
+          const res = await apiClient.post('/customers', payload);
+          if (res.data.success) {
+            fetchCompanies();
+          }
+        } catch (error) {
+          console.error('Failed to create company/supplier:', error);
+        }
+      }
     };
     window.addEventListener('partyAdded', handlePartyAdded);
     return () => window.removeEventListener('partyAdded', handlePartyAdded);
   }, []);
+
+  const fetchFollowups = async (customerId) => {
+    try {
+      const res = await apiClient.get(`/followups/customer/${customerId}`);
+      if (res.data.success) {
+        setFollowupHistory(res.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch followups:', error);
+    }
+  };
 
   const handleEditClick = (row) => {
     setEditRow(row);
     setEditModalOpen(true);
   };
 
-  const handleEditSubmit = () => {
-    setRows(rows.map(r => r.id === editRow.id ? editRow : r));
-    setEditModalOpen(false);
-    setEditRow(null);
+  const handleViewClick = (row) => {
+    setSelectedRow(row);
+    setFollowReason('');
+    const today = new Date();
+    setReminderDate(today.toISOString().split('T')[0]);
+    fetchFollowups(row.id);
+    setViewModalOpen(true);
   };
 
-  const handleDeleteClick = (id) => {
-    if (window.confirm('Are you sure you want to delete this party?')) {
-      setRows(rows.filter(r => r.id !== id));
+  const handleSubmitFollowup = async () => {
+    if (!selectedRow || !followReason.trim()) return;
+    try {
+      const payload = {
+        reason: followReason,
+        reminderDate: reminderDate
+      };
+      const res = await apiClient.post(`/followups/customer/${selectedRow.id}`, payload);
+      if (res.data.success) {
+        setFollowReason('');
+        fetchFollowups(selectedRow.id);
+      }
+    } catch (error) {
+      console.error('Failed to submit followup:', error);
+    }
+  };
+
+  const handleDeleteFollowup = async (id) => {
+    if (window.confirm('Are you sure you want to delete this followup?')) {
+      try {
+        const res = await apiClient.delete(`/followups/${id}`);
+        if (res.data.success) {
+          fetchFollowups(selectedRow.id);
+        }
+      } catch (error) {
+        console.error('Failed to delete followup:', error);
+      }
+    }
+  };
+
+  const handleEditSubmit = async () => {
+    if (editRow) {
+      try {
+        const payload = {
+          name: editRow.name,
+          phone: editRow.mobile,
+          mobile: editRow.mobile,
+          address: editRow.address || '',
+          gstin: editRow.gstin || '',
+          partyTags: editRow.partyTags || '',
+          status: editRow.status || 'Active',
+          dueDays: parseInt(editRow.dueDays, 10),
+          drugLicense: editRow.drugLicense,
+          pinCode: editRow.pinCode,
+          gstApplicable: editRow.gstApplicable,
+          state: editRow.stateName || editRow.state,
+          email: editRow.emailAddress || editRow.email,
+          partyType: editRow.partyType,
+          otherMobileNo: editRow.otherMobileNo,
+          partyLimit: parseFloat(editRow.partyLimit),
+          interestRate: parseFloat(editRow.interestRate),
+          loyaltyPoints: parseInt(editRow.loyaltyPoints, 10),
+          joiningDate: editRow.joiningDate,
+          wholeParty: editRow.wholeParty,
+          sezParty: editRow.sezParty,
+          focParty: editRow.focParty
+        };
+        const res = await apiClient.put(`/customers/${editRow.id}`, payload);
+        if (res.data.success) {
+          fetchCompanies();
+        }
+      } catch (error) {
+        console.error('Failed to update company/supplier:', error);
+      }
+      setEditModalOpen(false);
+      setEditRow(null);
+    }
+  };
+
+  const handleDeleteClick = async (id) => {
+    if (window.confirm('Are you sure you want to delete this company/supplier?')) {
+      try {
+        const res = await apiClient.delete(`/customers/${id}`);
+        if (res.data.success) {
+          fetchCompanies();
+        }
+      } catch (error) {
+        console.error('Failed to delete company:', error);
+      }
     }
   };
 
@@ -181,9 +337,10 @@ export function CompanyMaster() {
         <div className="flex-1 overflow-x-auto data-grid-scroll">
           <div className="w-full min-w-[1000px]">
             {/* Table Header */}
-            <div className="grid grid-cols-[40px_minmax(150px,1.5fr)_minmax(150px,1.5fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_120px] border-b border-gray-200 bg-white">
+            <div className="grid grid-cols-[40px_minmax(150px,1.5fr)_minmax(120px,1fr)_minmax(150px,1.5fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_120px] border-b border-gray-200 bg-white">
               <HeaderCell text="#" />
               <HeaderCell text="Company Name" />
+              <HeaderCell text="City" />
               <HeaderCell text="Address" />
               <HeaderCell text="GSTIN" />
               <HeaderCell text="Mobile No" />
@@ -198,11 +355,12 @@ export function CompanyMaster() {
               <div 
                 key={row.id} 
                 onClick={() => setSelectedRow(row)}
-                className={`grid grid-cols-[40px_minmax(150px,1.5fr)_minmax(150px,1.5fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_120px] border-b border-gray-200 hover:bg-indigo-50/50 cursor-pointer transition-colors bg-white ${selectedRow?.id === row.id ? 'bg-indigo-50/70 font-semibold' : ''}`}
+                className={`grid grid-cols-[40px_minmax(150px,1.5fr)_minmax(120px,1fr)_minmax(150px,1.5fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_minmax(120px,1fr)_minmax(100px,1fr)_120px] border-b border-gray-200 hover:bg-indigo-50/50 cursor-pointer transition-colors bg-white ${selectedRow?.id === row.id ? 'bg-indigo-50/70 font-semibold' : ''}`}
               >
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{index + 1}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.name || row.customerName}</div>
-                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center truncate" title={row.address || row.city}>{row.address || row.city || ''}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center truncate" title={row.city}>{row.city || ''}</div>
+                <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center truncate" title={row.address}>{row.address || ''}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.gstin || ''}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.mobile || row.mobileNo || ''}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.balance || '0'}</div>
@@ -213,7 +371,7 @@ export function CompanyMaster() {
                   </div>
                 </div>
                 <div className="py-2.5 px-3 flex flex-wrap items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                  <ActionButton type="calendar" />
+                  <ActionButton type="calendar" onClick={() => handleViewClick(row)} />
                   <ActionButton type="edit_teal" onClick={() => handleEditClick(row)} />
                   <ActionButton type="delete" onClick={() => handleDeleteClick(row.id)} />
                 </div>
@@ -243,21 +401,35 @@ export function CompanyMaster() {
             <div className="p-5 flex flex-col gap-4">
               <div className="flex flex-col gap-1">
                 <label className="text-[13px] font-bold text-gray-800">{t('company_master.incorrect_name')}</label>
-                <select className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-2 text-[14px] text-gray-500 outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold">
-                  <option>{t('company_master.select_name')}</option>
+                <select 
+                  value={mergeIncorrect}
+                  onChange={(e) => setMergeIncorrect(e.target.value)}
+                  className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-2 text-[14px] text-gray-800 outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold"
+                >
+                  <option value="">{t('company_master.select_name')}</option>
+                  {rows.map(row => (
+                    <option key={row.id} value={row.id}>{row.name}</option>
+                  ))}
                 </select>
               </div>
               
               <div className="flex flex-col gap-1">
                 <label className="text-[13px] font-bold text-gray-800">{t('company_master.correct_name')}</label>
-                <select className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] text-gray-400 outline-none">
-                  <option>{t('company_master.select_name')}</option>
+                <select 
+                  value={mergeCorrect}
+                  onChange={(e) => setMergeCorrect(e.target.value)}
+                  className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] text-gray-800 outline-none focus:border-[#4F46E5]"
+                >
+                  <option value="">{t('company_master.select_name')}</option>
+                  {rows.map(row => (
+                    <option key={row.id} value={row.id}>{row.name}</option>
+                  ))}
                 </select>
               </div>
             </div>
             
             <div className="bg-[#f8f9fa] px-4 py-3 border-t border-gray-200 flex justify-end gap-2">
-              <button className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[4px] text-[14px] font-medium transition-colors shadow-sm">
+              <button onClick={handleMerge} className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[4px] text-[14px] font-medium transition-colors shadow-sm">
                 {t('company_master.merge')}
               </button>
               <button onClick={() => setMergeModalOpen(false)} className="bg-[#dc3545] hover:bg-[#c82333] text-white px-4 py-1.5 rounded-[4px] text-[14px] transition-colors shadow-sm">
@@ -322,6 +494,100 @@ export function CompanyMaster() {
               </button>
               <button onClick={() => setEditModalOpen(false)} className="bg-[#dc3545] hover:bg-[#c82333] text-white px-4 py-1.5 rounded-[4px] text-[14px] transition-colors shadow-sm">
                 {t('company_master.close')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Modal (Followup) */}
+      {viewModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setViewModalOpen(false)}>
+          <div 
+            className="bg-white rounded-[4px] shadow-2xl flex flex-col w-full max-w-[650px] mx-4 overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="bg-[#4F46E5] px-4 py-3 flex items-center justify-between">
+              <h3 className="text-white font-medium text-[15px]">Followup</h3>
+              <button onClick={() => setViewModalOpen(false)} className="text-white hover:text-red-200 transition-colors">
+                <X className="w-6 h-6 font-bold text-[#dc3545]" strokeWidth={3} />
+              </button>
+            </div>
+            
+            <div className="p-4 flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
+                <div className="flex flex-col gap-2 flex-1">
+                  <label className="text-[13px] font-bold text-gray-800">Last Reason for Follow-up:</label>
+                  <input 
+                    type="text" 
+                    value={followReason}
+                    onChange={(e) => setFollowReason(e.target.value)}
+                    className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 focus:outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold w-full"
+                  />
+                </div>
+                <div className="flex flex-col gap-2 w-full sm:w-[180px]">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[13px] font-bold text-gray-800">Set Reminder Date:</label>
+                    <Trash2 className="w-4 h-4 text-[#dc3545] cursor-pointer invisible" />
+                  </div>
+                  <div className="relative">
+                    <input 
+                      type="date" 
+                      value={reminderDate}
+                      onChange={(e) => setReminderDate(e.target.value)}
+                      className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 w-full"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 mt-2">
+                <h4 className="text-[13px] font-bold text-gray-800">Follow-up History</h4>
+                <div className="border border-gray-200 rounded-[4px] overflow-hidden">
+                  <div className="table-scroll w-full overflow-x-auto h-[200px] overflow-y-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-[#f8f9fa] sticky top-0">
+                        <tr>
+                          <th className="py-2 px-3 text-[13px] font-bold text-[#495057] border-b border-gray-200 whitespace-nowrap">Date</th>
+                          <th className="py-2 px-3 text-[13px] font-bold text-[#495057] border-b border-gray-200 whitespace-nowrap">Reason</th>
+                          <th className="py-2 px-3 text-[13px] font-bold text-[#495057] border-b border-gray-200 text-center whitespace-nowrap w-[60px]">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {followupHistory.length > 0 ? (
+                          followupHistory.map(f => (
+                            <tr key={f.id} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="py-2 px-3 text-[13px] text-gray-800">{new Date(f.reminderDate).toLocaleDateString('en-GB')}</td>
+                              <td className="py-2 px-3 text-[13px] text-gray-800">{f.reason}</td>
+                              <td className="py-2 px-3 text-center">
+                                <button onClick={() => handleDeleteFollowup(f.id)} className="text-red-500 hover:text-red-700">
+                                  <Trash2 className="w-4 h-4 inline" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="3" className="py-8 text-center text-[13px] text-gray-500 bg-[#f4f6f9]">No follow-ups found</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-[#f8f9fa] px-4 py-3 border-t border-gray-200 flex justify-end gap-2">
+              <button 
+                onClick={handleSubmitFollowup}
+                className="flex items-center gap-1.5 bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[4px] text-[14px] font-bold transition-colors shadow-sm"
+              >
+                <Save className="w-4 h-4" />
+                Submit
+              </button>
+              <button onClick={() => setViewModalOpen(false)} className="bg-[#dc3545] hover:bg-[#c82333] text-white px-4 py-1.5 rounded-[4px] text-[14px] transition-colors shadow-sm">
+                Close
               </button>
             </div>
           </div>

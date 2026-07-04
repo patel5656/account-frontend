@@ -1,53 +1,179 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Upload, Loader2, Download } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { getBrandwisePurchase } from '../api/financial';
+import apiClient from '../api/apiClient';
 
 export function BrandwisePurchaseSummary() {
-  const [selectedPeriod, setSelectedPeriod] = useState('Select');
+  const navigate = useNavigate();
+
+  const [period, setPeriod] = useState('Today');
+  const [suppliers, setSuppliers] = useState([]);
+  const [selectedSupplierId, setSelectedSupplierId] = useState('all');
+  const [reportData, setReportData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  
+  // Date calculation states for display
+  const [displayStartDate, setDisplayStartDate] = useState('');
+  const [displayEndDate, setDisplayEndDate] = useState('');
+
+  useEffect(() => {
+    // Fetch companies (suppliers)
+    apiClient.get('/companies')
+      .then(res => setSuppliers(res.data?.data || []))
+      .catch(err => console.error("Failed to fetch suppliers", err));
+  }, []);
+
+  useEffect(() => {
+    fetchReport();
+  }, [period, selectedSupplierId]);
+
+  const fetchReport = async () => {
+    setLoading(true);
+    try {
+      const today = new Date();
+      let start = new Date(today);
+      let end = new Date(today);
+
+      switch (period) {
+        case 'Today':
+          break;
+        case 'This Week':
+          start.setDate(today.getDate() - today.getDay());
+          break;
+        case 'This Month':
+          start = new Date(today.getFullYear(), today.getMonth(), 1);
+          break;
+        case 'This Year':
+          start = new Date(today.getFullYear(), 0, 1);
+          break;
+        case 'All Time':
+          start = new Date(2000, 0, 1);
+          break;
+        default:
+          break;
+      }
+
+      // Format for API
+      const startDateStr = start.toISOString().split('T')[0];
+      const endDateStr = end.toISOString().split('T')[0];
+      
+      // Update display dates
+      if (period === 'All Time') {
+        setDisplayStartDate('All Time');
+        setDisplayEndDate('All Time');
+      } else {
+        setDisplayStartDate(start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-'));
+        setDisplayEndDate(end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-'));
+      }
+
+      const res = await getBrandwisePurchase(
+        period === 'All Time' ? null : startDateStr,
+        period === 'All Time' ? null : endDateStr,
+        selectedSupplierId
+      );
+
+      setReportData(res.data?.data || []);
+    } catch (error) {
+      console.error("Failed to fetch brandwise purchase", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalQty = reportData.reduce((sum, item) => sum + (item.totalQuantity || 0), 0);
+  const totalAmt = reportData.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
+  const totalDisc = reportData.reduce((sum, item) => sum + (item.totalDiscount || 0), 0);
+
+  const handleExport = () => {
+    const doc = new jsPDF();
+    
+    // Add professional header
+    doc.setFontSize(18);
+    doc.setTextColor(40);
+    doc.text('Brandwise Purchase Summary', 14, 22);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    const dateText = period === 'All Time' ? 'All Time' : `From ${displayStartDate} to ${displayEndDate}`;
+    doc.text(`Period: ${dateText}`, 14, 30);
+    
+    // Prepare table data
+    const tableColumn = ["#", "Brand Name", "Total Quantity", "Total Amount (Rs)", "Total Discount (Rs)"];
+    const tableRows = [];
+
+    reportData.forEach((row, i) => {
+      tableRows.push([
+        i + 1,
+        row.brandName,
+        row.totalQuantity,
+        row.totalAmount?.toFixed(2),
+        row.totalDiscount?.toFixed(2)
+      ]);
+    });
+
+    // Add totals row
+    tableRows.push([
+      '', 
+      'Totals :', 
+      totalQty.toString(), 
+      totalAmt?.toFixed(2), 
+      totalDisc?.toFixed(2)
+    ]);
+
+    // Generate table
+    autoTable(doc, {
+      startY: 38,
+      head: [tableColumn],
+      body: tableRows,
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' },
+      footStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [249, 250, 251] },
+      margin: { top: 38 },
+      didParseCell: function(data) {
+        // Highlight totals row
+        if (data.row.index === tableRows.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [240, 240, 240];
+        }
+        // Right align numbers
+        if (data.column.index > 1) {
+          data.cell.styles.halign = 'right';
+        }
+      }
+    });
+
+    // Save the PDF
+    doc.save(`brandwise_purchase_summary_${new Date().getTime()}.pdf`);
+  };
 
   return (
-    <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] p-3 flex flex-col relative">
+    <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] p-3 flex flex-col relative pb-[70px]">
       <div className="bg-white rounded shadow-sm border border-gray-200 w-full overflow-hidden flex-1">
         
         {/* Top Control Bar */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex flex-col sm:flex-row justify-between gap-6">
             
-            <div className="flex flex-col sm:flex-row flex-1 gap-4 sm:gap-6 flex-wrap">
+            <div className="flex flex-col sm:flex-row flex-1 gap-4 sm:gap-6">
               {/* Select Period */}
               <div className="flex flex-col gap-1 w-full sm:max-w-[250px]">
                 <label className="text-[13px] font-bold text-gray-800 px-1">Select Period</label>
-                <select
-                  value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value)}
+                <select 
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
                   className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white"
                 >
-                  <option>Select</option>
-                  <option>This Month</option>
-                  <option>Last Month</option>
-                  <option>This Quarter</option>
-                  <option>Last Quarter</option>
-                  <option>Custom Range</option>
+                  <option value="Today">Today</option>
+                  <option value="This Week">This Week</option>
+                  <option value="This Month">This Month</option>
+                  <option value="This Year">This Year</option>
+                  <option value="All Time">All Time</option>
                 </select>
               </div>
-
-              {/* Custom Range Date Inputs */}
-              {selectedPeriod === 'Custom Range' && (
-                <>
-                  <div className="flex flex-col gap-1 w-full sm:max-w-[180px]">
-                    <label className="text-[13px] font-bold text-gray-800 px-1">From Date</label>
-                    <input
-                      type="date"
-                      className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1 w-full sm:max-w-[180px]">
-                    <label className="text-[13px] font-bold text-gray-800 px-1">To Date</label>
-                    <input
-                      type="date"
-                      className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white"
-                    />
-                  </div>
-                </>
-              )}
 
               {/* Party Name */}
               <div className="flex flex-col gap-1 w-full sm:max-w-[400px]">
@@ -57,8 +183,15 @@ export function BrandwisePurchaseSummary() {
                   </div>
                   <label className="text-[13px] font-bold text-gray-800">Party Name</label>
                 </div>
-                <select className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-400 bg-white">
-                  <option>Select Name</option>
+                <select 
+                  value={selectedSupplierId}
+                  onChange={(e) => setSelectedSupplierId(e.target.value)}
+                  className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-800 bg-white"
+                >
+                  <option value="all">All Parties</option>
+                  {suppliers.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -67,7 +200,7 @@ export function BrandwisePurchaseSummary() {
             <div className="flex flex-col gap-1 w-full sm:max-w-[200px]">
               <label className="text-[13px] font-bold text-gray-800 px-1 text-right">Discount Type</label>
               <select className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white">
-                <option>MRP</option>
+                <option>Applied Discount</option>
               </select>
             </div>
 
@@ -80,7 +213,9 @@ export function BrandwisePurchaseSummary() {
             {/* Title */}
             <div className="text-center mb-1">
               <h3 className="text-[14px] font-normal text-gray-600">Brandwise Purchase Summary</h3>
-              <p className="text-[14px] font-bold text-gray-800">From 23-May-2026 to 23-May-2026</p>
+              <p className="text-[14px] font-bold text-gray-800">
+                {period === 'All Time' ? 'All Time' : `From ${displayStartDate} to ${displayEndDate}`}
+              </p>
             </div>
 
             {/* Table */}
@@ -96,26 +231,46 @@ export function BrandwisePurchaseSummary() {
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td className="border border-gray-800 py-1.5 px-2 h-[28px]"></td>
-                  <td className="border border-gray-800 py-1.5 px-2"></td>
-                  <td className="border border-gray-800 py-1.5 px-2"></td>
-                  <td className="border border-gray-800 py-1.5 px-2"></td>
-                  <td className="border border-gray-800 py-1.5 px-2"></td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-800 py-1.5 px-2"></td>
-                  <td className="border border-gray-800 py-1.5 px-2 text-right pr-4">
-                    <span className="font-bold text-[13px] text-gray-900">Totals :</span>
-                  </td>
-                  <td className="border border-gray-800 py-1.5 px-2"></td>
-                  <td className="border border-gray-800 py-1.5 px-2 text-right pr-2">
-                    <span className="font-bold text-[13px] text-gray-900">0</span>
-                  </td>
-                  <td className="border border-gray-800 py-1.5 px-2 text-right pr-2">
-                    <span className="font-bold text-[13px] text-gray-900">0</span>
-                  </td>
-                </tr>
+                {loading ? (
+                  <tr>
+                    <td colSpan="5" className="border border-gray-800 py-4 text-center">
+                      <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-500" />
+                    </td>
+                  </tr>
+                ) : reportData.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="border border-gray-800 py-4 text-center text-gray-500 text-[13px]">
+                      No purchases found for the selected criteria.
+                    </td>
+                  </tr>
+                ) : (
+                  reportData.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="border border-gray-800 py-1.5 px-2 text-center">{idx + 1}</td>
+                      <td className="border border-gray-800 py-1.5 px-2">{row.brandName}</td>
+                      <td className="border border-gray-800 py-1.5 px-2 text-right">{row.totalQuantity}</td>
+                      <td className="border border-gray-800 py-1.5 px-2 text-right">{row.totalAmount?.toFixed(2)}</td>
+                      <td className="border border-gray-800 py-1.5 px-2 text-right">{row.totalDiscount?.toFixed(2)}</td>
+                    </tr>
+                  ))
+                )}
+                {reportData.length > 0 && (
+                  <tr>
+                    <td className="border border-gray-800 py-1.5 px-2"></td>
+                    <td className="border border-gray-800 py-1.5 px-2 text-right pr-4">
+                      <span className="font-bold text-[13px] text-gray-900">Totals :</span>
+                    </td>
+                    <td className="border border-gray-800 py-1.5 px-2 text-right">
+                      <span className="font-bold text-[13px] text-gray-900">{totalQty}</span>
+                    </td>
+                    <td className="border border-gray-800 py-1.5 px-2 text-right pr-2">
+                      <span className="font-bold text-[13px] text-gray-900">{totalAmt?.toFixed(2)}</span>
+                    </td>
+                    <td className="border border-gray-800 py-1.5 px-2 text-right pr-2">
+                      <span className="font-bold text-[13px] text-gray-900">{totalDisc?.toFixed(2)}</span>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -124,6 +279,20 @@ export function BrandwisePurchaseSummary() {
 
       </div>
 
+      {/* Action Buttons */}
+      <div className="fixed bottom-0 left-0 right-0 md:left-[220px] bg-white border-t border-gray-200 p-3 flex justify-between items-center z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <div className="flex gap-2">
+          {/* Add settings/print buttons if needed */}
+        </div>
+        <div className="flex gap-2">
+          <button 
+            onClick={handleExport}
+            className="bg-[#4F46E5] hover:bg-[#4338ca] text-white px-6 py-2 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" /> Export PDF
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

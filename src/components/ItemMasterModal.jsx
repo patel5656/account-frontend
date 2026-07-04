@@ -1,10 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, Plus, Package, Barcode as BarcodeIcon, Globe, Image as ImageIcon, 
   Settings, RefreshCw, Printer, Box, AlertTriangle, History, ArrowRight 
 } from 'lucide-react';
 
-export function ItemMasterModal({ isOpen, onClose, onSave }) {
+export function ItemMasterModal({ isOpen, onClose, onSave, editData, products = [] }) {
+  const [name, setName] = useState('');
+  const [sku, setSku] = useState('');
+  const [category, setCategory] = useState('');
+  const [brand, setBrand] = useState('');
+  const [mrp, setMrp] = useState('');
+  const [price, setPrice] = useState('');
+  const [qty, setQty] = useState('');
+
+  // Advanced fields
+  const [tax, setTax] = useState('');
+  const [hsnCode, setHsnCode] = useState('');
+  const [purchasePrice, setPurchasePrice] = useState('');
+  const [wholesalePrice, setWholesalePrice] = useState('');
+  const [creditSalePrice, setCreditSalePrice] = useState('');
+  const [baseUnit, setBaseUnit] = useState('PCS - Pieces');
+  const [purchaseUnit, setPurchaseUnit] = useState('BOX');
+  const [salesUnit, setSalesUnit] = useState('PCS');
+  const [lowStockAlert, setLowStockAlert] = useState('');
+  const [reorderLevel, setReorderLevel] = useState('');
+  const [openingStockRate, setOpeningStockRate] = useState('');
+  const [warehouse, setWarehouse] = useState('');
+  const [warehouseList, setWarehouseList] = useState([]);
+  const [unitList, setUnitList] = useState([]);
+
   const [isActive, setIsActive] = useState(true);
   const [activeTab, setActiveTab] = useState('basic');
   
@@ -20,16 +44,140 @@ export function ItemMasterModal({ isOpen, onClose, onSave }) {
 
   // BOM states
   const [hasBom, setHasBom] = useState(false);
+  const [bomName, setBomName] = useState('');
   const [isMultiLevel, setIsMultiLevel] = useState(false);
+  const [bomRecipe, setBomRecipe] = useState([]);
+  const [tempRawMaterial, setTempRawMaterial] = useState('');
+  const [tempQty, setTempQty] = useState('');
+  const [tempUnit, setTempUnit] = useState('PCS');
+
+  const addBomItem = (e) => {
+    if (e) e.preventDefault();
+    
+    // Calculate current cost dynamically
+    const calculateBomCost = () => {
+      return bomRecipe.reduce((total, item) => {
+        const prod = products.find(p => p.id.toString() === item.productId?.toString());
+        const price = prod ? (prod.purchasePrice || prod.price || prod.mrp || 0) : 0;
+        return total + (parseFloat(item.quantity) * parseFloat(price));
+      }, 0);
+    };
+    if (!tempRawMaterial || !tempQty) return;
+    const selectedProd = products.find(p => p.id.toString() === tempRawMaterial);
+    setBomRecipe([...bomRecipe, {
+      productId: tempRawMaterial,
+      name: selectedProd ? selectedProd.name : 'Unknown',
+      quantity: tempQty,
+      unit: tempUnit
+    }]);
+    setTempRawMaterial('');
+    setTempQty('');
+  };
+
+  const removeBomItem = (idx) => {
+    setBomRecipe(bomRecipe.filter((_, i) => i !== idx));
+  };
   
   // Online Sync states
   const [syncOnline, setSyncOnline] = useState(false);
   const [barcode, setBarcode] = useState('');
   const [imagePreview, setImagePreview] = useState(null);
+  const [onlineProductName, setOnlineProductName] = useState('');
+  const [onlineProductDesc, setOnlineProductDesc] = useState('');
+  const [onlineSalePrice, setOnlineSalePrice] = useState('');
+  const [ecommerceCategory, setEcommerceCategory] = useState('');
 
   // Pricing states
   const [qtySlabs, setQtySlabs] = useState([]);
   const [slabError, setSlabError] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      if (editData) {
+        setName(editData.name || '');
+        setSku(editData.sku || '');
+        setCategory(editData.category || '');
+        setBrand(editData.brand || '');
+        setMrp(editData.mrp?.toString() || '');
+        setPrice(editData.price?.toString() || '');
+        setQty(editData.qty?.toString() || '');
+        setBarcode(editData.barcode || '');
+        setIsActive(editData.status === 'ACTIVE' || editData.status === 'Active');
+        setMemorySize(editData.memorySize || '');
+        setColorVariant(editData.colorVariant || '');
+        setEnableImei(editData.enableImei || false);
+        setTax(editData.tax?.toString() || '');
+        setHsnCode(editData.hsnCode || '');
+        setPurchasePrice(editData.purchasePrice?.toString() || '');
+        setWholesalePrice(editData.wholesalePrice?.toString() || '');
+        setCreditSalePrice(editData.creditSalePrice?.toString() || '');
+        setBaseUnit(editData.baseUnit || 'PCS - Pieces');
+        setPurchaseUnit(editData.purchaseUnit || 'BOX');
+        setSalesUnit(editData.salesUnit || 'PCS');
+        setLowStockAlert(editData.lowStockAlert?.toString() || '');
+        setReorderLevel(editData.reorderLevel?.toString() || '');
+        setOpeningStockRate(editData.openingStockRate?.toString() || '');
+        setWarehouse(editData.warehouse || 'Main Warehouse');
+        setEnableBatch(editData.enableBatch || false);
+        setEnableExpiry(editData.enableExpiry || false);
+        setHasBom(editData.hasBom || false);
+        setBomName(editData.bomName || '');
+        setIsMultiLevel(editData.isMultiLevel || false);
+        try {
+          const recipe = typeof editData.bomRecipe === 'string' ? JSON.parse(editData.bomRecipe) : editData.bomRecipe;
+          setBomRecipe(Array.isArray(recipe) ? recipe : []);
+        } catch(e) { setBomRecipe([]); }
+        setSyncOnline(editData.syncOnline || false);
+        setOnlineProductName(editData.onlineProductName || '');
+        setOnlineProductDesc(editData.onlineProductDesc || '');
+        setOnlineSalePrice(editData.onlineSalePrice?.toString() || '');
+        setEcommerceCategory(editData.ecommerceCategory || '');
+        setImagePreview(editData.productImage || null);
+        try {
+          const slabs = typeof editData.qtySlabs === 'string' ? JSON.parse(editData.qtySlabs) : editData.qtySlabs;
+          setQtySlabs(Array.isArray(slabs) ? slabs : []);
+        } catch(e) { setQtySlabs([]); }
+      } else {
+        setName(''); setSku(''); setCategory(''); setBrand(''); setMrp(''); setPrice(''); setQty(''); setBarcode(''); setIsActive(true); setMemorySize(''); setColorVariant(''); setEnableImei(false);
+        setTax(''); setHsnCode(''); setPurchasePrice(''); setWholesalePrice(''); setCreditSalePrice(''); setBaseUnit('PCS - Pieces'); setPurchaseUnit('BOX'); setSalesUnit('PCS'); setLowStockAlert(''); setReorderLevel(''); setOpeningStockRate(''); setWarehouse(''); setEnableBatch(false); setEnableExpiry(false); setHasBom(false); setQtySlabs([]); setBomName(''); setIsMultiLevel(false); setBomRecipe([]); setTempRawMaterial(''); setTempQty(''); setSyncOnline(false); setOnlineProductName(''); setOnlineProductDesc(''); setOnlineSalePrice(''); setEcommerceCategory(''); setImagePreview(null);
+      }
+    }
+  }, [isOpen, editData]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchWarehouses();
+      fetchUnits();
+    }
+  }, [isOpen]);
+
+  const fetchUnits = async () => {
+    try {
+      const { default: apiClient } = await import('../api/apiClient');
+      const res = await apiClient.get('/units');
+      if (res.data && res.data.data) {
+        setUnitList(res.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch units:', error);
+    }
+  };
+
+  const fetchWarehouses = async () => {
+    try {
+      // Assuming apiClient is already imported
+      const { default: apiClient } = await import('../api/apiClient');
+      const res = await apiClient.get('/warehouses');
+      if (res.data.success) {
+        setWarehouseList(res.data.data);
+        if (!editData && res.data.data.length > 0) {
+          setWarehouse(res.data.data[0].name); // Set default to first warehouse if creating new
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch warehouses:', error);
+    }
+  };
 
   const handleSave = () => {
     setSlabError('');
@@ -69,22 +217,46 @@ export function ItemMasterModal({ isOpen, onClose, onSave }) {
     
     // Extract values from form elements
     const newItem = {
-      id: Date.now(),
-      name: document.getElementById('item_name_input')?.value || 'New Item',
+      name: name || 'New Item',
       variants: [memorySize, colorVariant].filter(Boolean),
-      category: document.getElementById('item_category_input')?.value || 'Uncategorized',
-      brand: document.getElementById('item_brand_input')?.value || 'No Brand',
-      sku: document.getElementById('item_sku_input')?.value || 'SKU' + Math.floor(Math.random() * 1000),
+      category: category || '',
+      brand: brand || '',
+      sku: sku || `SKU${Date.now()}`,
       barcode: barcode || Math.floor(Math.random() * 1000000000).toString(),
-      mrp: document.getElementById('item_mrp_input')?.value || '0',
-      price: document.getElementById('item_saleprice_input')?.value || '0',
-      qty: document.getElementById('item_openingstock_input')?.value || 0,
-      status: isActive ? 'ACTIVE' : 'INACTIVE',
+      mrp: mrp || '0',
+      price: price || '0',
+      qty: qty || '0',
+      status: isActive ? 'Active' : 'Inactive',
       hasBom: hasBom,
       memorySize: memorySize,
       colorVariant: colorVariant,
       designNo: designNo,
-      enableImei: enableImei
+      enableImei: enableImei,
+      tax: tax,
+      hsnCode: hsnCode,
+      purchasePrice: purchasePrice,
+      wholesalePrice: wholesalePrice,
+      creditSalePrice: creditSalePrice,
+      baseUnit: baseUnit,
+      purchaseUnit: purchaseUnit,
+      salesUnit: salesUnit,
+      lowStockAlert: lowStockAlert,
+      reorderLevel: reorderLevel,
+      openingStockRate: openingStockRate,
+      warehouse: warehouse,
+      enableBatch: enableBatch,
+      enableExpiry: enableExpiry,
+      qtySlabs: qtySlabs,
+      hasBom: hasBom,
+      bomName: bomName,
+      isMultiLevel: isMultiLevel,
+      bomRecipe: bomRecipe,
+      syncOnline: syncOnline,
+      onlineProductName: onlineProductName,
+      onlineProductDesc: onlineProductDesc,
+      onlineSalePrice: onlineSalePrice,
+      ecommerceCategory: ecommerceCategory,
+      productImage: imagePreview
     };
 
     if (onSave) {
@@ -149,64 +321,64 @@ export function ItemMasterModal({ isOpen, onClose, onSave }) {
           {/* TAB 1: BASIC DETAILS */}
           {activeTab === 'basic' && (
             <div className="flex flex-col gap-6 animate-in fade-in duration-300">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex flex-col gap-1 w-full">
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[14px] font-bold text-gray-800">Item Name</label>
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className={`w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${isActive ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}
-                        onClick={() => setIsActive(!isActive)}
-                      >
-                        <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${isActive ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
-                      </div>
-                      <span className="text-[13px] font-bold text-gray-800 select-none">Active</span>
-                    </div>
-                  </div>
-                  <input id="item_name_input" type="text" placeholder="Enter Item Name" className="w-full border border-[#4F46E5] bg-[#e8e5ff] placeholder-gray-500 rounded-[3px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5] shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold" />
+                  <label className="text-[14px] font-bold text-gray-800 mb-1 block">Item Name</label>
+                  <input id="item_name_input" value={name} onChange={e => setName(e.target.value)} type="text" placeholder="Enter Item Name" className="w-full border border-[#4F46E5] bg-[#e8e5ff] placeholder-gray-500 rounded-[3px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5] shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)] font-bold" />
                 </div>
-                <div className="flex flex-col gap-1 w-full md:mt-[25px]">
+                <div className="flex flex-col gap-1 w-full">
                   <label className="text-[14px] font-bold text-gray-800">Item Code / SKU</label>
-                  <input id="item_sku_input" type="text" placeholder="Enter Item Code / SKU" className="w-full border border-gray-300 rounded-[3px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white" />
+                  <input id="item_sku_input" value={sku} onChange={e => setSku(e.target.value)} type="text" placeholder="Enter Item Code / SKU" className="w-full border border-gray-300 rounded-[3px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white" />
+                </div>
+                <div className="flex flex-col gap-1 w-full pl-2">
+                  <label className="text-[14px] font-bold text-gray-800 mb-1 block">Status</label>
+                  <div className="flex items-center gap-3 mt-1">
+                    <div 
+                      className={`w-[44px] h-[24px] rounded-full relative cursor-pointer transition-colors ${isActive ? 'bg-[#28a745]' : 'bg-gray-400'}`}
+                      onClick={() => setIsActive(!isActive)}
+                    >
+                      <div className={`w-[20px] h-[20px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${isActive ? 'translate-x-[22px]' : 'translate-x-[2px]'}`}></div>
+                    </div>
+                    <span className={`text-[14px] font-bold ${isActive ? 'text-[#28a745]' : 'text-gray-500'}`}>{isActive ? 'Active' : 'Inactive'}</span>
+                  </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 border-b border-gray-100 pb-5">
                 <div className="flex flex-col gap-1 w-full">
-                  <div className="flex justify-between items-center">
-                    <label className="text-[13px] font-bold text-gray-800">Category</label>
-                    <button className="text-[11px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-0.5"><Plus className="w-3 h-3" /> Add</button>
-                  </div>
-                  <select id="item_category_input" className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white">
-                    <option>Select Category</option>
-                    <option>Raw Material</option>
-                    <option>Finished Goods</option>
-                  </select>
+                  <label className="text-[13px] font-bold text-gray-800">Category</label>
+                  <input 
+                    id="item_category_input" 
+                    type="text"
+                    placeholder="Enter Category"
+                    value={category} 
+                    onChange={e => setCategory(e.target.value)} 
+                    className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white" 
+                  />
                 </div>
                 <div className="flex flex-col gap-1 w-full">
-                  <div className="flex justify-between items-center">
-                    <label className="text-[13px] font-bold text-gray-800">Brand</label>
-                    <button className="text-[11px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-0.5"><Plus className="w-3 h-3" /> Add</button>
-                  </div>
-                  <select id="item_brand_input" className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white">
-                    <option>Select Brand</option>
-                    <option>Brand A</option>
-                    <option>Brand B</option>
-                  </select>
+                  <label className="text-[13px] font-bold text-gray-800">Brand</label>
+                  <input 
+                    id="item_brand_input" 
+                    type="text"
+                    placeholder="Enter Brand"
+                    value={brand} 
+                    onChange={e => setBrand(e.target.value)} 
+                    className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white" 
+                  />
                 </div>
                 <div className="flex flex-col gap-1 w-full">
                   <label className="text-[13px] font-bold text-gray-800">GST / Tax (%)</label>
-                  <select className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white">
-                    <option value="0">0%</option>
-                    <option value="5">5%</option>
-                    <option value="12">12%</option>
-                    <option value="18">18%</option>
-                    <option value="28">28%</option>
-                  </select>
+                  <input 
+                    type="number" 
+                    value={tax} onChange={e => setTax(e.target.value)}
+                    placeholder="e.g. 18" 
+                    className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white" 
+                  />
                 </div>
                 <div className="flex flex-col gap-1 w-full">
                   <label className="text-[13px] font-bold text-gray-800">HSN Code</label>
-                  <input type="text" placeholder="e.g. 8517" className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white" />
+                  <input type="text" value={hsnCode} onChange={e => setHsnCode(e.target.value)} placeholder="e.g. 8517" className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] text-gray-800 bg-white" />
                 </div>
               </div>
 
@@ -237,32 +409,31 @@ export function ItemMasterModal({ isOpen, onClose, onSave }) {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                   <div className="flex flex-col gap-1 w-full">
                     <label className="text-[13px] font-bold text-gray-700">Base Unit (Reporting)</label>
-                    <select className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-blue-500 bg-white">
-                      <option>PCS - Pieces</option>
-                      <option>KGS - Kilograms</option>
+                    <select value={baseUnit} onChange={e => setBaseUnit(e.target.value)} className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-blue-500 bg-white">
+                      <option value="">Select Unit</option>
+                      {unitList.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                      {unitList.length === 0 && <option value="PCS - Pieces">PCS - Pieces</option>}
                     </select>
                   </div>
                   <div className="flex flex-col gap-1 w-full">
                     <label className="text-[13px] font-bold text-gray-700">Purchase Unit</label>
                     <div className="flex">
-                      <select className="w-2/3 border border-gray-300 border-r-0 rounded-l-[3px] px-2 py-1.5 text-[13px] outline-none focus:border-blue-500 bg-white">
-                        <option>BOX</option>
-                        <option>BAG</option>
+                      <select value={purchaseUnit} onChange={e => setPurchaseUnit(e.target.value)} className="w-full border border-gray-300 rounded-[3px] px-2 py-1.5 text-[13px] outline-none focus:border-blue-500 bg-white">
+                        <option value="">Select Unit</option>
+                        {unitList.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                        {unitList.length === 0 && <option value="BOX">BOX</option>}
                       </select>
-                      <input type="text" placeholder="e.g. 12" className="w-1/3 border border-gray-300 rounded-r-[3px] px-2 py-1.5 text-[13px] outline-none text-center bg-white" title="Conversion to Base Unit" />
                     </div>
-                    <span className="text-[10px] text-gray-500 mt-0.5">e.g. 1 BOX = 12 PCS</span>
                   </div>
                   <div className="flex flex-col gap-1 w-full">
                     <label className="text-[13px] font-bold text-gray-700">Sales Unit</label>
                     <div className="flex">
-                      <select className="w-2/3 border border-gray-300 border-r-0 rounded-l-[3px] px-2 py-1.5 text-[13px] outline-none focus:border-blue-500 bg-white">
-                        <option>PCS</option>
-                        <option>BOX</option>
+                      <select value={salesUnit} onChange={e => setSalesUnit(e.target.value)} className="w-full border border-gray-300 rounded-[3px] px-2 py-1.5 text-[13px] outline-none focus:border-blue-500 bg-white">
+                        <option value="">Select Unit</option>
+                        {unitList.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                        {unitList.length === 0 && <option value="PCS">PCS</option>}
                       </select>
-                      <input type="text" placeholder="e.g. 1" className="w-1/3 border border-gray-300 rounded-r-[3px] px-2 py-1.5 text-[13px] outline-none text-center bg-white" title="Conversion to Base Unit" />
                     </div>
-                    <span className="text-[10px] text-gray-500 mt-0.5">e.g. 1 PCS = 1 PCS</span>
                   </div>
                 </div>
               </div>
@@ -272,35 +443,35 @@ export function ItemMasterModal({ isOpen, onClose, onSave }) {
                   <label className="text-[13px] font-bold text-gray-800">MRP</label>
                   <div className="relative">
                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-[13px]">₹</span>
-                    <input id="item_mrp_input" type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-6 pr-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] bg-white text-right font-bold" />
+                    <input id="item_mrp_input" value={mrp} onChange={e => setMrp(e.target.value)} type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-6 pr-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] bg-white text-right font-bold" />
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 w-full">
                   <label className="text-[13px] font-bold text-gray-800">Purchase Price</label>
                   <div className="relative">
                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-[13px]">₹</span>
-                    <input type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-6 pr-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] bg-white text-right font-bold" />
+                    <input type="number" value={purchasePrice} onChange={e => setPurchasePrice(e.target.value)} placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-6 pr-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] bg-white text-right font-bold" />
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 w-full">
                   <label className="text-[13px] font-bold text-gray-800">Sale Price</label>
                   <div className="relative">
                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-[13px]">₹</span>
-                    <input id="item_saleprice_input" type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-6 pr-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] bg-white text-right font-bold" />
+                    <input id="item_saleprice_input" value={price} onChange={e => setPrice(e.target.value)} type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-6 pr-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] bg-white text-right font-bold" />
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 w-full">
                   <label className="text-[13px] font-bold text-gray-800">Wholesale Price</label>
                   <div className="relative">
                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-[13px]">₹</span>
-                    <input type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-6 pr-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] bg-[#fff8e1] text-right font-bold" />
+                    <input type="number" value={wholesalePrice} onChange={e => setWholesalePrice(e.target.value)} placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-6 pr-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] bg-[#fff8e1] text-right font-bold" />
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 w-full">
                   <label className="text-[13px] font-bold text-gray-800">Credit Sale Price</label>
                   <div className="relative">
                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-[13px]">₹</span>
-                    <input type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-6 pr-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] bg-[#e1f5fe] text-right font-bold" />
+                    <input type="number" value={creditSalePrice} onChange={e => setCreditSalePrice(e.target.value)} placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-6 pr-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5] bg-[#e1f5fe] text-right font-bold" />
                   </div>
                 </div>
               </div>
@@ -361,18 +532,26 @@ export function ItemMasterModal({ isOpen, onClose, onSave }) {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="flex flex-col gap-1">
                     <label className="text-[13px] font-bold text-gray-700">Opening Stock Qty</label>
-                    <input id="item_openingstock_input" type="number" placeholder="0" className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-blue-500" />
+                    <input id="item_openingstock_input" value={qty} onChange={e => setQty(e.target.value)} type="number" placeholder="0" className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-blue-500" />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[13px] font-bold text-gray-700">Opening Stock Rate</label>
-                    <input type="number" placeholder="₹0.00" className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-blue-500" />
+                    <input type="number" value={openingStockRate} onChange={e => setOpeningStockRate(e.target.value)} placeholder="₹0.00" className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-blue-500" />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[13px] font-bold text-gray-700">Warehouse / Godown</label>
-                    <select className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-blue-500 bg-white">
-                      <option>Main Warehouse</option>
-                      <option>Store Room 1</option>
-                    </select>
+                    <input 
+                      list="warehouse-options"
+                      value={warehouse} 
+                      onChange={e => setWarehouse(e.target.value)} 
+                      placeholder="Type or select warehouse"
+                      className="w-full border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-blue-500 bg-white"
+                    />
+                    <datalist id="warehouse-options">
+                      {warehouseList.map((wh) => (
+                        <option key={wh.id} value={wh.name}>{wh.name}</option>
+                      ))}
+                    </datalist>
                   </div>
                 </div>
               </div>
@@ -384,12 +563,12 @@ export function ItemMasterModal({ isOpen, onClose, onSave }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="flex flex-col gap-1">
                     <label className="text-[13px] font-bold text-gray-700">Low Stock Alert Limit</label>
-                    <input type="number" placeholder="e.g. 10" className="w-full border border-yellow-300 bg-white rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-yellow-500" />
+                    <input type="number" value={lowStockAlert} onChange={e => setLowStockAlert(e.target.value)} placeholder="e.g. 10" className="w-full border border-yellow-300 bg-white rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-yellow-500" />
                     <span className="text-[11px] text-gray-500">System will warn you when stock drops below this limit.</span>
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[13px] font-bold text-gray-700">Reorder Level (Auto PO)</label>
-                    <input type="number" placeholder="e.g. 5" className="w-full border border-yellow-300 bg-white rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-yellow-500" />
+                    <input type="number" value={reorderLevel} onChange={e => setReorderLevel(e.target.value)} placeholder="e.g. 5" className="w-full border border-yellow-300 bg-white rounded-[3px] px-3 py-1.5 text-[13px] outline-none focus:border-yellow-500" />
                     <span className="text-[11px] text-gray-500">Suggested quantity to order when stock is low.</span>
                   </div>
                 </div>
@@ -465,7 +644,7 @@ export function ItemMasterModal({ isOpen, onClose, onSave }) {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
                       <label className="text-[13px] font-bold text-gray-800">BOM Name</label>
-                      <input type="text" placeholder="e.g. Standard Recipe 1" className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-blue-500" />
+                      <input type="text" value={bomName} onChange={e => setBomName(e.target.value)} placeholder="e.g. Standard Recipe 1" className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-blue-500" />
                     </div>
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center justify-between mb-0.5">
@@ -484,7 +663,13 @@ export function ItemMasterModal({ isOpen, onClose, onSave }) {
                   <div className="border border-gray-200 rounded-[3px]">
                     <div className="bg-[#343a40] text-white p-2 text-[13px] font-bold flex justify-between items-center rounded-t-[2px]">
                       <span>Raw Materials / Components</span>
-                      <span className="bg-[#28a745] px-2 py-0.5 rounded text-[11px]">Calculated Cost: ₹0.00</span>
+                      <span className="bg-[#28a745] px-2 py-0.5 rounded text-[11px]">
+                        Calculated Cost: ₹{bomRecipe.reduce((total, item) => {
+                          const prod = products.find(p => p.id.toString() === item.productId?.toString());
+                          const price = prod ? (prod.purchasePrice || prod.price || prod.mrp || 0) : 0;
+                          return total + (parseFloat(item.quantity) * parseFloat(price));
+                        }, 0).toFixed(2)}
+                      </span>
                     </div>
                     <div className="grid grid-cols-12 gap-2 p-2 border-b border-gray-200 bg-gray-100 text-[12px] font-bold text-gray-700">
                       <div className="col-span-6">Raw Material Item</div>
@@ -496,32 +681,46 @@ export function ItemMasterModal({ isOpen, onClose, onSave }) {
                     {/* Input Row */}
                     <div className="grid grid-cols-12 gap-2 p-2 border-b border-gray-200 items-center">
                       <div className="col-span-6">
-                        <select className="w-full border border-gray-300 rounded-[3px] px-2 py-1.5 text-[13px] outline-none focus:border-blue-500 bg-white">
+                        <select value={tempRawMaterial} onChange={e => setTempRawMaterial(e.target.value)} className="w-full border border-gray-300 rounded-[3px] px-2 py-1.5 text-[13px] outline-none focus:border-blue-500 bg-white">
                           <option value="">Select Raw Material...</option>
-                          <option value="1">Wood</option>
-                          <option value="2">Screws</option>
-                          {isMultiLevel && <option value="3" className="font-bold text-blue-700">★ Semi-Finished Block (BOM)</option>}
+                          {products.map(p => (
+                            <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
+                          ))}
                         </select>
                       </div>
                       <div className="col-span-3">
-                        <input type="number" placeholder="Qty" className="w-full border border-gray-300 rounded-[3px] px-2 py-1.5 text-[13px] outline-none focus:border-blue-500 text-right" />
+                        <input type="number" value={tempQty} onChange={e => setTempQty(e.target.value)} placeholder="Qty" className="w-full border border-gray-300 rounded-[3px] px-2 py-1.5 text-[13px] outline-none focus:border-blue-500 text-right" />
                       </div>
                       <div className="col-span-2">
-                        <select className="w-full border border-gray-300 rounded-[3px] px-2 py-1.5 text-[13px] outline-none focus:border-blue-500 bg-gray-50">
-                          <option>KGS</option>
-                          <option>PCS</option>
+                        <select value={tempUnit} onChange={e => setTempUnit(e.target.value)} className="w-full border border-gray-300 rounded-[3px] px-2 py-1.5 text-[13px] outline-none focus:border-blue-500 bg-gray-50">
+                          <option value="">Unit</option>
+                          {unitList.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
                         </select>
                       </div>
                       <div className="col-span-1 flex justify-center">
-                        <button className="bg-[#007bff] hover:bg-[#0069d9] text-white p-1.5 rounded-[3px] transition-colors shadow-sm">
+                        <button type="button" onClick={addBomItem} className="bg-[#007bff] hover:bg-[#0069d9] text-white p-1.5 rounded-[3px] transition-colors shadow-sm">
                           <Plus className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
                     
-                    <div className="p-4 text-center text-[13px] text-gray-500 bg-white">
-                      No materials added to BOM yet.
-                    </div>
+                    {bomRecipe.map((item, idx) => (
+                      <div key={idx} className="grid grid-cols-12 gap-2 p-2 border-b border-gray-100 items-center text-[12px]">
+                        <div className="col-span-6 text-gray-800 font-medium">{item.name}</div>
+                        <div className="col-span-3 text-right">{item.quantity}</div>
+                        <div className="col-span-2 text-gray-600">{item.unit}</div>
+                        <div className="col-span-1 flex justify-center">
+                          <button type="button" onClick={() => removeBomItem(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {bomRecipe.length === 0 && (
+                      <div className="p-4 text-center text-[13px] text-gray-500 bg-white">
+                        No materials added to BOM yet.
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -617,12 +816,12 @@ export function ItemMasterModal({ isOpen, onClose, onSave }) {
                   <div className="flex flex-col gap-4">
                     <div className="flex flex-col gap-1">
                       <label className="text-[13px] font-bold text-gray-800">Online Product Name</label>
-                      <input type="text" placeholder="Defaults to main Item Name if empty" className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-purple-500 bg-white" />
+                      <input type="text" value={onlineProductName} onChange={e => setOnlineProductName(e.target.value)} placeholder="Defaults to main Item Name if empty" className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-purple-500 bg-white" />
                     </div>
                     
                     <div className="flex flex-col gap-1">
                       <label className="text-[13px] font-bold text-gray-800">Online Product Description</label>
-                      <textarea rows="4" placeholder="Enter detailed description for online shoppers..." className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-purple-500 resize-none bg-white"></textarea>
+                      <textarea rows="4" value={onlineProductDesc} onChange={e => setOnlineProductDesc(e.target.value)} placeholder="Enter detailed description for online shoppers..." className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-purple-500 resize-none bg-white"></textarea>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -630,13 +829,16 @@ export function ItemMasterModal({ isOpen, onClose, onSave }) {
                         <label className="text-[13px] font-bold text-gray-800">Online Sale Price</label>
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">₹</span>
-                          <input type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-7 pr-3 py-2 text-[13px] outline-none focus:border-purple-500 bg-white" />
+                          <input type="number" value={onlineSalePrice} onChange={e => setOnlineSalePrice(e.target.value)} placeholder="0.00" className="w-full border border-gray-300 rounded-[3px] pl-7 pr-3 py-2 text-[13px] outline-none focus:border-purple-500 bg-white" />
                         </div>
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className="text-[13px] font-bold text-gray-800">eCommerce Category</label>
-                        <select className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-purple-500 bg-white">
-                          <option>Select Category</option>
+                        <select value={ecommerceCategory} onChange={e => setEcommerceCategory(e.target.value)} className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-purple-500 bg-white">
+                          <option value="">Select Category</option>
+                          <option value="Electronics">Electronics</option>
+                          <option value="Furniture">Furniture</option>
+                          <option value="Clothing">Clothing</option>
                         </select>
                       </div>
                     </div>
@@ -652,7 +854,11 @@ export function ItemMasterModal({ isOpen, onClose, onSave }) {
                         onChange={(e) => {
                           const file = e.target.files[0];
                           if (file) {
-                            setImagePreview(URL.createObjectURL(file));
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setImagePreview(reader.result);
+                            };
+                            reader.readAsDataURL(file);
                           }
                         }}
                       />

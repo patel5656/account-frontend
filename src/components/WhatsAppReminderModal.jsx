@@ -69,7 +69,7 @@ export function WhatsAppReminderModal({ isOpen, onClose, customer }) {
       <div className="bg-white rounded-[3px] shadow-2xl w-full max-w-[min(98vw,650px)] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 max-h-[90vh]">
 
         {/* Header */}
-        <div className="bg-[#25D366] flex items-center justify-between flex-shrink-0">
+        <div className="bg-[#4F46E5] flex items-center justify-between flex-shrink-0">
           <h2 className="text-[15px] text-white font-bold tracking-wide pl-4 py-2.5 flex items-center gap-2">
             <MessageCircle className="w-5 h-5" strokeWidth={2.5} />
             WhatsApp Reminder
@@ -112,7 +112,7 @@ export function WhatsAppReminderModal({ isOpen, onClose, customer }) {
               <label className="flex items-center gap-2 cursor-pointer">
                 <span className="text-[12px] text-gray-600">Custom Message</span>
                 <div
-                  className={`w-[32px] h-[16px] rounded-full relative transition-colors ${isCustom ? 'bg-[#25D366]' : 'bg-gray-300'}`}
+                  className={`w-[32px] h-[16px] rounded-full relative transition-colors ${isCustom ? 'bg-[#4F46E5]' : 'bg-gray-300'}`}
                   onClick={() => setIsCustom(!isCustom)}
                 >
                   <div className={`w-[12px] h-[12px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${isCustom ? 'translate-x-[18px]' : 'translate-x-[2px]'}`}></div>
@@ -128,8 +128,8 @@ export function WhatsAppReminderModal({ isOpen, onClose, customer }) {
                     onClick={() => setSelectedTemplate(i)}
                     className={`px-3 py-1.5 rounded-[3px] text-[12px] font-bold border transition-colors ${
                       selectedTemplate === i
-                        ? 'bg-[#25D366] text-white border-[#25D366]'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-green-400'
+                        ? 'bg-[#4F46E5] text-white border-[#4F46E5]'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-[#4F46E5]'
                     }`}
                   >
                     {t.label}
@@ -160,7 +160,7 @@ export function WhatsAppReminderModal({ isOpen, onClose, customer }) {
                 value={customMessage}
                 onChange={(e) => setCustomMessage(e.target.value)}
                 placeholder="Type your custom WhatsApp message here..."
-                className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#25D366] resize-none bg-white text-gray-800 font-mono leading-relaxed"
+                className="border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] resize-none bg-white text-gray-800 font-mono leading-relaxed"
               />
             ) : (
               <div className="bg-[#dcf8c6] border border-green-200 rounded-[3px] px-3 py-3 text-[13px] text-gray-800 whitespace-pre-wrap font-mono leading-relaxed min-h-[180px]">
@@ -194,7 +194,7 @@ export function WhatsAppReminderModal({ isOpen, onClose, customer }) {
               disabled={!isValidMobile}
               className={`flex items-center gap-2 px-5 py-[7px] rounded-[3px] text-[13px] font-bold transition-colors shadow-sm ${
                 isValidMobile
-                  ? 'bg-[#25D366] hover:bg-[#1da851] text-white'
+                  ? 'bg-[#4F46E5] hover:bg-[#4338ca] text-white'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
               }`}
             >

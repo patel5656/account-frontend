@@ -1,9 +1,31 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronsLeft, ArrowRight, Upload, Download, ExternalLink } from 'lucide-react';
+import apiClient from '../api/apiClient';
 
 export function PurchaseSummary() {
   const navigate = useNavigate();
+  const [invoices, setInvoices] = useState([]);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, []);
+
+  const fetchInvoices = async () => {
+    try {
+      const res = await apiClient.get('/inventory/PURCHASE');
+      if (res.data.data) {
+        setInvoices(res.data.data);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const totalPurchase = invoices.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0);
+  const totalPaid = invoices.reduce((acc, curr) => acc + (curr.status === 'PAID' ? curr.totalAmount : 0), 0);
+  const totalDue = totalPurchase - totalPaid;
+
 
   const getFormattedDate = () => {
     const date = new Date();
@@ -101,7 +123,20 @@ export function PurchaseSummary() {
                 </tr>
               </thead>
               <tbody>
-                <tr>
+                {invoices.map((inv, idx) => (
+                  <tr key={inv.id}>
+                    <td className="border border-gray-800 py-1 px-2 text-center text-[13px]">{idx + 1}</td>
+                    <td className="border border-gray-800 py-1 px-2 text-center text-[13px]">{new Date(inv.date).toLocaleDateString()}</td>
+                    <td className="border border-gray-800 py-1 px-2 text-center text-[13px]">{inv.invoiceNo}</td>
+                    <td className="border border-gray-800 py-1 px-2 text-center text-[13px]">{inv.customer?.name || 'Cash'}</td>
+                    <td className="border border-gray-800 py-1 px-2 text-center text-[13px]">{inv.type}</td>
+                    <td className="border border-gray-800 py-1 px-2 text-right text-[13px]">₹{(inv.totalAmount || 0).toFixed(2)}</td>
+                    <td className="border border-gray-800 py-1 px-2 text-right text-[13px]">0.00</td>
+                    <td className="border border-gray-800 py-1 px-2 text-right text-[13px]">₹{(inv.status === 'PAID' ? inv.totalAmount : 0).toFixed(2)}</td>
+                    <td className="border border-gray-800 py-1 px-2 text-right text-[13px]">₹{(inv.status === 'PAID' ? 0 : inv.totalAmount).toFixed(2)}</td>
+                  </tr>
+                ))}
+                <tr className="bg-gray-100">
                   <td className="border border-gray-800 py-1 px-2 h-[26px]"></td>
                   <td className="border border-gray-800 py-1 px-2"></td>
                   <td className="border border-gray-800 py-1 px-2"></td>
@@ -110,16 +145,16 @@ export function PurchaseSummary() {
                   </td>
                   <td className="border border-gray-800 py-1 px-2"></td>
                   <td className="border border-gray-800 py-1 px-2 text-right">
-                    <span className="font-bold text-[13px] text-gray-900">0</span>
+                    <span className="font-bold text-[13px] text-gray-900">₹{totalPurchase.toFixed(2)}</span>
                   </td>
                   <td className="border border-gray-800 py-1 px-2 text-right">
-                    <span className="font-bold text-[13px] text-gray-900">0</span>
+                    <span className="font-bold text-[13px] text-gray-900">0.00</span>
                   </td>
                   <td className="border border-gray-800 py-1 px-2 text-right">
-                    <span className="font-bold text-[13px] text-gray-900">0</span>
+                    <span className="font-bold text-[13px] text-gray-900">₹{totalPaid.toFixed(2)}</span>
                   </td>
                   <td className="border border-gray-800 py-1 px-2 text-right">
-                    <span className="font-bold text-[13px] text-gray-900">0</span>
+                    <span className="font-bold text-[13px] text-gray-900">₹{totalDue.toFixed(2)}</span>
                   </td>
                 </tr>
               </tbody>

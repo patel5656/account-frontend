@@ -1,26 +1,16 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
-  X, 
-  Search, 
-  Calendar, 
-  DownloadCloud, 
-  RefreshCw,
-  PlusSquare,
-  Edit,
-  Check,
-  Printer,
-  ChevronDown,
-  PlusCircle,
-  Grip,
-  Trash2,
-  PauseCircle
+  X, Search, Calendar, DownloadCloud, RefreshCw, PlusSquare,
+  Edit, Check, Printer, ChevronDown, PlusCircle, Grip, Trash2, PauseCircle
 } from 'lucide-react';
 import { cn } from '../utils';
 import { useAuditLog } from '../context/AuditLogContext';
 import { ImportInvoiceAIModal } from '../components/ImportInvoiceAIModal';
 import { HoldInvoiceModal } from '../components/HoldInvoiceModal';
 import { useSettings } from '../context/SettingsContext';
+import apiClient from '../api/apiClient';
+import { createTransaction } from '../api/inventory';
 
 // Inline Youtube SVG to avoid lucide-react export issues
 const YoutubeIcon = ({ className }) => (
@@ -33,7 +23,7 @@ export function SalesInvoice() {
   const navigate = useNavigate();
   const location = useLocation();
   const { addLog } = useAuditLog();
-  const { formatAmount, currentCurrency } = useSettings();
+  const { settings, formatAmount, currentCurrency } = useSettings();
   
   const isReturn = location.pathname.includes('sales-return-invoice');
   const isQuotation = location.pathname.includes('quotation-invoice');
@@ -48,6 +38,7 @@ export function SalesInvoice() {
   // Toggles State
   const [isTaxIncluded, setIsTaxIncluded] = useState(true);
   const [paymentMode, setPaymentMode] = useState('Cash');
+  const [isWholesale, setIsWholesale] = useState(false);
 
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const dateInputRef = useRef(null);
@@ -59,70 +50,99 @@ export function SalesInvoice() {
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
   };
 
-  // Mock Item Master Data for Demonstration
-  const MOCK_ITEM = {
-    name: "Smartphone X",
-    mrp: 1200,
-    sale_price: 1000,
-    wholesale_price: 900,
-    credit_sale_price: 1050,
-    qty_slabs: [
-      { min: 10, max: 49, price: 950 },
-      { min: 50, max: 99999, price: 850 }
-    ]
+  const [customers, setCustomers] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [remark, setRemark] = useState("");
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [custRes, prodRes] = await Promise.all([
+        apiClient.get('/customers'),
+        apiClient.get('/products')
+      ]);
+      if (custRes.data.success) setCustomers(custRes.data.data);
+      if (prodRes.data.success) setProducts(prodRes.data.data);
+    } catch (error) {
+      console.error('Failed to fetch data', error);
+    }
   };
 
-  const [isWholesale, setIsWholesale] = useState(false);
+  const createEmptyRow = () => ({
+    productId: "",
+    productCode: "",
+    unit: "",
+    batchNo: "",
+    mfgDate: "",
+    expDate: "",
+    qty: 1,
+    freeQty: 0,
+    listPrice: 0,
+    mrp: 0,
+    purchasePrice: 0,
+    salePrice: 0,
+    wholeSalePrice: 0,
+    price: 0,
+    disc1: 0,
+    disc1Type: '%',
+    disc2: 0,
+    disc2Type: '%',
+    imei: "",
+    amount: 0,
+    taxRate: 0
+  });
 
-  // Interactive Live Calculation State
-  const [qty, setQty] = useState(1);
-  const [freeQty, setFreeQty] = useState(0);
-  
-  // State for tracking the applied price reason
-  const [priceReason, setPriceReason] = useState('Standard Retail');
+  const [rows, setRows] = useState([createEmptyRow()]);
 
-  // Dynamic Price Calculation
-  const calculatePrice = (currentQty, isCredit, isWholesaleTx) => {
-    let newPrice = MOCK_ITEM.sale_price;
-    let reason = "Standard Retail";
-
-    if (isCredit) {
-      newPrice = MOCK_ITEM.credit_sale_price;
-      reason = "Credit Sale Price";
-    } else if (isWholesaleTx) {
-      newPrice = MOCK_ITEM.wholesale_price;
-      reason = "Wholesale Price";
+  // Recalculate prices when Wholesale toggle changes
+  useEffect(() => {
+    if (products.length > 0) {
+      setRows(prevRows => prevRows.map(row => {
+        if (row.productId) {
+          const product = products.find(p => p.id === parseInt(row.productId));
+          if (product) {
+            return {
+              ...row,
+              price: isWholesale ? (product.wholesalePrice || 0) : (product.price || 0)
+            };
+          }
+        }
+        return row;
+      }));
     }
+  }, [isWholesale]);
 
-    // Check quantity slabs (Quantity override takes highest priority for retail/wholesale)
-    const matchingSlab = MOCK_ITEM.qty_slabs.find(slab => currentQty >= slab.min && currentQty <= slab.max);
-    if (matchingSlab && !isCredit) { // Typically credit sales don't get volume discounts, or maybe they do. Let's apply it if found.
-      newPrice = matchingSlab.price;
-      reason = `Special Qty Price (${matchingSlab.min}-${matchingSlab.max})`;
+  const handleProductSelect = (index, productId) => {
+    const product = products.find(p => p.id === parseInt(productId));
+    if (product) {
+      const newRows = [...rows];
+      newRows[index] = {
+        ...newRows[index],
+        productId: product.id,
+        mrp: product.mrp || 0,
+        price: isWholesale ? (product.wholesalePrice || 0) : (product.price || 0),
+        taxRate: product.tax || 0
+      };
+      setRows(newRows);
     }
-
-    return { price: newPrice, reason };
   };
 
-  const [price, setPrice] = useState(MOCK_ITEM.sale_price);
+  const updateRow = (index, field, value) => {
+    const newRows = [...rows];
+    newRows[index][field] = value;
+    setRows(newRows);
+  };
 
-  // Recalculate when qty or toggles change
-  React.useEffect(() => {
-    const { price: newPrice, reason } = calculatePrice(qty, paymentMode === 'Credit', isWholesale);
-    setPrice(newPrice);
-    setPriceReason(reason);
-  }, [qty, paymentMode, isWholesale]);
-  
-  const [disc1, setDisc1] = useState(0);
-  const [disc1Type, setDisc1Type] = useState('%');
-  
-  const [disc2, setDisc2] = useState(0);
-  const [disc2Type, setDisc2Type] = useState('%');
-
-  // IMEI Tracking State
-  const [isImeiTracked, setIsImeiTracked] = useState(true);
-  const [selectedImei, setSelectedImei] = useState('');
-  const availableImeis = ['354123067891234', '354123067891235', '354123067891236'];
+  const addRow = () => setRows([...rows, createEmptyRow()]);
+  const removeRow = (index) => {
+    if (rows.length > 1) {
+      setRows(rows.filter((_, i) => i !== index));
+    }
+  };
 
   // Manual Summary Inputs
   const [manualDiscPercent, setManualDiscPercent] = useState("");
@@ -131,51 +151,207 @@ export function SalesInvoice() {
   const [manualFreightGst, setManualFreightGst] = useState("");
 
   // Calculation Logic
-  const baseAmount = (qty || 0) * (price || 0);
-  
-  // Disc 1 Applied on Base Amount
-  let d1Amt = 0;
-  if (disc1Type === '%') {
-    d1Amt = baseAmount * ((disc1 || 0) / 100);
-  } else {
-    d1Amt = (disc1 || 0);
-  }
-  const amountAfterD1 = Math.max(0, baseAmount - d1Amt);
+  let totalQty = 0;
+  let baseAmount = 0;
+  let totalRowDiscount = 0;
+  let totalGstAmount = 0;
+  let totalCgst = 0;
+  let totalSgst = 0;
+  let totalIgst = 0;
 
-  // Disc 2 Applied on Remaining Amount
-  let d2Amt = 0;
-  if (disc2Type === '%') {
-    d2Amt = amountAfterD1 * ((disc2 || 0) / 100);
-  } else {
-    d2Amt = (disc2 || 0);
-  }
-  
-  const finalAmount = Math.max(0, amountAfterD1 - d2Amt);
-  const totalDiscAmount = d1Amt + d2Amt;
-  const totalQty = (qty || 0) + (freeQty || 0);
+  const calculatedRows = rows.map(row => {
+    const pPrice = Number(row.price) || 0;
+    const pQty = Number(row.qty) || 0;
+    const pFree = Number(row.freeQty) || 0;
+    
+    totalQty += pQty + pFree;
+    
+    const rowBaseAmount = pQty * pPrice;
+    baseAmount += rowBaseAmount;
 
-  // For summary display percentage roughly
-  const effectiveDiscPercent = baseAmount > 0 ? ((totalDiscAmount / baseAmount) * 100).toFixed(2) : 0;
+    let d1Amt = row.disc1Type === '%' ? rowBaseAmount * ((Number(row.disc1) || 0) / 100) : (Number(row.disc1) || 0);
+    const afterD1 = Math.max(0, rowBaseAmount - d1Amt);
+    let d2Amt = row.disc2Type === '%' ? afterD1 * ((Number(row.disc2) || 0) / 100) : (Number(row.disc2) || 0);
+    
+    const rowDisc = d1Amt + d2Amt;
+    totalRowDiscount += rowDisc;
+    
+    const amount = Math.max(0, rowBaseAmount - rowDisc);
 
-  const appliedDiscAmount = manualDiscAmount !== "" ? Number(manualDiscAmount) : totalDiscAmount;
+    const gstRate = Number(row.taxRate) || 0;
+    const gstAmount = amount * (gstRate / 100);
+    const cgst = gstAmount / 2;
+    const sgst = gstAmount / 2;
+    const igst = 0;
+
+    totalGstAmount += gstAmount;
+    totalCgst += cgst;
+    totalSgst += sgst;
+    totalIgst += igst;
+
+    return { ...row, amount, gstRate, gstAmount, cgst, sgst, igst };
+  });
+
+  const effectiveDiscPercent = baseAmount > 0 ? ((totalRowDiscount / baseAmount) * 100).toFixed(2) : 0;
+  const appliedDiscAmount = manualDiscAmount !== "" ? Number(manualDiscAmount) : totalRowDiscount;
   const appliedFreightAmt = manualFreightAmt !== "" ? Number(manualFreightAmt) : 0;
   const appliedFreightGst = manualFreightGst !== "" ? Number(manualFreightGst) : 0;
   const totalFreight = appliedFreightAmt + (appliedFreightAmt * (appliedFreightGst / 100));
 
-  const finalCalculatedAmount = Math.max(0, baseAmount - appliedDiscAmount) + totalFreight;
+  const finalCalculatedAmount = Math.max(0, baseAmount - appliedDiscAmount) + totalFreight + totalGstAmount;
 
-  const handleSave = () => {
-    addLog({
-      userName: 'Admin User',
-      userRole: 'Admin',
-      actionType: 'Create',
-      billNumber: `INV-${Math.floor(1000 + Math.random() * 9000)}`,
-      moduleName: pageTitle,
-      previousData: null,
-      updatedData: { qty, price, finalAmount, totalDiscAmount },
-      ipAddress: '192.168.1.5'
-    });
-    alert('Invoice saved and audit log created!');
+  const gridTemplateColumns = [
+    '40px', // S.NO
+    settings.showProductCode ? '90px' : '', // P.CODE
+    '200px', // PRODUCT NAME
+    settings.showUnit ? '70px' : '', // UNIT
+    settings.showBatchNo ? '90px' : '', // BATCH
+    !settings.hideManufactureDate ? '110px' : '', // MFG
+    !settings.hideExpiryDate ? '110px' : '', // EXP
+    settings.showHSN ? '80px' : '',
+    settings.showGST ? '80px' : '',
+    '80px', // QTY
+    '80px', // FREE QTY
+    settings.showListPrice ? '90px' : '', // LIST P
+    settings.showMRP ? '80px' : '', // MRP
+    settings.showPurchasePrice ? '90px' : '', // PUR P
+    settings.salePrice ? '90px' : '', // SALE P
+    settings.wholeSalePrice ? '90px' : '', // WS P
+    '100px', // PRICE
+    settings.showDiscount ? '110px' : '', // DISC 1
+    settings.showDiscount ? '110px' : '', // DISC 2
+    '120px', // IMEI
+    '100px', // AMOUNT
+    '80px', // ACTION
+  ].filter(Boolean).join(' ');
+
+  const handleSave = async () => {
+    if (!selectedCustomerId) return alert('Please select a customer.');
+    
+    const validRows = calculatedRows.filter(r => r.productId && r.qty > 0);
+    if (validRows.length === 0) return alert('Please add at least one valid product.');
+
+    const payload = {
+      invoiceNo: `INV-${Date.now()}`,
+      customerId: selectedCustomerId,
+      date: invoiceDate,
+      paymentMode,
+      remark,
+      subTotal: baseAmount,
+      totalDiscount: appliedDiscAmount,
+      freightCharges: totalFreight,
+      totalAmount: finalCalculatedAmount,
+      totalGstAmount,
+      totalCgst,
+      totalSgst,
+      totalIgst,
+      items: validRows.map(r => ({
+        productId: Number(r.productId),
+        productCode: r.productCode,
+        unit: r.unit,
+        batchNo: r.batchNo,
+        mfgDate: r.mfgDate,
+        expDate: r.expDate,
+        quantity: Number(r.qty) || 1,
+        freeQty: Number(r.freeQty) || 0,
+        listPrice: Number(r.listPrice) || 0,
+        mrp: Number(r.mrp) || 0,
+        purchasePrice: Number(r.purchasePrice) || 0,
+        salePrice: Number(r.salePrice) || 0,
+        wholeSalePrice: Number(r.wholeSalePrice) || 0,
+        price: Number(r.price) || 0,
+        discount1: Number(r.disc1Type === '%' ? r.price * r.qty * (r.disc1/100) : r.disc1) || 0,
+        discount2: Number(r.disc2Type === '%' ? r.price * r.qty * (r.disc2/100) : r.disc2) || 0,
+        imei: r.imei,
+        amount: Number(r.amount) || 0,
+        gstRate: Number(r.gstRate) || 0,
+        gstAmount: Number(r.gstAmount) || 0,
+        cgst: Number(r.cgst) || 0,
+        sgst: Number(r.sgst) || 0,
+        igst: Number(r.igst) || 0
+      }))
+    };
+
+    try {
+      let type = 'sales';
+      if (isQuotation) type = 'quotation';
+      else if (isReturn) type = 'sales_return';
+      else if (isCustomerChallan) type = 'challan';
+
+      await createTransaction(type, payload);
+      alert('Invoice Saved Successfully!');
+      
+      if (isQuotation) navigate('/admin/quotation_summary');
+      else if (isReturn) navigate('/admin/sales_return');
+      else if (isCustomerChallan) navigate('/admin/customer_challan_invoice');
+      else navigate('/admin/customer_sale');
+      
+    } catch (error) {
+      console.error(error);
+      alert('Failed to save invoice.');
+    }
+  };
+
+  const handleHoldInvoice = async (note) => {
+    if (!selectedCustomerId) return alert('Please select a customer before holding.');
+    
+    const validRows = calculatedRows.filter(r => r.productId && r.qty > 0);
+    if (validRows.length === 0) return alert('Please add at least one valid product.');
+
+    const payload = {
+      invoiceNo: `INV-${Date.now()}`,
+      customerId: selectedCustomerId,
+      date: invoiceDate,
+      paymentMode,
+      remark: note || remark,
+      status: "HOLD",
+      subTotal: baseAmount,
+      totalDiscount: appliedDiscAmount,
+      freightCharges: totalFreight,
+      totalAmount: finalCalculatedAmount,
+      totalGstAmount,
+      totalCgst,
+      totalSgst,
+      totalIgst,
+      items: validRows.map(r => ({
+        productId: Number(r.productId),
+        quantity: Number(r.qty) || 1,
+        freeQty: Number(r.freeQty) || 0,
+        price: Number(r.price) || 0,
+        discount1: Number(r.disc1Type === '%' ? r.price * r.qty * (r.disc1/100) : r.disc1) || 0,
+        discount2: Number(r.disc2Type === '%' ? r.price * r.qty * (r.disc2/100) : r.disc2) || 0,
+        imei: r.imei,
+        amount: Number(r.amount) || 0,
+        gstRate: Number(r.gstRate) || 0,
+        gstAmount: Number(r.gstAmount) || 0,
+        cgst: Number(r.cgst) || 0,
+        sgst: Number(r.sgst) || 0,
+        igst: Number(r.igst) || 0
+      }))
+    };
+
+    try {
+      let type = 'sales';
+      if (isQuotation) type = 'quotation';
+      else if (isReturn) type = 'sales_return';
+      else if (isCustomerChallan) type = 'challan';
+
+      await createTransaction(type, payload);
+      alert('Invoice put on hold successfully!');
+      
+      // Reset form to start a new invoice
+      setRows([createEmptyRow()]);
+      setSelectedCustomerId("");
+      setRemark("");
+      setManualDiscPercent("");
+      setManualDiscAmount("");
+      setManualFreightAmt("");
+      setManualFreightGst("");
+      
+    } catch (error) {
+      console.error(error);
+      alert('Failed to hold invoice.');
+    }
   };
 
   const handleEditRow = () => {
@@ -186,7 +362,7 @@ export function SalesInvoice() {
       billNumber: `INV-${Math.floor(1000 + Math.random() * 9000)}`,
       moduleName: pageTitle,
       previousData: { qty: 10, price: 1000, finalAmount: 10000 },
-      updatedData: { qty, price, finalAmount },
+      updatedData: { qty: 0, price: 0, finalAmount: 0 },
       ipAddress: '192.168.1.5'
     });
     alert('Row edit logged!');
@@ -199,7 +375,7 @@ export function SalesInvoice() {
       actionType: 'Delete',
       billNumber: `INV-${Math.floor(1000 + Math.random() * 9000)}`,
       moduleName: pageTitle,
-      previousData: { qty, price, finalAmount },
+      previousData: { qty: 0, price: 0, finalAmount: 0 },
       updatedData: null,
       ipAddress: '192.168.1.5'
     });
@@ -263,19 +439,16 @@ export function SalesInvoice() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex-1 flex items-center relative">
-                <input 
-                  type="text"
-                  list="customer-names-list"
-                  placeholder="Select Name"
+                <select 
+                  value={selectedCustomerId}
+                  onChange={(e) => setSelectedCustomerId(e.target.value)}
                   className="w-full min-w-0 border border-gray-300 border-r-0 rounded-l-[3px] px-3 py-1.5 text-[13px] focus:outline-none focus:border-[#4F46E5] bg-white text-gray-800"
-                />
-                <datalist id="customer-names-list">
-                  <option value="John Doe" />
-                  <option value="Jane Smith" />
-                  <option value="Acme Corp" />
-                  <option value="Global Industries" />
-                  <option value="Tech Solutions Ltd" />
-                </datalist>
+                >
+                  <option value="">Select Customer</option>
+                  {customers.map(c => (
+                    <option key={c.id} value={c.id}>{c.name} - {c.phone}</option>
+                  ))}
+                </select>
                 <button 
                   onClick={() => alert("Search triggered")}
                   className="bg-[#4F46E5] hover:bg-[#4338ca] text-white px-3 py-1.5 border border-[#4F46E5] rounded-r-[3px] transition-colors"
@@ -350,22 +523,79 @@ export function SalesInvoice() {
         <div className="flex-1 min-h-[300px] overflow-x-auto">
           <div className="min-w-[1000px]">
             {/* Table Header: 11 Columns */}
-            <div className="bg-[#343a40] text-white grid grid-cols-[40px_1fr_80px_80px_80px_100px_110px_110px_120px_100px_80px] text-center border-b border-gray-600">
+            <div style={{ gridTemplateColumns }} className="bg-[#343a40] text-white grid text-center border-b border-gray-600">
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold leading-tight flex flex-col justify-center">
                 S.NO.
               </div>
+              {settings.showProductCode && (
+                <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">
+                  P.CODE
+                </div>
+              )}
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">
                 PRODUCT NAME
               </div>
+              {settings.showUnit && (
+                <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">
+                  UNIT
+                </div>
+              )}
+              {settings.showBatchNo && (
+                <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">
+                  BATCH
+                </div>
+              )}
+              {!settings.hideManufactureDate && (
+                <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">
+                  MFG DT
+                </div>
+              )}
+              {!settings.hideExpiryDate && (
+                <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-red-300">
+                  EXP DT
+                </div>
+              )}
+              {settings.showHSN && (
+                <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex flex-col justify-center text-teal-300">
+                  HSN
+                </div>
+              )}
+              {settings.showGST && (
+                <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex flex-col justify-center text-teal-300">
+                  GST %
+                </div>
+              )}
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex flex-col justify-center">
                 QTY
               </div>
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold text-[#ffc107] flex items-center justify-center">
-                FREE QTY
+                FREE
               </div>
-              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">
-                MRP
-              </div>
+              {settings.showListPrice && (
+                <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">
+                  LIST P.
+                </div>
+              )}
+              {settings.showMRP && (
+                <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">
+                  MRP
+                </div>
+              )}
+              {settings.showPurchasePrice && (
+                <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">
+                  PUR. P.
+                </div>
+              )}
+              {settings.salePrice && (
+                <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-green-300">
+                  SALE P.
+                </div>
+              )}
+              {settings.wholeSalePrice && (
+                <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-green-300">
+                  W.S. P.
+                </div>
+              )}
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex flex-col justify-center leading-tight">
                 <span className="font-normal text-[10px]">(TAX INCLUDED)</span>
                 <div 
@@ -378,12 +608,16 @@ export function SalesInvoice() {
                   PRICE
                 </div>
               </div>
-              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-blue-300">
-                DISC 1
-              </div>
-              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-blue-300">
-                DISC 2
-              </div>
+              {settings.showDiscount && (
+                <>
+                  <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-blue-300">
+                    DISC 1
+                  </div>
+                  <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-blue-300">
+                    DISC 2
+                  </div>
+                </>
+              )}
               <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-purple-300">
                 IMEI
               </div>
@@ -395,126 +629,188 @@ export function SalesInvoice() {
               </div>
             </div>
 
-            {/* Input Row */}
-            <div className="grid grid-cols-[40px_1fr_80px_80px_80px_100px_110px_110px_120px_100px_80px] bg-white border-b border-gray-200">
-              <div className="border-r border-gray-200 flex items-center justify-center p-1 bg-gray-600">
-              </div>
-              <div className="border-r border-gray-200 p-1 flex relative">
-                <input 
-                  type="text" 
-                  value={MOCK_ITEM.name} 
-                  readOnly 
-                  className="w-full px-2 py-1 text-[13px] outline-none font-bold text-gray-800" 
-                />
-                <button className="absolute right-1 top-1.5 bottom-1.5 bg-[#4F46E5] text-white text-[11px] px-2 rounded-sm font-bold flex items-center gap-1">
-                  <FilterIcon className="w-3 h-3" /> Product
-                </button>
-              </div>
-              
-              <div className="border-r border-gray-200 p-1">
-                 <input 
-                   type="number" 
-                   value={qty}
-                   onChange={(e) => setQty(Number(e.target.value))}
-                   className="w-full h-full border border-gray-200 rounded-[3px] px-2 text-[13px] outline-none text-center font-bold" 
-                 />
-              </div>
-
-              <div className="border-r border-gray-200 p-1">
-                 <input 
-                   type="number" 
-                   value={freeQty}
-                   onChange={(e) => setFreeQty(Number(e.target.value))}
-                   className="w-full h-full border border-yellow-300 bg-yellow-50 rounded-[3px] px-2 text-[13px] outline-none text-center font-bold text-yellow-800" 
-                 />
-              </div>
-
-              <div className="border-r border-gray-200 p-1 flex items-center justify-center bg-gray-50 text-[13px] font-bold text-gray-500">
-                {MOCK_ITEM.mrp.toFixed(2)}
-              </div>
-
-              <div className="border-r border-gray-200 p-1 flex flex-col justify-center relative group">
-                <input 
-                  type="number" 
-                  value={price}
-                  onChange={(e) => setPrice(Number(e.target.value))}
-                  className="w-full h-full border border-gray-200 rounded-[3px] px-2 text-[13px] outline-none text-right font-bold transition-colors bg-blue-50 border-blue-200" 
-                />
-                <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap bg-gray-800 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
-                  Applied: {priceReason}
+            {/* Input Rows */}
+            {calculatedRows.map((row, idx) => (
+              <div key={idx} style={{ gridTemplateColumns }} className="grid bg-white border-b border-gray-200">
+                <div className="border-r border-gray-200 flex items-center justify-center p-1 bg-gray-600 text-white font-bold text-[12px]">
+                  {idx + 1}
                 </div>
-              </div>
-
-              {/* Disc 1 */}
-              <div className="border-r border-gray-200 p-1 flex">
-                 <input 
-                   type="number" 
-                   value={disc1}
-                   onChange={(e) => setDisc1(Number(e.target.value))}
-                   className="w-[60%] border border-blue-200 rounded-l-[3px] px-1 text-[13px] outline-none border-r-0 text-center text-blue-800 bg-blue-50" 
-                 />
+                {settings.showProductCode && (
+                  <div className="border-r border-gray-200 p-1 flex">
+                    <input type="text" value={row.productCode} onChange={(e) => updateRow(idx, 'productCode', e.target.value)} placeholder="Code" className="w-full h-full border border-gray-200 rounded-[3px] px-1 text-[12px] outline-none" />
+                  </div>
+                )}
+                <div className="border-r border-gray-200 p-1 flex relative">
                   <select 
-                    value={disc1Type}
-                    onChange={(e) => setDisc1Type(e.target.value)}
-                    className="w-[40%] border border-blue-200 rounded-r-[3px] px-0 text-[12px] outline-none bg-blue-100 text-blue-800 appearance-none text-center"
+                    value={row.productId} 
+                    onChange={(e) => handleProductSelect(idx, e.target.value)}
+                    className="w-full px-2 py-1 text-[13px] outline-none font-bold text-gray-800 appearance-none bg-transparent" 
                   >
-                    <option value="%">%</option>
-                    <option value={currentCurrency.symbol}>{currentCurrency.symbol}</option>
-                  </select>
-              </div>
-
-              {/* Disc 2 */}
-              <div className="border-r border-gray-200 p-1 flex">
-                 <input 
-                   type="number" 
-                   value={disc2}
-                   onChange={(e) => setDisc2(Number(e.target.value))}
-                   className="w-[60%] border border-blue-200 rounded-l-[3px] px-1 text-[13px] outline-none border-r-0 text-center text-blue-800 bg-blue-50" 
-                 />
-                  <select 
-                    value={disc2Type}
-                    onChange={(e) => setDisc2Type(e.target.value)}
-                    className="w-[40%] border border-blue-200 rounded-r-[3px] px-0 text-[12px] outline-none bg-blue-100 text-blue-800 appearance-none text-center"
-                  >
-                    <option value="%">%</option>
-                    <option value={currentCurrency.symbol}>{currentCurrency.symbol}</option>
-                  </select>
-              </div>
-
-              {/* IMEI Select */}
-              <div className="border-r border-gray-200 p-1 flex items-center justify-center">
-                {isImeiTracked ? (
-                  <select 
-                    value={selectedImei}
-                    onChange={(e) => setSelectedImei(e.target.value)}
-                    className="w-full h-full border border-purple-200 bg-purple-50 rounded-[3px] px-1 text-[11px] outline-none text-purple-800"
-                  >
-                    <option value="">Select IMEI</option>
-                    {availableImeis.map(imei => (
-                      <option key={imei} value={imei}>{imei}</option>
+                    <option value="">Select Product...</option>
+                    {products.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} - SKU: {p.sku}</option>
                     ))}
                   </select>
-                ) : (
-                  <span className="text-[11px] text-gray-400">-</span>
+                </div>
+                
+                {settings.showUnit && (
+                  <div className="border-r border-gray-200 p-1 flex items-center justify-center">
+                    <input type="text" value={row.unit} onChange={(e) => updateRow(idx, 'unit', e.target.value)} placeholder="Unit" className="w-full h-full border border-gray-200 rounded-[3px] px-1 text-[12px] outline-none text-center" />
+                  </div>
                 )}
-              </div>
+                {settings.showBatchNo && (
+                  <div className="border-r border-gray-200 p-1 flex items-center justify-center">
+                    <input type="text" value={row.batchNo} onChange={(e) => updateRow(idx, 'batchNo', e.target.value)} placeholder="Batch" className="w-full h-full border border-gray-200 rounded-[3px] px-1 text-[12px] outline-none text-center text-purple-700" />
+                  </div>
+                )}
+                {!settings.hideManufactureDate && (
+                  <div className="border-r border-gray-200 p-1 flex items-center justify-center">
+                    <input type="date" value={row.mfgDate} onChange={(e) => updateRow(idx, 'mfgDate', e.target.value)} className="w-full h-full border border-gray-200 rounded-[3px] px-1 text-[11px] outline-none" />
+                  </div>
+                )}
+                {!settings.hideExpiryDate && (
+                  <div className="border-r border-gray-200 p-1 flex items-center justify-center">
+                    <input type="date" value={row.expDate} onChange={(e) => updateRow(idx, 'expDate', e.target.value)} className="w-full h-full border border-red-200 rounded-[3px] px-1 text-[11px] outline-none text-red-700 bg-red-50" />
+                  </div>
+                )}
 
-              <div className="border-r border-gray-200 p-1 flex items-center justify-end pr-2 text-[13px] font-bold text-gray-800 bg-gray-50">
-                {finalAmount.toFixed(2)}
+                {settings.showHSN && (
+                  <div className="border-r border-gray-200 p-1 flex items-center justify-center">
+                    <input type="text" placeholder="HSN" className="w-full h-full border border-gray-200 rounded-[3px] px-1 text-[12px] outline-none text-center" />
+                  </div>
+                )}
+                {settings.showGST && (
+                  <div className="border-r border-gray-200 p-1 flex items-center justify-center">
+                    <select 
+                      value={row.taxRate}
+                      onChange={(e) => updateRow(idx, 'taxRate', Number(e.target.value))}
+                      className="w-full h-full border border-gray-200 rounded-[3px] px-0 text-[12px] outline-none text-center"
+                    >
+                      <option value="0">0%</option>
+                      <option value="5">5%</option>
+                      <option value="12">12%</option>
+                      <option value="18">18%</option>
+                      <option value="28">28%</option>
+                    </select>
+                  </div>
+                )}
+
+                <div className="border-r border-gray-200 p-1">
+                   <input 
+                     type="number" 
+                     value={row.qty}
+                     onChange={(e) => updateRow(idx, 'qty', Number(e.target.value))}
+                     className="w-full h-full border border-gray-200 rounded-[3px] px-2 text-[13px] outline-none text-center font-bold" 
+                   />
+                </div>
+
+                <div className="border-r border-gray-200 p-1">
+                   <input 
+                     type="number" 
+                     value={row.freeQty}
+                     onChange={(e) => updateRow(idx, 'freeQty', Number(e.target.value))}
+                     className="w-full h-full border border-yellow-300 bg-yellow-50 rounded-[3px] px-2 text-[13px] outline-none text-center font-bold text-yellow-800" 
+                   />
+                </div>
+
+                {settings.showListPrice && (
+                  <div className="border-r border-gray-200 p-1 flex flex-col justify-center">
+                    <input type="number" value={row.listPrice} onChange={(e) => updateRow(idx, 'listPrice', Number(e.target.value))} className="w-full h-full border border-gray-200 rounded-[3px] px-1 text-[12px] outline-none text-right" />
+                  </div>
+                )}
+                {settings.showMRP && (
+                  <div className="border-r border-gray-200 p-1 flex flex-col justify-center bg-gray-50 text-[13px] font-bold text-gray-500">
+                    <input type="number" value={row.mrp} onChange={(e) => updateRow(idx, 'mrp', Number(e.target.value))} className="w-full h-full border-none bg-transparent px-1 text-[12px] outline-none text-right font-bold text-gray-600" />
+                  </div>
+                )}
+                {settings.showPurchasePrice && (
+                  <div className="border-r border-gray-200 p-1 flex flex-col justify-center">
+                    <input type="number" value={row.purchasePrice} onChange={(e) => updateRow(idx, 'purchasePrice', Number(e.target.value))} className="w-full h-full border border-gray-200 rounded-[3px] px-1 text-[12px] outline-none text-right" />
+                  </div>
+                )}
+                {settings.salePrice && (
+                  <div className="border-r border-gray-200 p-1 flex flex-col justify-center">
+                    <input type="number" value={row.salePrice} onChange={(e) => updateRow(idx, 'salePrice', Number(e.target.value))} className="w-full h-full border border-green-200 rounded-[3px] px-1 text-[12px] outline-none text-right bg-green-50 text-green-700" />
+                  </div>
+                )}
+                {settings.wholeSalePrice && (
+                  <div className="border-r border-gray-200 p-1 flex flex-col justify-center">
+                    <input type="number" value={row.wholeSalePrice} onChange={(e) => updateRow(idx, 'wholeSalePrice', Number(e.target.value))} className="w-full h-full border border-green-200 rounded-[3px] px-1 text-[12px] outline-none text-right bg-green-50 text-green-700" />
+                  </div>
+                )}
+
+                <div className="border-r border-gray-200 p-1 flex flex-col justify-center relative group">
+                  <input 
+                    type="number" 
+                    value={row.price}
+                    onChange={(e) => updateRow(idx, 'price', Number(e.target.value))}
+                    className="w-full h-full border border-gray-200 rounded-[3px] px-2 text-[13px] outline-none text-right font-bold transition-colors bg-blue-50 border-blue-200" 
+                  />
+                </div>
+
+                {/* Disc 1 and 2 */}
+                {settings.showDiscount && (
+                  <>
+                    <div className="border-r border-gray-200 p-1 flex">
+                       <input 
+                         type="number" 
+                         value={row.disc1}
+                         onChange={(e) => updateRow(idx, 'disc1', Number(e.target.value))}
+                         className="w-[60%] border border-blue-200 rounded-l-[3px] px-1 text-[13px] outline-none border-r-0 text-center text-blue-800 bg-blue-50" 
+                       />
+                        <select 
+                          value={row.disc1Type}
+                          onChange={(e) => updateRow(idx, 'disc1Type', e.target.value)}
+                          className="w-[40%] border border-blue-200 rounded-r-[3px] px-0 text-[12px] outline-none bg-blue-100 text-blue-800 appearance-none text-center"
+                        >
+                          <option value="%">%</option>
+                          <option value={currentCurrency.symbol}>{currentCurrency.symbol}</option>
+                        </select>
+                    </div>
+                    <div className="border-r border-gray-200 p-1 flex">
+                       <input 
+                         type="number" 
+                         value={row.disc2}
+                         onChange={(e) => updateRow(idx, 'disc2', Number(e.target.value))}
+                         className="w-[60%] border border-blue-200 rounded-l-[3px] px-1 text-[13px] outline-none border-r-0 text-center text-blue-800 bg-blue-50" 
+                       />
+                        <select 
+                          value={row.disc2Type}
+                          onChange={(e) => updateRow(idx, 'disc2Type', e.target.value)}
+                          className="w-[40%] border border-blue-200 rounded-r-[3px] px-0 text-[12px] outline-none bg-blue-100 text-blue-800 appearance-none text-center"
+                        >
+                          <option value="%">%</option>
+                          <option value={currentCurrency.symbol}>{currentCurrency.symbol}</option>
+                        </select>
+                    </div>
+                  </>
+                )}
+
+                {/* IMEI Select */}
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center">
+                    <input 
+                      type="text"
+                      placeholder="IMEI..."
+                      value={row.imei || ''}
+                      onChange={(e) => updateRow(idx, 'imei', e.target.value)}
+                      className="w-full h-full border border-purple-200 bg-purple-50 rounded-[3px] px-1 text-[11px] outline-none text-purple-800"
+                    />
+                </div>
+
+                <div className="border-r border-gray-200 p-1 flex items-center justify-end pr-2 text-[13px] font-bold text-gray-800 bg-gray-50">
+                  {row.amount.toFixed(2)}
+                </div>
+                
+                <div className="bg-[#343a40] flex items-center justify-center gap-2 p-1">
+                  <button onClick={addRow} className="text-[#28a745] hover:text-green-400">
+                    <PlusSquare className="w-[18px] h-[18px]" strokeWidth={2.5} />
+                  </button>
+                  <button onClick={() => removeRow(idx)} className="text-red-400 hover:text-red-300">
+                    <Trash2 className="w-[18px] h-[18px]" strokeWidth={2.5} />
+                  </button>
+                </div>
               </div>
-              
-              <div className="bg-[#343a40] flex items-center justify-center gap-2 p-1">
-                <button className="text-[#28a745] hover:text-green-400">
-                  <PlusSquare className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                </button>
-                <button onClick={handleEditRow} className="text-white hover:text-gray-300">
-                  <Edit className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                </button>
-                <button onClick={handleDeleteRow} className="text-red-400 hover:text-red-300">
-                  <Trash2 className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                </button>
-              </div>
-            </div>
+            ))}
             
           </div>
         </div>
@@ -531,15 +827,15 @@ export function SalesInvoice() {
               </div>
               <div className="border border-gray-200 bg-[#f8f9fa] rounded-[3px] p-2 flex flex-col items-center justify-center text-center">
                 <span className="text-[12px] font-bold text-gray-700">Taxable</span>
-                <span className="text-[14px] font-bold text-[#28a745]">{formatAmount(finalAmount)}</span>
+                <span className="text-[14px] font-bold text-[#28a745]">{formatAmount(finalCalculatedAmount - totalGstAmount)}</span>
               </div>
               <div className="border border-gray-200 bg-[#f8f9fa] rounded-[3px] p-2 flex flex-col items-center justify-center text-center">
                 <span className="text-[12px] font-bold text-gray-700">CGST</span>
-                <span className="text-[14px] font-bold text-[#007bff]">{formatAmount(0)}</span>
+                <span className="text-[14px] font-bold text-[#007bff]">{formatAmount(totalCgst)}</span>
               </div>
               <div className="border border-gray-200 bg-[#f8f9fa] rounded-[3px] p-2 flex flex-col items-center justify-center text-center">
                 <span className="text-[12px] font-bold text-gray-700">SGST</span>
-                <span className="text-[14px] font-bold text-[#007bff]">{formatAmount(0)}</span>
+                <span className="text-[14px] font-bold text-[#007bff]">{formatAmount(totalSgst)}</span>
               </div>
             </div>
 
@@ -569,19 +865,21 @@ export function SalesInvoice() {
                </div>
              </div>
 
-             <div className="flex justify-between items-start">
-               <span className="text-[13px] font-bold text-gray-800 mt-3">Discount:</span>
-               <div className="w-[200px] flex gap-2">
-                 <div className="flex-1 relative mt-[18px]">
-                   <span className="absolute -top-[18px] left-0 text-[11px] font-bold text-gray-800">Dis.%</span>
-                   <input type="number" value={manualDiscPercent !== "" ? manualDiscPercent : effectiveDiscPercent} onChange={(e) => setManualDiscPercent(e.target.value)} className="w-full min-w-0 border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] outline-none bg-white text-right text-blue-700 font-bold" />
-                 </div>
-                 <div className="flex-1 relative mt-[18px]">
-                   <span className="absolute -top-[18px] left-0 text-[11px] font-bold text-gray-800">Dis. Amount</span>
-                   <input type="number" value={manualDiscAmount !== "" ? manualDiscAmount : totalDiscAmount.toFixed(2)} onChange={(e) => setManualDiscAmount(e.target.value)} className="w-full min-w-0 border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] outline-none bg-white text-right text-blue-700 font-bold" />
+             {!settings.hideTotalDiscount && (
+               <div className="flex justify-between items-start">
+                 <span className="text-[13px] font-bold text-gray-800 mt-3">Discount:</span>
+                 <div className="w-[200px] flex gap-2">
+                   <div className="flex-1 relative mt-[18px]">
+                     <span className="absolute -top-[18px] left-0 text-[11px] font-bold text-gray-800">Dis.%</span>
+                     <input type="number" value={manualDiscPercent !== "" ? manualDiscPercent : effectiveDiscPercent} onChange={(e) => setManualDiscPercent(e.target.value)} className="w-full min-w-0 border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] outline-none bg-white text-right text-blue-700 font-bold" />
+                   </div>
+                   <div className="flex-1 relative mt-[18px]">
+                     <span className="absolute -top-[18px] left-0 text-[11px] font-bold text-gray-800">Dis. Amount</span>
+                     <input type="number" value={manualDiscAmount !== "" ? manualDiscAmount : totalRowDiscount.toFixed(2)} onChange={(e) => setManualDiscAmount(e.target.value)} className="w-full min-w-0 border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] outline-none bg-white text-right text-blue-700 font-bold" />
+                   </div>
                  </div>
                </div>
-             </div>
+             )}
 
              <div className="flex justify-between items-start">
                <span className="text-[13px] font-bold text-gray-800 mt-3">Fright Charges:</span>
@@ -660,6 +958,7 @@ export function SalesInvoice() {
       <HoldInvoiceModal 
         isOpen={isHoldModalOpen} 
         onClose={() => setIsHoldModalOpen(false)} 
+        onConfirm={handleHoldInvoice}
       />
 
     </div>

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Calendar, Plus } from 'lucide-react';
+import apiClient from '../api/apiClient';
 
 // Inline Youtube SVG
 const YoutubeIcon = ({ className }) => (
@@ -12,8 +13,41 @@ const YoutubeIcon = ({ className }) => (
 export function EmployeeAttendance() {
   const navigate = useNavigate();
   const [isEmployeeMasterOpen, setIsEmployeeMasterOpen] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState('2026-05');
-  const monthInputRef = React.useRef(null);
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const monthInputRef = useRef(null);
+
+  const [employees, setEmployees] = useState([]);
+  const [attendances, setAttendances] = useState([]);
+
+  // Form State
+  const [formData, setFormData] = useState({
+    name: '', mobile: '', city: '', joiningDate: '', designation: '',
+    salaryType: 'Month', salary: 0, paidHoliday: 0, commission: 0,
+    specialCommission: 0, totalSaleCommission: 0, commissionOnManufacturing: 0, isActive: true
+  });
+
+  const fetchData = async () => {
+    try {
+      const empRes = await apiClient.get('/employees');
+      if (empRes.data.success) {
+        setEmployees(empRes.data.data);
+      }
+      
+      const attRes = await apiClient.get(`/employees/attendance/month?month=${selectedMonth}`);
+      if (attRes.data.success) {
+        setAttendances(attRes.data.data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [selectedMonth]);
 
   const getDaysInMonth = (monthStr) => {
     if (!monthStr) return [];
@@ -30,7 +64,12 @@ export function EmployeeAttendance() {
       const yearShort = String(date.getFullYear()).slice(-2);
       const dayOfWeek = date.toLocaleString('default', { weekday: 'short' });
       
-      daysArray.push(`${dayNum}-${monthName}-${yearShort} (${dayOfWeek})`);
+      const isoDate = new Date(year, monthIndex, dayNum, 12, 0, 0).toISOString();
+
+      daysArray.push({
+        display: `${dayNum}-${monthName}-${yearShort} (${dayOfWeek})`,
+        iso: isoDate
+      });
       date.setDate(date.getDate() + 1);
     }
     return daysArray;
@@ -55,6 +94,44 @@ export function EmployeeAttendance() {
   };
 
   const days = getDaysInMonth(selectedMonth);
+
+  const getAttendanceStatus = (empId, dateIso) => {
+    const d1 = dateIso.substring(0, 10);
+    const att = attendances.find(a => a.employeeId === empId && a.date.substring(0, 10) === d1);
+    return att ? att.status : '';
+  };
+
+  const handleMarkAttendance = async (employeeId, dateIso, status) => {
+    if (!status) return;
+    try {
+      await apiClient.post('/employees/attendance/mark', {
+        employeeId,
+        date: dateIso,
+        status
+      });
+      fetchData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCreateEmployee = async () => {
+    if (!formData.name) return alert('Employee Name is required');
+    try {
+      const res = await apiClient.post('/employees', formData);
+      if (res.data.success) {
+        setIsEmployeeMasterOpen(false);
+        setFormData({
+          name: '', mobile: '', city: '', joiningDate: '', designation: '',
+          salaryType: 'Month', salary: 0, paidHoliday: 0, commission: 0,
+          specialCommission: 0, totalSaleCommission: 0, commissionOnManufacturing: 0, isActive: true
+        });
+        fetchData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] flex flex-col p-3">
@@ -126,25 +203,56 @@ export function EmployeeAttendance() {
 
         {/* Data Table */}
         <div className="flex-1 overflow-auto pb-[60px]">
-          <div className="min-w-full">
-            {/* Table Header */}
-            <div className="bg-[#343a40] text-white text-[13px] font-bold px-4 py-2.5">
-              DATE
-            </div>
-
-            {/* Rows */}
-            <div className="flex flex-col">
-              {days.map((day, index) => (
-                <div key={index} className="px-4 py-2 text-[13px] text-gray-700 border-b border-gray-200 hover:bg-gray-50">
-                  {day}
-                </div>
-              ))}
-            </div>
+          <div className="min-w-full inline-block align-middle">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-[#343a40]">
+                <tr>
+                  <th scope="col" className="px-4 py-2.5 text-left text-[13px] font-bold text-white uppercase tracking-wider sticky left-0 z-10 bg-[#343a40]">
+                    DATE
+                  </th>
+                  {employees.map(emp => (
+                    <th key={emp.id} scope="col" className="px-4 py-2.5 text-center text-[13px] font-bold text-white uppercase tracking-wider min-w-[120px]">
+                      {emp.name}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {days.map((day, index) => (
+                  <tr key={index} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-2 text-[13px] text-gray-700 whitespace-nowrap sticky left-0 z-10 bg-white shadow-[1px_0_0_0_#e5e7eb]">
+                      {day.display}
+                    </td>
+                    {employees.map(emp => (
+                      <td key={emp.id} className="px-4 py-2 whitespace-nowrap text-center">
+                        <select 
+                          className={`text-[12px] border border-gray-300 rounded px-2 py-1 outline-none font-medium focus:border-[#4F46E5] ${
+                            getAttendanceStatus(emp.id, day.iso) === 'Present' ? 'bg-green-50 text-green-700' :
+                            getAttendanceStatus(emp.id, day.iso) === 'Absent' ? 'bg-red-50 text-red-700' :
+                            getAttendanceStatus(emp.id, day.iso) === 'Half-Day' ? 'bg-yellow-50 text-yellow-700' :
+                            getAttendanceStatus(emp.id, day.iso) === 'Leave' ? 'bg-blue-50 text-blue-700' :
+                            'bg-white text-gray-600'
+                          }`}
+                          value={getAttendanceStatus(emp.id, day.iso)}
+                          onChange={(e) => handleMarkAttendance(emp.id, day.iso, e.target.value)}
+                        >
+                          <option value="">- Select -</option>
+                          <option value="Present">Present</option>
+                          <option value="Absent">Absent</option>
+                          <option value="Half-Day">Half-Day</option>
+                          <option value="Leave">Leave</option>
+                        </select>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
         {/* Footer Go Back Button */}
-        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 flex justify-end">
+        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 flex justify-end shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
           <button 
             onClick={() => navigate(-1)}
             className="bg-[#007bff] hover:bg-[#0069d9] text-white text-[13px] font-medium px-4 py-1.5 rounded-[3px] flex items-center justify-center gap-1 transition-colors shadow-sm"
@@ -176,18 +284,23 @@ export function EmployeeAttendance() {
               {/* Row 1: Employee Name */}
               <div className="flex flex-col gap-1">
                 <div className="flex justify-between items-center px-1">
-                  <label className="text-[13px] font-bold text-gray-800">Employee Name</label>
+                  <label className="text-[13px] font-bold text-gray-800">Employee Name *</label>
                   <div className="flex flex-wrap items-center gap-2">
-                    <div className="w-[36px] h-[20px] bg-[#007bff] rounded-full relative cursor-pointer">
-                      <div className="w-[14px] h-[14px] bg-white rounded-full absolute top-[3px] right-[3px]"></div>
+                    <div 
+                      className={`w-[36px] h-[20px] rounded-full relative cursor-pointer ${formData.isActive ? 'bg-[#007bff]' : 'bg-gray-400'}`}
+                      onClick={() => setFormData({...formData, isActive: !formData.isActive})}
+                    >
+                      <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[3px] transition-all ${formData.isActive ? 'right-[3px]' : 'left-[3px]'}`}></div>
                     </div>
-                    <span className="text-[13px] font-bold text-gray-800">Active</span>
+                    <span className="text-[13px] font-bold text-gray-800">{formData.isActive ? 'Active' : 'Inactive'}</span>
                   </div>
                 </div>
                 <input 
                   type="text" 
+                  value={formData.name}
+                  onChange={e => setFormData({...formData, name: e.target.value})}
                   placeholder="Enter Employee Name" 
-                  className="w-full bg-[#add8e6] border border-[#add8e6] text-gray-800 rounded-[3px] px-3 py-1.5 text-[14px] outline-none font-medium placeholder-gray-500"
+                  className="w-full bg-[#add8e6] border border-[#add8e6] text-gray-800 rounded-[3px] px-3 py-1.5 text-[14px] outline-none font-medium placeholder-gray-600 focus:border-[#4F46E5]"
                 />
               </div>
 
@@ -195,11 +308,11 @@ export function EmployeeAttendance() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-bold text-gray-800 px-1">Mobile Number</label>
-                  <input type="text" placeholder="Enter Mobile Number" className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none focus:border-[#4F46E5] placeholder-gray-400" />
+                  <input type="text" value={formData.mobile} onChange={e => setFormData({...formData, mobile: e.target.value})} placeholder="Enter Mobile Number" className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none focus:border-[#4F46E5] placeholder-gray-400" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-bold text-gray-800 px-1">City</label>
-                  <input type="text" placeholder="Enter City" className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none focus:border-[#4F46E5] placeholder-gray-400" />
+                  <input type="text" value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} placeholder="Enter City" className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none focus:border-[#4F46E5] placeholder-gray-400" />
                 </div>
               </div>
 
@@ -208,28 +321,28 @@ export function EmployeeAttendance() {
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-bold text-gray-800 px-1">Joining Date</label>
                   <div className="flex items-center border border-gray-300 rounded-[3px] overflow-hidden focus-within:border-[#4F46E5]">
-                    <input type="text" readOnly value="23-05-2026" className="w-full h-[30px] px-2 text-[13px] outline-none text-gray-600 bg-white" />
-                    <div className="h-[30px] px-2 flex items-center justify-center text-gray-800 bg-white border-l border-gray-300">
-                      <Calendar className="w-4 h-4" />
-                    </div>
+                    <input type="date" value={formData.joiningDate} onChange={e => setFormData({...formData, joiningDate: e.target.value})} className="w-full h-[30px] px-2 text-[13px] outline-none text-gray-600 bg-white" />
                   </div>
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-bold text-gray-800 px-1">Designation</label>
-                  <input type="text" placeholder="Enter Designation" className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none focus:border-[#4F46E5] placeholder-gray-400" />
+                  <input type="text" value={formData.designation} onChange={e => setFormData({...formData, designation: e.target.value})} placeholder="Enter Designation" className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none focus:border-[#4F46E5] placeholder-gray-400" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <div className="flex justify-between items-center px-1">
                     <label className="text-[13px] font-bold text-gray-800">Salary</label>
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="text-[12px] font-bold text-gray-800">Day</span>
-                      <div className="w-[32px] h-[16px] bg-[#4F46E5] rounded-full relative cursor-pointer">
-                        <div className="w-[12px] h-[12px] bg-gray-800 rounded-full absolute top-[2px] left-[2px]"></div>
+                      <div 
+                        className="w-[32px] h-[16px] bg-[#4F46E5] rounded-full relative cursor-pointer"
+                        onClick={() => setFormData({...formData, salaryType: formData.salaryType === 'Month' ? 'Day' : 'Month'})}
+                      >
+                        <div className={`w-[12px] h-[12px] bg-white rounded-full absolute top-[2px] transition-all ${formData.salaryType === 'Month' ? 'right-[2px]' : 'left-[2px]'}`}></div>
                       </div>
                       <span className="text-[12px] text-gray-500">Month</span>
                     </div>
                   </div>
-                  <input type="text" value="0" readOnly className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none focus:border-[#4F46E5] bg-white" />
+                  <input type="number" value={formData.salary} onChange={e => setFormData({...formData, salary: e.target.value})} className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none focus:border-[#4F46E5] bg-white" />
                 </div>
               </div>
 
@@ -237,15 +350,15 @@ export function EmployeeAttendance() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-bold text-gray-800 px-1">Paid Holiday</label>
-                  <input type="text" value="0" readOnly className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none focus:border-[#4F46E5] bg-white" />
+                  <input type="number" value={formData.paidHoliday} onChange={e => setFormData({...formData, paidHoliday: e.target.value})} className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none focus:border-[#4F46E5] bg-white" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-bold text-gray-800 px-1">Commission</label>
-                  <input type="text" value="0" readOnly className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none focus:border-[#4F46E5] bg-white" />
+                  <input type="number" value={formData.commission} onChange={e => setFormData({...formData, commission: e.target.value})} className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none focus:border-[#4F46E5] bg-white" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-bold text-gray-800 px-1">Special Commission</label>
-                  <input type="text" value="0" readOnly className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none focus:border-[#4F46E5] bg-white" />
+                  <input type="number" value={formData.specialCommission} onChange={e => setFormData({...formData, specialCommission: e.target.value})} className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none focus:border-[#4F46E5] bg-white" />
                 </div>
               </div>
 
@@ -253,14 +366,11 @@ export function EmployeeAttendance() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-bold text-gray-800 px-1">Total Sale Commission</label>
-                  <input type="text" value="0" readOnly className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none focus:border-[#4F46E5] bg-white" />
+                  <input type="number" value={formData.totalSaleCommission} onChange={e => setFormData({...formData, totalSaleCommission: e.target.value})} className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none focus:border-[#4F46E5] bg-white" />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[13px] font-bold text-gray-800 px-1">Commision on Manufacturing</label>
-                  <select className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none focus:border-[#4F46E5] bg-white text-gray-600">
-                    <option>NO</option>
-                    <option>YES</option>
-                  </select>
+                  <label className="text-[13px] font-bold text-gray-800 px-1">Commision on Manufacturing (%)</label>
+                  <input type="number" value={formData.commissionOnManufacturing} onChange={e => setFormData({...formData, commissionOnManufacturing: e.target.value})} className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none focus:border-[#4F46E5] bg-white" />
                 </div>
               </div>
 
@@ -268,7 +378,10 @@ export function EmployeeAttendance() {
 
             {/* Modal Footer */}
             <div className="bg-[#f8f9fa] p-3 flex justify-end gap-2 border-t border-gray-200 mt-2">
-              <button className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors">
+              <button 
+                onClick={handleCreateEmployee}
+                className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors"
+              >
                 Submit
               </button>
               <button 

@@ -30,10 +30,15 @@ export function OrderList() {
     load();
   }, []);
 
-  // Filter orders based on category & search (category filter placeholder for future)
-  const filtered = orders.filter(o =>
-    o.description.toLowerCase().includes(search.toLowerCase())
-  );
+  // Extract unique categories
+  const uniqueCategories = [...new Set(orders.map(o => o.category).filter(Boolean))];
+
+  // Filter orders based on category & search
+  const filtered = orders.filter(o => {
+    const matchesSearch = o.description.toLowerCase().includes(search.toLowerCase());
+    const matchesCategory = category === 'All Categories' || o.category === category;
+    return matchesSearch && matchesCategory;
+  });
 
   // Pagination calculations
   const totalPages = Math.ceil(filtered.length / rowsPerPage) || 1;
@@ -54,13 +59,15 @@ export function OrderList() {
 
         {/* Filters */}
         <div className="flex gap-4 mb-4 max-w-[800px]">
-          <select
+              <select
                 value={category}
                 onChange={e => setCategory(e.target.value)}
                 className="w-1/3 h-[34px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-600 bg-white"
               >
-                <option>All Categories</option>
-                {/* Add dynamic categories here if needed */}
+                <option value="All Categories">All Categories</option>
+                {uniqueCategories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
               </select>
               <input
                 type="text"

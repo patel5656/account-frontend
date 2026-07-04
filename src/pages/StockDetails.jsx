@@ -9,32 +9,28 @@ import { ItemMasterModal } from '../components/ItemMasterModal';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useSettings } from '../context/SettingsContext';
-
-// Sample stock data enriched with sku and purchase price
-const INITIAL_ROWS = [
-  { id: 1, productName: 'IPhone 15 Pro', sku: 'IP-15P-256', brandName: 'Apple', category: 'Mobile Phones', gst: '18%', hsn: '8517', unit: 'PCS', purchasePrice: 100000, mrp: 130000, sale: 120000, stock: 45, warehouse: 'Main Warehouse', status: 'Active', memorySize: '256GB', colorVariant: 'Natural Titanium', enableImei: true },
-  { id: 2, productName: 'Steel Table', sku: 'FUR-ST-002', brandName: 'Brand B', category: 'Furniture', gst: '12%', hsn: '9403', unit: 'PCS', purchasePrice: 4000, mrp: 5500, sale: 4800, stock: 12, warehouse: 'Store Room 1', status: 'Active' },
-  { id: 3, productName: 'Cotton Fabric', sku: 'RAW-CF-101', brandName: 'Brand C', category: 'Raw Material', gst: '5%', hsn: '5208', unit: 'MTR', purchasePrice: 150, mrp: 250, sale: 200, stock: 8, warehouse: 'Main Warehouse', status: 'Active' },
-  { id: 4, productName: 'Plastic Box', sku: 'PKG-PB-201', brandName: 'Brand A', category: 'Packaging', gst: '18%', hsn: '3923', unit: 'BOX', purchasePrice: 20, mrp: 35, sale: 28, stock: 200, warehouse: 'Store Room 2', status: 'Active' },
-  { id: 5, productName: 'Iron Rod', sku: 'RAW-IR-301', brandName: 'Brand D', category: 'Raw Material', gst: '18%', hsn: '7213', unit: 'KGS', purchasePrice: 120, mrp: 180, sale: 155, stock: 0, warehouse: 'Main Warehouse', status: 'Inactive' },
-  { id: 6, productName: 'Dining Table', sku: 'FUR-DT-003', brandName: 'Brand A', category: 'Furniture', gst: '18%', hsn: '9403', unit: 'PCS', purchasePrice: 12000, mrp: 18000, sale: 15000, stock: 5, warehouse: 'Main Warehouse', status: 'Active' },
-];
+import apiClient from '../api/apiClient';
 
 export function StockDetails() {
   const navigate = useNavigate();
   const { formatAmount, currentCurrency } = useSettings();
   const [viewMode, setViewMode] = useState('item'); // 'item' or 'brand'
-  const [rows, setRows] = useState(() => {
-    const saved = localStorage.getItem('stockDetailsRows');
-    if (saved) {
-      return JSON.parse(saved);
-    }
-    return INITIAL_ROWS;
-  });
+  const [rows, setRows] = useState([]);
 
   useEffect(() => {
-    localStorage.setItem('stockDetailsRows', JSON.stringify(rows));
-  }, [rows]);
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const response = await apiClient.get('/products');
+      if (response.data && response.data.data) {
+        setRows(response.data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+    }
+  };
   const [selected, setSelected] = useState(new Set());
   const [search, setSearch] = useState('');
   const [searchFilter, setSearchFilter] = useState('Product Name');
@@ -43,6 +39,9 @@ export function StockDetails() {
   const [warehouseFilter, setWarehouseFilter] = useState('');
   
   const [mergeModalOpen, setMergeModalOpen] = useState(false);
+  const [mergeIncorrectId, setMergeIncorrectId] = useState('');
+  const [mergeCorrectId, setMergeCorrectId] = useState('');
+
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
@@ -61,9 +60,19 @@ export function StockDetails() {
 
   // Filtering
   const filtered = rows.filter(r => {
-    const matchSearch = r.productName.toLowerCase().includes(search.toLowerCase()) ||
-      r.brandName.toLowerCase().includes(search.toLowerCase()) ||
-      r.sku.toLowerCase().includes(search.toLowerCase());
+    const s = search.toLowerCase();
+    let matchSearch = true;
+    
+    if (s) {
+      if (searchFilter === 'Product Name') matchSearch = r.name?.toLowerCase().includes(s);
+      else if (searchFilter === 'Product Code' || searchFilter === 'Barcode') matchSearch = r.sku?.toLowerCase().includes(s) || r.barcode?.toLowerCase().includes(s);
+      else if (searchFilter === 'Company') matchSearch = r.brand?.toLowerCase().includes(s);
+      else if (searchFilter === 'Category') matchSearch = r.category?.toLowerCase().includes(s);
+      else if (searchFilter === 'Product Type') matchSearch = r.baseUnit?.toLowerCase().includes(s);
+      else if (searchFilter === 'GST') matchSearch = String(r.tax || '').includes(s);
+      else if (searchFilter === 'HSN/SAC') matchSearch = r.hsnCode?.toLowerCase().includes(s);
+      else matchSearch = r.name?.toLowerCase().includes(s) || r.sku?.toLowerCase().includes(s) || r.brand?.toLowerCase().includes(s);
+    }
     const matchCat = !categoryFilter || r.category === categoryFilter;
     const matchWh = !warehouseFilter || r.warehouse === warehouseFilter;
     const matchStock = !stockFilter ||
@@ -73,12 +82,12 @@ export function StockDetails() {
     return matchSearch && matchCat && matchStock && matchWh;
   });
 
-  // Grouping for Brand View
   const brandData = {};
   filtered.forEach(r => {
-    if (!brandData[r.brandName]) {
-      brandData[r.brandName] = {
-        name: r.brandName,
+    const bName = r.brand || 'Unbranded';
+    if (!brandData[bName]) {
+      brandData[bName] = {
+        name: bName,
         items: [],
         totalQty: 0,
         totalValue: 0,
@@ -86,7 +95,7 @@ export function StockDetails() {
         outOfStockCount: 0
       };
     }
-    const b = brandData[r.brandName];
+    const b = brandData[bName];
     b.items.push(r);
     b.totalQty += r.stock;
     b.totalValue += (r.stock * r.sale);
@@ -215,7 +224,7 @@ export function StockDetails() {
       const headers = ['#', 'SKU', 'Product Name', 'Brand', 'Category', 'Unit', 'Purchase Price', 'Sale Price', 'Stock', 'Warehouse', 'Status'];
       const csvRows = [headers.join(',')];
       filtered.forEach((r, i) => {
-        csvRows.push([i+1, `"${r.sku}"`, `"${r.productName}"`, `"${r.brandName}"`, `"${r.category}"`, r.unit, r.purchasePrice, r.sale, r.stock, `"${r.warehouse}"`, r.status].join(','));
+        csvRows.push([i+1, `"${r.sku}"`, `"${r.name}"`, `"${r.brand}"`, `"${r.category}"`, r.baseUnit, r.purchasePrice, r.sale, r.stock, `"${r.warehouse}"`, r.status].join(','));
       });
       downloadBlob(csvRows.join('\n'), 'inventory_report.csv');
     }
@@ -228,10 +237,10 @@ export function StockDetails() {
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   };
 
-  const categories = [...new Set(INITIAL_ROWS.map(r => r.category))];
-  const warehouses = [...new Set(INITIAL_ROWS.map(r => r.warehouse))];
-  const grandTotal = filtered.reduce((s, r) => s + (r.sale * r.stock), 0);
-  const totalStockQty = filtered.reduce((s, r) => s + r.stock, 0);
+  const categories = [...new Set(rows.map(r => r.category).filter(Boolean))];
+  const warehouses = [...new Set(rows.map(r => r.warehouse).filter(Boolean))];
+  const grandTotal = filtered.reduce((s, r) => s + ((r.price || 0) * (r.stock || 0)), 0);
+  const totalStockQty = filtered.reduce((s, r) => s + (r.stock || 0), 0);
 
   return (
     <>
@@ -293,10 +302,10 @@ export function StockDetails() {
                     {b.items.map(item => (
                       <tr key={item.id}>
                         <td style={{ borderBottom: '1px solid #eee', padding: '4px 8px' }}>
-                          <div style={{ fontWeight: 'bold' }}>{item.productName}</div>
+                          <div style={{ fontWeight: 'bold' }}>{item.name}</div>
                           <div style={{ color: '#666', fontSize: '9px' }}>{item.sku}</div>
                         </td>
-                        <td style={{ borderBottom: '1px solid #eee', padding: '4px 8px', textAlign: 'center' }}>{item.unit}</td>
+                        <td style={{ borderBottom: '1px solid #eee', padding: '4px 8px', textAlign: 'center' }}>{item.baseUnit}</td>
                         <td style={{ borderBottom: '1px solid #eee', padding: '4px 8px', textAlign: 'right' }}>{formatAmount(item.purchasePrice)}</td>
                         <td style={{ borderBottom: '1px solid #eee', padding: '4px 8px', textAlign: 'right' }}>{formatAmount(item.sale)}</td>
                         <td style={{ borderBottom: '1px solid #eee', padding: '4px 8px', textAlign: 'right' }}>{item.stock}</td>
@@ -325,11 +334,11 @@ export function StockDetails() {
               {filtered.map(r => (
                 <tr key={r.id}>
                   <td style={{ border: '1px solid #ddd', padding: '4px' }}>
-                    <div style={{ fontWeight: 'bold' }}>{r.productName}</div>
+                    <div style={{ fontWeight: 'bold' }}>{r.name}</div>
                     <div style={{ color: '#666', fontSize: '9px' }}>{r.sku}</div>
                   </td>
-                  <td style={{ border: '1px solid #ddd', padding: '4px' }}>{r.brandName}</td>
-                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'center' }}>{r.unit}</td>
+                  <td style={{ border: '1px solid #ddd', padding: '4px' }}>{r.brand}</td>
+                  <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'center' }}>{r.baseUnit}</td>
                   <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'right' }}>{formatAmount(r.purchasePrice)}</td>
                   <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'right' }}>{formatAmount(r.sale)}</td>
                   <td style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'right' }}>{r.stock}</td>
@@ -427,20 +436,20 @@ export function StockDetails() {
                       <input type="checkbox" className="mt-1 w-4 h-4" />
                       <div>
                         <div className="text-[15px] text-gray-800">
-                          <span className="font-bold">#{index + 1}. {item.productName}</span> - <span className="text-[#28a745] font-bold">{item.category}</span>
+                          <span className="font-bold">#{index + 1}. {item.name}</span> - <span className="text-[#28a745] font-bold">{item.category}</span>
                         </div>
                         <div className="flex items-center gap-3 mt-2 text-[12px] text-gray-600">
-                          <span>Sale Price : <span className="text-[#28a745] border border-[#28a745] px-1.5 py-0.5 rounded font-bold">{item.sale} / {item.unit.toLowerCase()}</span></span>
-                          <span>MRP : <span className="border border-gray-300 px-1.5 py-0.5 rounded text-gray-700">{item.mrp} / {item.unit.toLowerCase()}</span></span>
+                          <span>Sale Price : <span className="text-[#28a745] border border-[#28a745] px-1.5 py-0.5 rounded font-bold">{item.price} / {item.baseUnit?.toLowerCase()}</span></span>
+                          <span>MRP : <span className="border border-gray-300 px-1.5 py-0.5 rounded text-gray-700">{item.mrp} / {item.baseUnit?.toLowerCase()}</span></span>
                         </div>
                         <div className="text-[12px] text-gray-500 mt-1">Barcodes : [{item.sku}]</div>
                       </div>
                     </div>
                     
                     <div className="text-right">
-                      <div className="text-[13px] text-gray-600">Qty : <span className="font-bold text-gray-800">{item.stock} {item.unit.toLowerCase()}</span> <span className="text-gray-300 mx-1">|</span> value : <span className="font-bold text-gray-800">{formatAmount(item.stock * item.sale).replace('₹', '')}</span></div>
+                      <div className="text-[13px] text-gray-600">Qty : <span className="font-bold text-gray-800">{item.stock} {item.baseUnit?.toLowerCase()}</span> <span className="text-gray-300 mx-1">|</span> value : <span className="font-bold text-gray-800">{formatAmount(item.stock * item.price).replace('₹', '')}</span></div>
                       <div className="text-[11px] text-gray-500 mt-[26px]">
-                        HSN : <span className="text-blue-500">{item.hsn || '+Add'}</span> <span className="text-gray-300 mx-1">|</span> GST : {parseInt(item.gst)} <span className="text-gray-300 mx-1">|</span> TAXABLE : {formatAmount((item.stock * item.sale) * (1 - (parseInt(item.gst)/100))).replace('₹', '')}
+                        HSN : <span className="text-blue-500">{item.hsnCode || '+Add'}</span> <span className="text-gray-300 mx-1">|</span> GST : {parseInt(item.tax) || 0} <span className="text-gray-300 mx-1">|</span> TAXABLE : {formatAmount((item.stock * item.price || 0) * (1 - ((parseInt(item.tax) || 0)/100))).replace('₹', '')}
                       </div>
                     </div>
                   </div>
@@ -468,7 +477,7 @@ export function StockDetails() {
         {/* Fixed Footer Totals */}
         <div className="fixed bottom-0 left-[220px] right-0 bg-[#343a40] text-white grid grid-cols-3 text-center py-2.5 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
            <div className="font-bold text-[14px]">TOTAL : {filtered.length}</div>
-           <div className="font-bold text-[14px]">TAXABLE TOTAL : {formatAmount(filtered.reduce((s, r) => s + (r.stock * r.sale) * (1 - (parseInt(r.gst)/100)), 0)).replace('₹', '')}</div>
+           <div className="font-bold text-[14px]">TAXABLE TOTAL : {formatAmount(filtered.reduce((s, r) => s + ((r.stock || 0) * (r.price || 0)) * (1 - ((parseInt(r.tax) || 0)/100)), 0)).replace('₹', '')}</div>
            <div className="font-bold text-[14px]">GRAND TOTAL : {formatAmount(grandTotal).replace('₹', '')}</div>
         </div>
 
@@ -537,8 +546,8 @@ export function StockDetails() {
                 </thead>
                 <tbody>
                   <tr className="border-b border-gray-200">
-                    <td className="py-2.5 px-3 text-gray-700 text-[14px] border-r border-gray-200">{viewModalData.stock} {viewModalData.unit.toLowerCase()} @ {viewModalData.sale}</td>
-                    <td className="py-2.5 px-3 text-gray-700 text-[14px] border-r border-gray-200">{formatAmount(viewModalData.stock * viewModalData.sale).replace('₹', '')}</td>
+                    <td className="py-2.5 px-3 text-gray-700 text-[14px] border-r border-gray-200">{viewModalData.stock} {viewModalData.baseUnit?.toLowerCase()} @ {viewModalData.price}</td>
+                    <td className="py-2.5 px-3 text-gray-700 text-[14px] border-r border-gray-200">{formatAmount(viewModalData.stock * viewModalData.price).replace('₹', '')}</td>
                     <td className="py-2.5 px-3">
                       <div className="bg-[#28a745] text-white text-[10px] font-bold py-1 px-2 rounded-[2px] w-[90%] mx-auto shadow-sm">100%</div>
                     </td>
@@ -548,7 +557,7 @@ export function StockDetails() {
 
               <div className="flex justify-center mb-2">
                 <div className="bg-[#007bff] text-white px-3 py-1.5 rounded-[4px] font-bold text-[14px] shadow-sm">
-                  Average Price: {Number(viewModalData.sale).toFixed(2)}
+                  Average Price: {Number(viewModalData.price || 0).toFixed(2)}
                 </div>
               </div>
             </div>
@@ -566,7 +575,7 @@ export function StockDetails() {
       {mergeModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-[#f4f6f9] rounded-[3px] shadow-2xl w-full max-w-[600px] overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="bg-[#17a2b8] px-4 py-2.5 flex justify-between items-center">
+            <div className="bg-[#4F46E5] px-4 py-2.5 flex justify-between items-center">
               <h3 className="text-white font-medium text-[15px]">Item Correction</h3>
               <button onClick={() => setMergeModalOpen(false)} className="text-[#dc3545] hover:text-red-600 transition-colors drop-shadow-sm">
                 <X className="w-6 h-6" strokeWidth={3} />
@@ -576,23 +585,59 @@ export function StockDetails() {
             <div className="p-4 bg-white flex flex-col gap-4">
               <div className="flex flex-col gap-1">
                 <label className="text-[14px] font-bold text-gray-800">Incorrect Product Name</label>
-                <select className="border border-[#007bff] bg-[#d1ecf1] rounded-[3px] px-3 py-2 text-[14px] outline-none w-full text-gray-500 font-bold">
-                  <option>Enter Barcode</option>
-                  {filtered.map(f => <option key={f.id}>{f.productName}</option>)}
+                <select 
+                  value={mergeIncorrectId}
+                  onChange={(e) => setMergeIncorrectId(e.target.value)}
+                  className="border border-[#007bff] bg-[#d1ecf1] rounded-[3px] px-3 py-2 text-[14px] outline-none w-full text-gray-800 font-bold"
+                >
+                  <option value="">Select Incorrect Product</option>
+                  {rows.map(f => <option key={f.id} value={f.id}>{f.name} ({f.sku})</option>)}
                 </select>
               </div>
 
               <div className="flex flex-col gap-1">
                 <label className="text-[14px] font-bold text-gray-800">Correct Product Name</label>
-                <select className="border border-gray-300 rounded-[3px] px-3 py-2 text-[14px] outline-none w-full text-gray-500">
-                  <option>Enter Barcode</option>
-                  {filtered.map(f => <option key={f.id}>{f.productName}</option>)}
+                <select 
+                  value={mergeCorrectId}
+                  onChange={(e) => setMergeCorrectId(e.target.value)}
+                  className="border border-gray-300 rounded-[3px] px-3 py-2 text-[14px] outline-none w-full text-gray-800 font-bold"
+                >
+                  <option value="">Select Correct Product</option>
+                  {rows.map(f => <option key={f.id} value={f.id}>{f.name} ({f.sku})</option>)}
                 </select>
               </div>
             </div>
             
             <div className="bg-[#f4f6f9] px-4 py-3 flex justify-end gap-2 border-t border-gray-200">
-              <button onClick={() => setMergeModalOpen(false)} className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[3px] text-[14px] transition-colors">
+              <button 
+                onClick={async () => {
+                  if (!mergeIncorrectId || !mergeCorrectId) {
+                    alert("Please select both products.");
+                    return;
+                  }
+                  if (mergeIncorrectId === mergeCorrectId) {
+                    alert("Incorrect and Correct products cannot be the same.");
+                    return;
+                  }
+                  if (window.confirm("Are you sure you want to merge these products? The incorrect product will be permanently deleted and its stock will be moved to the correct product.")) {
+                    try {
+                      await apiClient.post('/products/merge', {
+                        incorrectProductId: mergeIncorrectId,
+                        correctProductId: mergeCorrectId
+                      });
+                      alert("Products merged successfully!");
+                      setMergeModalOpen(false);
+                      setMergeIncorrectId('');
+                      setMergeCorrectId('');
+                      fetchProducts();
+                    } catch (error) {
+                      console.error("Merge error:", error);
+                      alert(error.response?.data?.message || "Failed to merge products.");
+                    }
+                  }
+                }} 
+                className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[3px] text-[14px] transition-colors"
+              >
                 Merge
               </button>
               <button onClick={() => setMergeModalOpen(false)} className="bg-[#dc3545] hover:bg-[#c82333] text-white px-4 py-1.5 rounded-[3px] text-[14px] transition-colors">

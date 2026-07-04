@@ -1,37 +1,55 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogIn, Mail, Lock, ShieldCheck, TrendingUp, ArrowLeft } from 'lucide-react';
+import apiClient from '../api/apiClient';
 
 export const Login = () => {
   // Autofill credentials setup
-  const [email, setEmail] = useState('admin@osbooking.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('admin@gmail.com');
+  const [password, setPassword] = useState('123456');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [loginType, setLoginType] = useState('admin');
   const navigate = useNavigate();
 
   const handleLoginTypeSwitch = (type) => {
     setLoginType(type);
     if (type === 'superadmin') {
-      setEmail('superadmin@osbooking.com');
+      setEmail('admin@osbooks.com');
+      setPassword('securepassword');
     } else {
-      setEmail('admin@osbooking.com');
+      setEmail('admin@gmail.com');
+      setPassword('123456');
     }
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
     
-    // Simulate network delay for realistic dummy effect
-    setTimeout(() => {
-      setIsLoading(false);
-      if (email === 'superadmin@osbooking.com') {
+    try {
+      const response = await apiClient.post('/auth/login', {
+        email,
+        password
+      });
+      
+      const { token, user } = response.data;
+      
+      // Store token and user data
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      
+      if (user.role === 'SUPERADMIN') {
         window.location.href = '/superadmin/dashboard';
       } else {
         window.location.href = '/dashboard';
       }
-    }, 1200);
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(err.response?.data?.message || 'Failed to login. Please check your credentials.');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -138,6 +156,12 @@ export const Login = () => {
             </button>
           </div>
 
+          {error && (
+            <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-600">
+              {error}
+            </div>
+          )}
+
           {/* Form */}
           <form className="mt-8 space-y-6" onSubmit={handleLogin}>
             <div className="space-y-5">
@@ -243,11 +267,10 @@ export const Login = () => {
               </button>
             </div>
             
-            {/* Contact Admin */}
             <p className="text-center text-sm text-gray-500 mt-6">
               Don't have an account?{' '}
-              <a href="#" className="font-semibold text-indigo-600 hover:text-indigo-500 transition-colors">
-                Contact Admin
+              <a href="/register" className="font-semibold text-indigo-600 hover:text-indigo-500 transition-colors">
+                Register Now
               </a>
             </p>
           </form>

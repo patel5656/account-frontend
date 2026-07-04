@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Filter, Download, Check, Info, Tag, HelpCircle } from 'lucide-react';
 import { cn } from '../utils';
+import { useSettings } from '../context/SettingsContext';
 
 export function StockPriceUpdate() {
+  const { settings } = useSettings();
   const navigate = useNavigate();
   const [viewAll, setViewAll] = useState(false); // false = Show All, true = Show Modified only
   const [showBulkUpdate, setShowBulkUpdate] = useState(false);
@@ -158,20 +160,32 @@ export function StockPriceUpdate() {
 
   // Export current list to CSV file
   const handleExport = () => {
-    const headers = ['ID', 'Product Name', 'HSN', 'GST', 'Purchase Price', 'Qty', 'MRP', 'Credit Sale', 'Cash Sale', 'Whole Sale', 'Modified'];
-    const rows = products.map(p => [
-      p.id,
-      p.name,
-      p.hsn === '+Add' ? '' : p.hsn,
-      p.gst,
-      p.purchasePrice,
-      p.qty,
-      p.mrp,
-      p.creditSale,
-      p.cashSale,
-      p.wholeSale,
-      p.modified ? 'Yes' : 'No'
-    ]);
+    const headers = ['ID', 'Product Name'];
+    if (settings.showHSN) headers.push('HSN');
+    if (settings.showGST) headers.push('GST');
+    if (settings.showBranches) headers.push('Branches');
+    if (settings.showPurchasePrice) headers.push('Purchase Price');
+    if (settings.showStockQty) headers.push('Qty');
+    if (settings.showMRP) headers.push('MRP');
+    if (settings.showCreditSalePrice) headers.push('Credit Sale');
+    if (settings.showCashSalePrice) headers.push('Cash Sale');
+    if (settings.showWholeSalePrice) headers.push('Whole Sale');
+    headers.push('Modified');
+
+    const rows = products.map(p => {
+      const row = [p.id, p.name];
+      if (settings.showHSN) row.push(p.hsn === '+Add' ? '' : p.hsn);
+      if (settings.showGST) row.push(p.gst);
+      if (settings.showBranches) row.push(p.branch);
+      if (settings.showPurchasePrice) row.push(p.purchasePrice);
+      if (settings.showStockQty) row.push(p.qty);
+      if (settings.showMRP) row.push(p.mrp);
+      if (settings.showCreditSalePrice) row.push(p.creditSale);
+      if (settings.showCashSalePrice) row.push(p.cashSale);
+      if (settings.showWholeSalePrice) row.push(p.wholeSale);
+      row.push(p.modified ? 'Yes' : 'No');
+      return row;
+    });
 
     const csvContent = [
       headers.join(','),
@@ -300,70 +314,84 @@ export function StockPriceUpdate() {
                       )}
                     </h3>
                     <div className="text-[12.5px] text-gray-500 font-medium">
-                      HSN : <span className="text-[#007bff] hover:underline cursor-pointer font-bold">{product.hsn}</span> | GST : <span className="font-bold">{product.gst}</span> | Branches : <span className="font-bold">{product.branch}</span>
+                      {settings.showHSN && <>HSN : <span className="text-[#007bff] hover:underline cursor-pointer font-bold">{product.hsn}</span> | </>}
+                      {settings.showGST && <>GST : <span className="font-bold">{product.gst}</span> | </>}
+                      {settings.showBranches && <>Branches : <span className="font-bold">{product.branch}</span></>}
                     </div>
                   </div>
 
                   <div className="flex items-center gap-4 text-[13px] font-semibold text-gray-800">
-                    <div className="flex items-center gap-1.5">
-                      <span>Purchase Price :</span>
-                      <input 
-                        type="text" 
-                        value={product.purchasePrice}
-                        onChange={(e) => handleFieldChange(product.id, 'purchasePrice', e.target.value)}
-                        className="w-[70px] h-[26px] border border-gray-300 rounded-[3px] px-1.5 text-center text-[12.5px] outline-none"
-                      />
-                      {product.id === 1 && (
-                        <span className="border border-[#007bff] text-[#007bff] text-[10.5px] font-bold px-1 rounded-[2px] leading-none select-none">
-                          +2 more
-                        </span>
-                      )}
-                    </div>
-                    <div className="h-4 w-[1px] bg-gray-300"></div>
-                    <div>
-                      Qty : <span className="font-bold text-gray-700">{product.qty}</span> | value : <span className="font-bold text-gray-700">{product.value}</span>
-                    </div>
+                    {settings.showPurchasePrice && (
+                      <div className="flex items-center gap-1.5">
+                        <span>Purchase Price :</span>
+                        <input 
+                          type="text" 
+                          value={product.purchasePrice}
+                          onChange={(e) => handleFieldChange(product.id, 'purchasePrice', e.target.value)}
+                          className="w-[70px] h-[26px] border border-gray-300 rounded-[3px] px-1.5 text-center text-[12.5px] outline-none"
+                        />
+                        {product.id === 1 && (
+                          <span className="border border-[#007bff] text-[#007bff] text-[10.5px] font-bold px-1 rounded-[2px] leading-none select-none">
+                            +2 more
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {(settings.showPurchasePrice && settings.showStockQty) && <div className="h-4 w-[1px] bg-gray-300"></div>}
+                    {settings.showStockQty && (
+                      <div>
+                        Qty : <span className="font-bold text-gray-700">{product.qty}</span> | value : <span className="font-bold text-gray-700">{product.value}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Price Fields Row */}
                 <div className="flex flex-wrap justify-end gap-3.5 border-t border-gray-100 pt-3">
-                  <div className="flex flex-col gap-1 w-[100px]">
-                    <label className="text-[11.5px] font-bold text-gray-500">MRP</label>
-                    <input 
-                      type="text" 
-                      value={product.mrp}
-                      onChange={(e) => handleFieldChange(product.id, 'mrp', e.target.value)}
-                      className="h-[28px] border border-gray-300 rounded-[3px] px-2 text-[12.5px] text-right outline-none text-gray-700"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1 w-[100px]">
-                    <label className="text-[11.5px] font-bold text-gray-500">Credit Sale</label>
-                    <input 
-                      type="text" 
-                      value={product.creditSale}
-                      onChange={(e) => handleFieldChange(product.id, 'creditSale', e.target.value)}
-                      className="h-[28px] border border-gray-300 rounded-[3px] px-2 text-[12.5px] text-right outline-none text-gray-700"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1 w-[100px]">
-                    <label className="text-[11.5px] font-bold text-gray-500">Cash Sale</label>
-                    <input 
-                      type="text" 
-                      value={product.cashSale}
-                      onChange={(e) => handleFieldChange(product.id, 'cashSale', e.target.value)}
-                      className="h-[28px] border border-gray-300 rounded-[3px] px-2 text-[12.5px] text-right outline-none text-gray-700"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1 w-[100px]">
-                    <label className="text-[11.5px] font-bold text-gray-500">Whole Sale</label>
-                    <input 
-                      type="text" 
-                      value={product.wholeSale}
-                      onChange={(e) => handleFieldChange(product.id, 'wholeSale', e.target.value)}
-                      className="h-[28px] border border-gray-300 rounded-[3px] px-2 text-[12.5px] text-right outline-none text-gray-700"
-                    />
-                  </div>
+                  {settings.showMRP && (
+                    <div className="flex flex-col gap-1 w-[100px]">
+                      <label className="text-[11.5px] font-bold text-gray-500">MRP</label>
+                      <input 
+                        type="text" 
+                        value={product.mrp}
+                        onChange={(e) => handleFieldChange(product.id, 'mrp', e.target.value)}
+                        className="h-[28px] border border-gray-300 rounded-[3px] px-2 text-[12.5px] text-right outline-none text-gray-700"
+                      />
+                    </div>
+                  )}
+                  {settings.showCreditSalePrice && (
+                    <div className="flex flex-col gap-1 w-[100px]">
+                      <label className="text-[11.5px] font-bold text-gray-500">Credit Sale</label>
+                      <input 
+                        type="text" 
+                        value={product.creditSale}
+                        onChange={(e) => handleFieldChange(product.id, 'creditSale', e.target.value)}
+                        className="h-[28px] border border-gray-300 rounded-[3px] px-2 text-[12.5px] text-right outline-none text-gray-700"
+                      />
+                    </div>
+                  )}
+                  {settings.showCashSalePrice && (
+                    <div className="flex flex-col gap-1 w-[100px]">
+                      <label className="text-[11.5px] font-bold text-gray-500">Cash Sale</label>
+                      <input 
+                        type="text" 
+                        value={product.cashSale}
+                        onChange={(e) => handleFieldChange(product.id, 'cashSale', e.target.value)}
+                        className="h-[28px] border border-gray-300 rounded-[3px] px-2 text-[12.5px] text-right outline-none text-gray-700"
+                      />
+                    </div>
+                  )}
+                  {settings.showWholeSalePrice && (
+                    <div className="flex flex-col gap-1 w-[100px]">
+                      <label className="text-[11.5px] font-bold text-gray-500">Whole Sale</label>
+                      <input 
+                        type="text" 
+                        value={product.wholeSale}
+                        onChange={(e) => handleFieldChange(product.id, 'wholeSale', e.target.value)}
+                        className="h-[28px] border border-gray-300 rounded-[3px] px-2 text-[12.5px] text-right outline-none text-gray-700"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             ))

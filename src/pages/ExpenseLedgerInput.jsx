@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Printer, Calendar, Paperclip, PlusSquare, Plus } from 'lucide-react';
+import apiClient from '../api/apiClient';
+import { X, Printer, Calendar, Paperclip, PlusSquare, Plus, ChevronDown, ChevronUp, Edit2, Trash2 } from 'lucide-react';
 import { cn } from '../utils';
 
 // Inline Youtube SVG
@@ -12,22 +13,163 @@ const YoutubeIcon = ({ className }) => (
 
 export function ExpenseLedgerInput() {
   const navigate = useNavigate();
-  const fileInputRef = React.useRef(null);
-  const [entries, setEntries] = React.useState([]);
+  const fileInputRef = useRef(null);
+  const dropdownRef = useRef(null);
+  const dateInputRef = useRef(null);
+  
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [expenseSearch, setExpenseSearch] = useState("");
+  const [isAccountWise, setIsAccountWise] = useState(true);
+  
+  const [expenses, setExpenses] = useState([]);
+  const [selectedExpense, setSelectedExpense] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  
+  // Form State
+  const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
+  const [remark, setRemark] = useState('');
+  const [expenseAmount, setExpenseAmount] = useState('');
+  const [paidAmount, setPaidAmount] = useState('');
+  const [discountAmount, setDiscountAmount] = useState('');
 
-  const handleAddEntry = () => {
-    setEntries([...entries, { id: Date.now() }]);
+  const formatDisplayDate = (dateString) => {
+    if (!dateString) return "";
+    const parts = dateString.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return dateString;
+  };
+  
+  useEffect(() => {
+    fetchExpenses();
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const fetchExpenses = async () => {
+    try {
+      const res = await apiClient.get('/expenses');
+      if (res.data.success) {
+        setExpenses(res.data.data);
+        const savedId = localStorage.getItem('expenseLedgerInputId');
+        if (savedId) {
+          const matchedExp = res.data.data.find(exp => exp.id === parseInt(savedId, 10));
+          if (matchedExp) {
+            setSelectedExpense(matchedExp);
+            setExpenseSearch(matchedExp.name);
+            fetchTransactions(matchedExp);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching expenses', err);
+    }
+  };
+
+  const fetchTransactions = async (expense) => {
+    try {
+      const res = await apiClient.get(`/expenses/${expense.id}/transactions`);
+      if (res.data.success) {
+        setTransactions(res.data.data);
+        setSelectedExpense(res.data.expense); // Updates balance
+      }
+    } catch (err) {
+      console.error('Error fetching transactions', err);
+    }
+  };
+
+  const handleSelectExpense = (exp) => {
+    setExpenseSearch(exp.name);
+    setSelectedExpense(exp);
+    setIsDropdownOpen(false);
+    fetchTransactions(exp);
+    localStorage.setItem('expenseLedgerInputId', exp.id);
+  };
+
+  const handleAddEntry = async () => {
+    if (!selectedExpense) return alert('Please select an expense first');
+    
+    // Validate
+    const amtExp = parseFloat(expenseAmount) || 0;
+    const amtPaid = parseFloat(paidAmount) || 0;
+    const amtDiscount = parseFloat(discountAmount) || 0;
+    
+    if (amtExp === 0 && amtPaid === 0 && amtDiscount === 0) {
+      return alert('Please enter Expense Amount, Paid Amount or Discount');
+    }
+
+    try {
+      const payload = {
+        date: entryDate,
+        expenseAmount: amtExp,
+        paidAmount: amtPaid,
+        discount: amtDiscount,
+        remark
+      };
+
+      const res = await apiClient.post(`/expenses/${selectedExpense.id}/transactions`, payload);
+      if (res.data.success) {
+        setExpenseAmount('');
+        setPaidAmount('');
+        setDiscountAmount('');
+        setRemark('');
+        fetchTransactions(selectedExpense);
+        fetchExpenses();
+      }
+    } catch (err) {
+      console.error('Error adding transaction', err);
+      alert('Failed to add transaction');
+    }
+  };
+
+  const handleDeleteExpense = async (e, id) => {
+    e.stopPropagation();
+    if (window.confirm('Are you sure you want to delete this expense?')) {
+      try {
+        await apiClient.delete(`/expenses/${id}`);
+        setExpenses(expenses.filter(exp => exp.id !== id));
+        if (selectedExpense?.id === id) {
+          setSelectedExpense(null);
+          setTransactions([]);
+          setExpenseSearch("");
+          localStorage.removeItem('expenseLedgerInputId');
+        }
+      } catch (err) {
+        console.error('Error deleting expense', err);
+      }
+    }
+  };
+
+  const handleEditExpense = (e, name) => {
+    e.stopPropagation();
+    alert(`Editing details for ${name}`);
   };
 
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] flex flex-col p-3">
-      <div className="bg-white rounded shadow-sm border border-gray-200 flex-1 flex flex-col overflow-hidden">
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #printable-area, #printable-area * { visibility: visible; }
+          #printable-area { position: absolute; left: 0; top: 0; width: 100%; }
+          .no-print { display: none !important; }
+        }
+      `}</style>
+      
+      <input type="file" ref={fileInputRef} className="hidden" />
+      <div id="printable-area" className="bg-white rounded shadow-sm border border-gray-200 flex-1 flex flex-col overflow-hidden">
         
         {/* Header */}
-        <div className="bg-[#4F46E5] px-4 py-2 flex items-center justify-between">
+        <div className="bg-[#4F46E5] px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <h2 className="text-white text-[16px] font-medium tracking-wide">Expense Ledger</h2>
           
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 no-print">
             <button className="bg-white p-1 rounded-sm shadow-sm transition-colors">
               <YoutubeIcon className="w-5 h-5 text-[#ff0000]" />
             </button>
@@ -48,25 +190,72 @@ export function ExpenseLedgerInput() {
         </div>
 
         {/* Top Control Bar */}
-        <div className="p-3 border-b border-gray-200">
+        <div className="p-3 border-b border-gray-200 no-print">
           <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-3 max-w-full">
             
             <div className="flex flex-col gap-1 w-full max-w-[min(92vw,500px)]">
                <div className="flex justify-between items-center px-1">
                  <label className="text-[13px] font-bold text-gray-800">Expenses Name</label>
-                 <span className="text-[13px] font-bold text-[#dc3545]">Account Balance : 0</span>
+                 <span className="text-[13px] font-bold text-[#dc3545]">Account Balance : ₹{(selectedExpense?.balance || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
                </div>
-               <select className="w-full bg-[#add8e6] border border-[#add8e6] text-[#0056b3] rounded-[3px] px-3 py-1.5 text-[14px] outline-none appearance-none font-medium">
-                 <option>Select Name</option>
-               </select>
+               
+               <div className="relative w-full" ref={dropdownRef}>
+                 <div className="relative flex items-center cursor-pointer" onClick={() => setIsDropdownOpen(true)}>
+                   <input 
+                     type="text"
+                     value={expenseSearch}
+                     onChange={(e) => {
+                       setExpenseSearch(e.target.value);
+                       setIsDropdownOpen(true);
+                     }}
+                     placeholder="Select Name"
+                     className="w-full bg-[#add8e6] border border-[#add8e6] text-[#0056b3] placeholder-[#0056b3] rounded-[3px] px-3 py-1.5 pr-10 text-[14px] outline-none font-medium cursor-pointer"
+                   />
+                   <div className="absolute right-2 flex items-center gap-1.5 text-[#0056b3]">
+                     <X className="w-3 h-3 hover:text-gray-800 cursor-pointer" onClick={(e) => { e.stopPropagation(); setExpenseSearch(''); setSelectedExpense(null); setTransactions([]); localStorage.removeItem('expenseLedgerInputId'); }} />
+                     {isDropdownOpen ? <ChevronUp className="w-4 h-4 cursor-pointer hover:text-gray-800" /> : <ChevronDown className="w-4 h-4 cursor-pointer hover:text-gray-800" />}
+                   </div>
+                 </div>
+                 
+                 {isDropdownOpen && (
+                   <div className="absolute top-full left-0 w-full mt-0.5 bg-white border border-gray-300 rounded-[3px] shadow-xl z-50 max-h-[300px] overflow-y-auto">
+                     {expenses.filter(exp => exp.name.toLowerCase().includes(expenseSearch.toLowerCase())).map((exp) => (
+                       <div 
+                         key={exp.id} 
+                         onClick={() => handleSelectExpense(exp)}
+                         className={`p-2 border-b border-gray-200 hover:bg-[#add8e6] cursor-pointer flex justify-between ${selectedExpense?.id === exp.id ? 'bg-[#add8e6]' : 'bg-white'}`}
+                       >
+                         <div className="flex flex-col">
+                           <span className="font-bold text-[13px] text-gray-900">{exp.name}</span>
+                           <span className="text-[11px] text-gray-800 font-medium mt-0.5">{exp.head || ''}</span>
+                         </div>
+                         <div className="flex flex-col items-end justify-between">
+                           <span className="text-[13px] text-gray-800 font-medium">₹{(exp.balance || 0).toLocaleString()}</span>
+                           <div className="flex gap-2 mt-1">
+                             <Edit2 className="w-3.5 h-3.5 text-[#17a2b8] hover:text-cyan-700" onClick={(e) => handleEditExpense(e, exp.name)} />
+                             <Trash2 className="w-3.5 h-3.5 text-[#dc3545] hover:text-red-700" onClick={(e) => handleDeleteExpense(e, exp.id)} />
+                           </div>
+                         </div>
+                       </div>
+                     ))}
+                     {expenses.filter(exp => exp.name.toLowerCase().includes(expenseSearch.toLowerCase())).length === 0 && (
+                       <div className="p-3 text-center text-[12px] text-gray-500">No expenses found</div>
+                     )}
+                   </div>
+                 )}
+               </div>
+
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 pb-1.5">
-               <span className="text-[13px] font-bold text-gray-800">Account-wise</span>
-               <div className="w-[36px] h-[20px] bg-[#4F46E5] rounded-full relative cursor-pointer shadow-inner">
-                 <div className="w-[14px] h-[14px] bg-white rounded-full absolute top-[3px] left-[3px] shadow-sm"></div>
+            <div 
+              className="flex flex-wrap items-center gap-2 pb-1.5 select-none"
+              onClick={() => setIsAccountWise(!isAccountWise)}
+            >
+               <span className={`text-[13px] font-bold ${isAccountWise ? 'text-gray-800' : 'text-gray-500'}`}>Account-wise</span>
+               <div className={`w-[36px] h-[20px] rounded-full relative cursor-pointer shadow-inner transition-colors ${isAccountWise ? 'bg-[#4F46E5]' : 'bg-gray-300'}`}>
+                 <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[3px] shadow-sm transition-all ${isAccountWise ? 'left-[3px]' : 'right-[3px]'}`}></div>
                </div>
-               <span className="text-[13px] text-gray-500">Date-wise</span>
+               <span className={`text-[13px] font-bold ${!isAccountWise ? 'text-gray-800' : 'text-gray-500'}`}>Date-wise</span>
             </div>
 
           </div>
@@ -76,7 +265,7 @@ export function ExpenseLedgerInput() {
         <div className="flex-1 overflow-x-auto overflow-y-hidden min-h-0 w-full">
           <div className="min-w-[900px] flex flex-col h-full">
             {/* Table Header */}
-            <div className="bg-[#343a40] text-white grid grid-cols-[50px_130px_1fr_120px_120px_100px_100px_80px] text-center border-b border-gray-600">
+            <div className="bg-[#343a40] text-white grid grid-cols-[50px_130px_1fr_120px_120px_100px_120px_80px] text-center border-b border-gray-600">
               <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center">
                 #
               </div>
@@ -98,113 +287,153 @@ export function ExpenseLedgerInput() {
               <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center">
                 Balance
               </div>
-              <div className="py-2.5 text-[13px] font-bold flex items-center justify-center">
-                ACTION
+              <div className="py-2.5 text-[13px] font-bold flex items-center justify-center uppercase">
+                Action
               </div>
             </div>
 
             {/* Render added entries */}
-            {entries.map((entry, index) => (
-              <div key={entry.id} className="grid grid-cols-[50px_130px_1fr_120px_120px_100px_100px_80px] bg-white border-b border-gray-200">
+            {transactions.map((entry, index) => (
+              <div key={entry.id} className="grid grid-cols-[50px_130px_1fr_120px_120px_100px_120px_80px] bg-white border-b border-gray-200">
                 <div className="border-r border-gray-200 flex items-center justify-center p-1 bg-gray-100 text-[13px]">
                   {index + 1}
                 </div>
                 <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  23-05-2026
+                  {new Date(entry.date).toLocaleDateString()}
                 </div>
                 <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  Sample Information
+                  {entry.remark || '-'}
+                </div>
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600 font-bold">
+                  {entry.expenseAmount > 0 ? <span className="text-[#dc3545]">{entry.expenseAmount.toFixed(2)}</span> : '-'}
+                </div>
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] font-bold">
+                  {entry.paidAmount > 0 ? <span className="text-[#28a745]">{entry.paidAmount.toFixed(2)}</span> : '-'}
                 </div>
                 <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  0
+                  {entry.discount > 0 ? entry.discount.toFixed(2) : '-'}
                 </div>
-                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  0
+                <div className={`border-r border-gray-200 p-1 flex items-center justify-center text-[13px] font-bold ${entry.balance < 0 ? 'text-[#28a745]' : 'text-[#dc3545]'}`}>
+                  {Math.abs(entry.balance).toFixed(2)} {entry.balance < 0 ? 'Cr' : 'Dr'}
                 </div>
-                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  0
-                </div>
-                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  0
-                </div>
-                <div className="p-1 flex items-center justify-center">
-                  <button className="text-red-500 hover:text-red-700" onClick={() => setEntries(entries.filter(e => e.id !== entry.id))}>
-                    <X className="w-4 h-4" />
+                <div className="p-1 flex items-center justify-center bg-gray-50 no-print">
+                  <button className="text-red-500 hover:text-red-700">
+                    <Trash2 className="w-4 h-4" strokeWidth={2.5} />
                   </button>
                 </div>
               </div>
             ))}
 
             {/* Input Row */}
-            <div className="grid grid-cols-[50px_130px_1fr_120px_120px_100px_100px_80px] bg-white border-b border-gray-200">
-              <div className="border-r border-gray-200 flex items-center justify-center p-1 bg-[#343a40] text-white text-[13px] font-bold">
-                #
+            <div className="grid grid-cols-[50px_130px_1fr_120px_120px_100px_120px_80px] bg-white border-b border-gray-200 no-print">
+              <div className="border-r border-gray-200 flex items-center justify-center p-1 bg-[#343a40]">
+                <span className="text-white text-[12px] font-bold">#</span>
+              </div>
+              <div className="border-r border-gray-200 p-1 flex items-center relative">
+                <input 
+                  ref={dateInputRef}
+                  type="date"
+                  value={entryDate}
+                  onChange={(e) => setEntryDate(e.target.value)}
+                  className="absolute w-0 h-0 opacity-0 -z-10"
+                />
+                <input 
+                  type="text" 
+                  readOnly
+                  value={formatDisplayDate(entryDate)}
+                  className="w-full h-[32px] border border-gray-300 border-r-0 rounded-l-[3px] px-2 text-[13px] outline-none text-gray-600"
+                />
+                <button 
+                  onClick={() => {
+                    try {
+                      dateInputRef.current?.showPicker();
+                    } catch (e) {
+                      dateInputRef.current?.focus();
+                    }
+                  }}
+                  className="h-[32px] border border-gray-300 border-l-0 px-2 flex items-center justify-center rounded-r-[3px] text-gray-500 bg-white hover:bg-gray-50 cursor-pointer"
+                >
+                  <Calendar className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="border-r border-gray-200 p-1 flex items-center">
+                 <input 
+                   type="text" 
+                   value={remark}
+                   onChange={e => setRemark(e.target.value)}
+                   placeholder="Enter Other Information" 
+                   className="w-full h-[32px] px-2 text-[13px] outline-none text-center placeholder-gray-400 border border-transparent focus:border-gray-300 rounded-[3px]" 
+                 />
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center">
                 <input 
-                  type="date" 
-                  defaultValue="2026-05-23"
-                  className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-600"
+                  type="number" 
+                  value={expenseAmount}
+                  onChange={e => setExpenseAmount(e.target.value)}
+                  placeholder="0"
+                  className="w-full h-[32px] rounded-[3px] px-2 text-[13px] outline-none text-center font-bold bg-white border border-[#ffcccc] bg-[#fff0f0]"
                 />
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center">
-                 <input type="text" placeholder="Enter Other Information" className="w-full h-[32px] px-2 text-[13px] outline-none text-center placeholder-gray-400" />
+                <input 
+                  type="number" 
+                  value={paidAmount}
+                  onChange={e => setPaidAmount(e.target.value)}
+                  placeholder="0"
+                  className="w-full h-[32px] rounded-[3px] px-2 text-[13px] outline-none text-center font-bold bg-[#f0fdf4] border border-[#bbf7d0]"
+                />
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center">
-                <input type="text" value="0" className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-center" readOnly />
-              </div>
-              <div className="border-r border-gray-200 p-1 flex items-center">
-                <input type="text" value="0" className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-center" readOnly />
-              </div>
-              <div className="border-r border-gray-200 p-1 flex items-center">
-                <input type="text" value="0" className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-center" readOnly />
+                <input 
+                  type="number" 
+                  value={discountAmount}
+                  onChange={e => setDiscountAmount(e.target.value)}
+                  placeholder="0"
+                  className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-center"
+                />
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center bg-[#e9ecef]">
-                <input type="text" value="0" className="w-full h-[32px] bg-transparent text-[13px] outline-none text-center" readOnly />
+                <input type="text" value={selectedExpense ? Math.abs(selectedExpense.balance).toFixed(2) : "0"} className="w-full h-[32px] bg-transparent text-[13px] font-bold text-gray-600 outline-none text-center" readOnly />
               </div>
               <div className="bg-[#343a40] flex items-center justify-center gap-1.5 p-1">
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  className="hidden" 
-                />
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="bg-white p-1 rounded-sm shadow-sm hover:bg-gray-100"
-                >
+                <button onClick={() => fileInputRef.current?.click()} className="bg-white p-1 rounded-sm shadow-sm hover:bg-gray-100">
                   <Paperclip className="w-4 h-4 text-gray-600" strokeWidth={2.5} />
                 </button>
-                <button 
-                  onClick={handleAddEntry}
-                  className="bg-[#28a745] hover:bg-[#218838] flex items-center justify-center w-[26px] h-[26px] rounded-[2px]"
-                >
-                  <Plus className="w-5 h-5 text-white" strokeWidth={3} />
+                <button onClick={handleAddEntry} className="text-[#28a745] hover:text-green-400">
+                  <PlusSquare className="w-6 h-6" strokeWidth={2.5} />
                 </button>
               </div>
             </div>
 
             {/* Total Row */}
-            <div className="grid grid-cols-[50px_130px_1fr_120px_120px_100px_100px_80px] bg-white border-b border-gray-200">
-              <div className="border-r border-gray-200 p-2"></div>
-              <div className="border-r border-gray-200 p-2"></div>
-              <div className="border-r border-gray-200 p-2 flex items-center justify-center">
-                 <span className="text-[13px] font-bold text-gray-800">Total :</span>
+            <div className="grid grid-cols-[50px_130px_1fr_120px_120px_100px_120px_80px] bg-white border-b border-gray-200 mt-auto">
+              <div className="col-span-3 border-r border-gray-200 p-2 flex items-center justify-end pr-4">
+                <span className="font-bold text-[14px] text-gray-800">Total :</span>
               </div>
               <div className="border-r border-gray-200 p-2 flex items-center justify-center">
-                 <span className="text-[13px] font-bold text-[#0056b3]">0</span>
+                <span className="font-bold text-[14px] text-[#dc3545]">
+                  {transactions.reduce((acc, curr) => acc + curr.expenseAmount, 0).toFixed(2)}
+                </span>
               </div>
               <div className="border-r border-gray-200 p-2 flex items-center justify-center">
-                 <span className="text-[13px] font-bold text-[#0056b3]">0</span>
+                <span className="font-bold text-[14px] text-[#28a745]">
+                  {transactions.reduce((acc, curr) => acc + curr.paidAmount, 0).toFixed(2)}
+                </span>
               </div>
               <div className="border-r border-gray-200 p-2 flex items-center justify-center">
-                 <span className="text-[13px] font-bold text-[#0056b3]">0</span>
+                <span className="font-bold text-[14px] text-gray-800">
+                  {transactions.reduce((acc, curr) => acc + curr.discount, 0).toFixed(2)}
+                </span>
               </div>
               <div className="border-r border-gray-200 p-2 flex items-center justify-center">
-                 <span className="text-[13px] font-bold text-[#0056b3]">0</span>
+                <span className="font-bold text-[14px] text-[#dc3545]">
+                  {selectedExpense ? Math.abs(selectedExpense.balance).toFixed(2) : "0.00"}
+                </span>
               </div>
-              <div className="p-2"></div>
+              <div className="p-2 flex items-center justify-center no-print">
+              </div>
             </div>
-            
+
           </div>
         </div>
 

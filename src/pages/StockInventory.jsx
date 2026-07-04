@@ -1,11 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Search } from 'lucide-react';
+import apiClient from '../api/apiClient';
 
 export function StockInventory() {
   const navigate = useNavigate();
   const [zeroToggle, setZeroToggle] = useState(false);
   const [searchToggle, setSearchToggle] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const res = await apiClient.get('/products?limit=100');
+      if (res.data.data) {
+        setProducts(res.data.data);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredProducts = products.filter(p => zeroToggle ? true : p.stock > 0);
+
+  const totalOpening = 0;
+  const totalPurchase = 0;
+  const totalSale = 0;
+  const totalClosing = filteredProducts.reduce((acc, curr) => acc + (curr.stock || 0), 0);
 
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] flex flex-col p-3 relative">
@@ -95,13 +123,29 @@ export function StockInventory() {
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-gray-200">
+              {filteredProducts.map((product, index) => (
+                <tr key={product.id} className="border-b border-gray-200 hover:bg-gray-50">
+                  <td className="px-3 py-2 border-r border-gray-200 text-center text-[13px] text-gray-600">{index + 1}</td>
+                  <td className="px-3 py-2 border-r border-gray-200 text-[13px] font-medium text-gray-800">{product.name}</td>
+                  <td className="px-3 py-2 border-r border-gray-200 text-center text-[13px] text-gray-600">0</td>
+                  <td className="px-3 py-2 border-r border-gray-200 text-center text-[13px] text-gray-600">0</td>
+                  <td className="px-3 py-2 border-r border-gray-200 text-center text-[13px] text-gray-600">0</td>
+                  <td className="px-3 py-2 border-r border-gray-200 text-center text-[13px] font-bold text-[#4F46E5]">{product.stock}</td>
+                  <td className="px-3 py-2 text-center"></td>
+                </tr>
+              ))}
+              {filteredProducts.length === 0 && !loading && (
+                <tr>
+                  <td colSpan="7" className="text-center py-8 text-gray-500 text-[14px]">No products found.</td>
+                </tr>
+              )}
+              <tr className="border-b border-gray-200 bg-gray-100">
                 <td className="px-3 py-2 border-r border-gray-200"></td>
                 <td className="px-3 py-2 border-r border-gray-200 text-right font-bold text-[14px] text-gray-800">Total :</td>
-                <td className="px-3 py-2 border-r border-gray-200 text-center font-bold text-[14px] text-[#4F46E5]">0</td>
-                <td className="px-3 py-2 border-r border-gray-200 text-center font-bold text-[14px] text-[#4F46E5]">0</td>
-                <td className="px-3 py-2 border-r border-gray-200 text-center font-bold text-[14px] text-[#4F46E5]">0</td>
-                <td className="px-3 py-2 border-r border-gray-200 text-center font-bold text-[14px] text-[#4F46E5]">0</td>
+                <td className="px-3 py-2 border-r border-gray-200 text-center font-bold text-[14px] text-gray-800">0</td>
+                <td className="px-3 py-2 border-r border-gray-200 text-center font-bold text-[14px] text-gray-800">0</td>
+                <td className="px-3 py-2 border-r border-gray-200 text-center font-bold text-[14px] text-gray-800">0</td>
+                <td className="px-3 py-2 border-r border-gray-200 text-center font-bold text-[14px] text-[#4F46E5]">{totalClosing}</td>
                 <td className="px-3 py-2"></td>
               </tr>
             </tbody>

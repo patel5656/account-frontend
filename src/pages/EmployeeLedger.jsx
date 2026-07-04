@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../api/apiClient';
 import { X, Printer, Calendar, Paperclip, PlusSquare, ChevronDown, ChevronUp, Edit2, Trash2 } from 'lucide-react';
+import { cn } from '../utils';
 
 // Inline Youtube SVG
 const YoutubeIcon = ({ className }) => (
@@ -11,14 +13,36 @@ const YoutubeIcon = ({ className }) => (
 
 export function EmployeeLedger() {
   const navigate = useNavigate();
-  const fileInputRef = React.useRef(null);
-  const [entries, setEntries] = React.useState([]);
-  const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
-  const [employeeSearch, setEmployeeSearch] = React.useState("");
-  const dropdownRef = React.useRef(null);
-  const [isPaid, setIsPaid] = React.useState(false);
+  const fileInputRef = useRef(null);
+  const dropdownRef = useRef(null);
+  const dateInputRef = useRef(null);
   
-  React.useEffect(() => {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [isPaid, setIsPaid] = useState(false);
+  
+  const [employees, setEmployees] = useState([]);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  
+  // Form State
+  const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
+  const [remark, setRemark] = useState('');
+  const [salaryAmount, setSalaryAmount] = useState('');
+  const [paidAmount, setPaidAmount] = useState('');
+  const [discountAmount, setDiscountAmount] = useState('');
+
+  const formatDisplayDate = (dateString) => {
+    if (!dateString) return "";
+    const parts = dateString.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return dateString;
+  };
+  
+  useEffect(() => {
+    fetchEmployees();
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
@@ -28,18 +52,88 @@ export function EmployeeLedger() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleAddEntry = () => {
-    setEntries([...entries, { id: Date.now() }]);
+  const fetchEmployees = async () => {
+    try {
+      const res = await apiClient.get('/employees');
+      if (res.data.success) {
+        setEmployees(res.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching employees', err);
+    }
   };
 
-  const [employees, setEmployees] = React.useState([
-    { id: 1, name: 'raju', balance: '0', details: 'City : Mobile No:' }
-  ]);
+  const fetchTransactions = async (employee) => {
+    try {
+      const res = await apiClient.get(`/employees/${employee.id}/transactions`);
+      if (res.data.success) {
+        setTransactions(res.data.data);
+        setSelectedEmployee(res.data.employee); // Updates balance
+      }
+    } catch (err) {
+      console.error('Error fetching transactions', err);
+    }
+  };
 
-  const handleDeleteEmployee = (e, id) => {
+  const handleSelectEmployee = (emp) => {
+    setEmployeeSearch(emp.name);
+    setSelectedEmployee(emp);
+    setIsDropdownOpen(false);
+    fetchTransactions(emp);
+  };
+
+  const handleAddEntry = async () => {
+    if (!selectedEmployee) return alert('Please select an employee first');
+    
+    // Validate
+    const amtSalary = parseFloat(salaryAmount) || 0;
+    const amtPaid = parseFloat(paidAmount) || 0;
+    
+    if (amtSalary === 0 && amtPaid === 0) {
+      return alert('Please enter Salary or Paid amount');
+    }
+    if (amtSalary > 0 && amtPaid > 0) {
+      return alert('You can only enter Salary OR Paid amount at one time, not both. Toggle the Paid switch to change mode.');
+    }
+
+    try {
+      const payload = {
+        date: entryDate,
+        type: isPaid ? 'PAYMENT' : 'SALARY',
+        amount: isPaid ? amtPaid : amtSalary,
+        discount: isPaid ? (parseFloat(discountAmount) || 0) : 0,
+        remark
+      };
+
+      const res = await apiClient.post(`/employees/${selectedEmployee.id}/transactions`, payload);
+      if (res.data.success) {
+        setSalaryAmount('');
+        setPaidAmount('');
+        setDiscountAmount('');
+        setRemark('');
+        fetchTransactions(selectedEmployee);
+        fetchEmployees();
+      }
+    } catch (err) {
+      console.error('Error adding transaction', err);
+      alert('Failed to add transaction');
+    }
+  };
+
+  const handleDeleteEmployee = async (e, id) => {
     e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this employee?')) {
-      setEmployees(employees.filter(emp => emp.id !== id));
+      try {
+        await apiClient.delete(`/employees/${id}`);
+        setEmployees(employees.filter(emp => emp.id !== id));
+        if (selectedEmployee?.id === id) {
+          setSelectedEmployee(null);
+          setTransactions([]);
+          setEmployeeSearch("");
+        }
+      } catch (err) {
+        console.error('Error deleting employee', err);
+      }
     }
   };
 
@@ -50,14 +144,23 @@ export function EmployeeLedger() {
 
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] flex flex-col p-3">
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #printable-area, #printable-area * { visibility: visible; }
+          #printable-area { position: absolute; left: 0; top: 0; width: 100%; }
+          .no-print { display: none !important; }
+        }
+      `}</style>
+      
       <input type="file" ref={fileInputRef} className="hidden" />
-      <div className="bg-white rounded shadow-sm border border-gray-200 flex-1 flex flex-col overflow-hidden">
+      <div id="printable-area" className="bg-white rounded shadow-sm border border-gray-200 flex-1 flex flex-col overflow-hidden">
         
         {/* Header */}
         <div className="bg-[#4F46E5] px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <h2 className="text-white text-[16px] font-medium tracking-wide">Employee Ledger</h2>
           
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 no-print">
             <button className="flex items-center justify-center bg-white text-gray-800 w-[34px] h-[32px] rounded-[3px] transition-colors">
               <YoutubeIcon className="w-5 h-5 text-[#ff0000]" />
             </button>
@@ -78,11 +181,11 @@ export function EmployeeLedger() {
         </div>
 
         {/* Top Control Bar */}
-        <div className="p-3 border-b border-gray-200">
+        <div className="p-3 border-b border-gray-200 no-print">
           <div className="flex flex-col gap-1 w-full max-w-[min(96vw,600px)]">
              <div className="flex justify-between items-center px-1">
                <label className="text-[13px] font-bold text-gray-800">Employee Name</label>
-               <span className="text-[13px] font-bold text-[#dc3545]">Account Balance : 0</span>
+               <span className="text-[13px] font-bold text-[#dc3545]">Account Balance : ₹{(selectedEmployee?.balance || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
              </div>
              <div className="relative w-full" ref={dropdownRef}>
                <div className="relative flex items-center cursor-pointer" onClick={() => setIsDropdownOpen(true)}>
@@ -97,7 +200,7 @@ export function EmployeeLedger() {
                    className="w-full bg-[#add8e6] border border-[#add8e6] text-[#0056b3] placeholder-[#0056b3] rounded-[3px] px-3 py-1.5 pr-10 text-[14px] outline-none font-medium cursor-pointer"
                  />
                  <div className="absolute right-2 flex items-center gap-1.5 text-[#0056b3]">
-                   <X className="w-3 h-3 hover:text-gray-800 cursor-pointer" onClick={(e) => { e.stopPropagation(); setEmployeeSearch(''); }} />
+                   <X className="w-3 h-3 hover:text-gray-800 cursor-pointer" onClick={(e) => { e.stopPropagation(); setEmployeeSearch(''); setSelectedEmployee(null); setTransactions([]); }} />
                    {isDropdownOpen ? <ChevronUp className="w-4 h-4 cursor-pointer hover:text-gray-800" /> : <ChevronDown className="w-4 h-4 cursor-pointer hover:text-gray-800" />}
                  </div>
                </div>
@@ -107,15 +210,15 @@ export function EmployeeLedger() {
                    {employees.filter(emp => emp.name.toLowerCase().includes(employeeSearch.toLowerCase())).map((emp, index) => (
                      <div 
                        key={emp.id} 
-                       onClick={() => { setEmployeeSearch(emp.name); setIsDropdownOpen(false); }}
-                       className={`p-2 border-b border-gray-200 hover:bg-[#add8e6] cursor-pointer flex justify-between ${index === 0 ? 'bg-[#add8e6]' : 'bg-white'}`}
+                       onClick={() => handleSelectEmployee(emp)}
+                       className={`p-2 border-b border-gray-200 hover:bg-[#add8e6] cursor-pointer flex justify-between ${selectedEmployee?.id === emp.id ? 'bg-[#add8e6]' : 'bg-white'}`}
                      >
                        <div className="flex flex-col">
                          <span className="font-bold text-[13px] text-gray-900">{emp.name}</span>
-                         <span className="text-[11px] text-gray-800 font-medium mt-0.5">{emp.details}</span>
+                         <span className="text-[11px] text-gray-800 font-medium mt-0.5">{emp.city || ''} {emp.mobile ? `Mobile: ${emp.mobile}` : ''}</span>
                        </div>
                        <div className="flex flex-col items-end justify-between">
-                         <span className="text-[13px] text-gray-800 font-medium">{emp.balance}</span>
+                         <span className="text-[13px] text-gray-800 font-medium">₹{(emp.balance || 0).toLocaleString()}</span>
                          <div className="flex gap-2 mt-1">
                            <Edit2 className="w-3.5 h-3.5 text-[#17a2b8] hover:text-cyan-700" onClick={(e) => handleEditEmployee(e, emp.name)} />
                            <Trash2 className="w-3.5 h-3.5 text-[#dc3545] hover:text-red-700" onClick={(e) => handleDeleteEmployee(e, emp.id)} />
@@ -138,6 +241,7 @@ export function EmployeeLedger() {
             {/* Table Header */}
             <div className="bg-[#343a40] text-white grid grid-cols-[50px_130px_1fr_100px_120px_100px_100px_80px] text-center border-b border-gray-600">
               <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center">
+                #
               </div>
               <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center">
                 DATE
@@ -149,13 +253,13 @@ export function EmployeeLedger() {
                 Salary
               </div>
               <div 
-                className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center gap-1.5 cursor-pointer select-none"
+                className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center gap-1.5 cursor-pointer select-none no-print"
                 onClick={() => setIsPaid(!isPaid)}
               >
-                <div className={`w-[30px] h-[16px] rounded-full relative border transition-colors ${isPaid ? 'bg-[#28a745] border-[#218838]' : 'bg-[#dc3545] border-[#c82333]'}`}>
-                  <div className={`w-[12px] h-[12px] bg-white rounded-full absolute top-[1px] transition-all ${isPaid ? 'right-[1px]' : 'left-[1px]'}`}></div>
+                <div className={`w-[30px] h-[16px] rounded-full relative border transition-colors ${isPaid ? 'bg-[#dc3545] border-[#c82333]' : 'bg-[#28a745] border-[#218838]'}`}>
+                  <div className={`w-[12px] h-[12px] bg-white rounded-full absolute top-[1px] transition-all ${isPaid ? 'left-[1px]' : 'right-[1px]'}`}></div>
                 </div>
-                Paid
+                {isPaid ? 'Paid' : 'Salary'}
               </div>
               <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center">
                 Discount
@@ -169,63 +273,125 @@ export function EmployeeLedger() {
             </div>
 
             {/* Render added entries */}
-            {entries.map((entry, index) => (
+            {transactions.map((entry, index) => (
               <div key={entry.id} className="grid grid-cols-[50px_130px_1fr_100px_120px_100px_100px_80px] bg-white border-b border-gray-200">
                 <div className="border-r border-gray-200 flex items-center justify-center p-1 bg-gray-100 text-[13px]">
                   {index + 1}
                 </div>
                 <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  23-05-2026
+                  {new Date(entry.date).toLocaleDateString()}
                 </div>
                 <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  Sample Information
+                  {entry.remark || '-'}
+                </div>
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600 font-bold">
+                  {entry.type === 'SALARY' ? <span className="text-gray-800">{entry.amount.toFixed(2)}</span> : '-'}
+                </div>
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] font-bold">
+                  {entry.type === 'PAYMENT' ? <span className="text-[#28a745]">{entry.amount.toFixed(2)}</span> : '-'}
                 </div>
                 <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  0
+                  {entry.discount > 0 ? entry.discount.toFixed(2) : '-'}
                 </div>
-                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  0
+                <div className={`border-r border-gray-200 p-1 flex items-center justify-center text-[13px] font-bold ${entry.balance < 0 ? 'text-[#28a745]' : 'text-[#dc3545]'}`}>
+                  {Math.abs(entry.balance).toFixed(2)} {entry.balance < 0 ? 'Cr' : 'Dr'}
                 </div>
-                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  0
-                </div>
-                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  0
-                </div>
-                <div className="p-1 flex items-center justify-center bg-gray-50">
-                  <button className="text-red-500 hover:text-red-700" onClick={() => setEntries(entries.filter(e => e.id !== entry.id))}>
-                    <X className="w-4 h-4" strokeWidth={2.5} />
+                <div className="p-1 flex items-center justify-center bg-gray-50 no-print">
+                  <button className="text-red-500 hover:text-red-700">
+                    <Trash2 className="w-4 h-4" strokeWidth={2.5} />
                   </button>
                 </div>
               </div>
             ))}
 
             {/* Input Row */}
-            <div className="grid grid-cols-[50px_130px_1fr_100px_120px_100px_100px_80px] bg-white border-b border-gray-200">
+            <div className="grid grid-cols-[50px_130px_1fr_100px_120px_100px_100px_80px] bg-white border-b border-gray-200 no-print">
               <div className="border-r border-gray-200 flex items-center justify-center p-1 bg-[#343a40]">
                 <span className="text-white text-[12px] font-bold">#</span>
               </div>
+              <div className="border-r border-gray-200 p-1 flex items-center relative">
+                <input 
+                  ref={dateInputRef}
+                  type="date"
+                  value={entryDate}
+                  onChange={(e) => setEntryDate(e.target.value)}
+                  className="absolute w-0 h-0 opacity-0 -z-10"
+                />
+                <input 
+                  type="text" 
+                  readOnly
+                  value={formatDisplayDate(entryDate)}
+                  className="w-full h-[32px] border border-gray-300 border-r-0 rounded-l-[3px] px-2 text-[13px] outline-none text-gray-600"
+                />
+                <button 
+                  onClick={() => {
+                    try {
+                      dateInputRef.current?.showPicker();
+                    } catch (e) {
+                      dateInputRef.current?.focus();
+                    }
+                  }}
+                  className="h-[32px] border border-gray-300 border-l-0 px-2 flex items-center justify-center rounded-r-[3px] text-gray-500 bg-white hover:bg-gray-50 cursor-pointer"
+                >
+                  <Calendar className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="border-r border-gray-200 p-1 flex items-center">
+                 <input 
+                   type="text" 
+                   value={remark}
+                   onChange={e => setRemark(e.target.value)}
+                   placeholder="Enter Other Information" 
+                   className="w-full h-[32px] px-2 text-[13px] outline-none text-center placeholder-gray-400 border border-transparent focus:border-gray-300 rounded-[3px]" 
+                 />
+              </div>
               <div className="border-r border-gray-200 p-1 flex items-center">
                 <input 
-                  type="date" 
-                  defaultValue="2026-05-23"
-                  className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-600"
+                  type="number" 
+                  value={salaryAmount}
+                  onChange={e => {
+                    setSalaryAmount(e.target.value);
+                    if (e.target.value) setIsPaid(false);
+                  }}
+                  disabled={isPaid}
+                  placeholder="0"
+                  className={cn(
+                    "w-full h-[32px] rounded-[3px] px-2 text-[13px] outline-none text-center font-bold",
+                    isPaid ? "bg-gray-100 border border-gray-300 text-gray-400" : "bg-white border border-[#ffcccc] bg-[#fff0f0]"
+                  )} 
                 />
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center">
-                 <input type="text" placeholder="Enter Other Information" className="w-full h-[32px] px-2 text-[13px] outline-none text-center placeholder-gray-400" />
+                <input 
+                  type="number" 
+                  value={paidAmount}
+                  onChange={e => {
+                    setPaidAmount(e.target.value);
+                    if (e.target.value) setIsPaid(true);
+                  }}
+                  disabled={!isPaid}
+                  placeholder="0"
+                  className={cn(
+                    "w-full h-[32px] rounded-[3px] px-2 text-[13px] outline-none text-center font-bold",
+                    !isPaid ? "bg-gray-100 border border-gray-300 text-gray-400" : "bg-[#f0fdf4] border border-[#bbf7d0]"
+                  )} 
+                />
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center">
-                <input type="text" value="0" className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-center" readOnly />
-              </div>
-              <div className="border-r border-gray-200 p-1 flex items-center">
-                <input type="text" value="0" className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-center" readOnly />
-              </div>
-              <div className="border-r border-gray-200 p-1 flex items-center">
-                <input type="text" value="0" className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-center" readOnly />
+                <input 
+                  type="number" 
+                  value={discountAmount}
+                  onChange={e => setDiscountAmount(e.target.value)}
+                  disabled={!isPaid}
+                  placeholder="0"
+                  className={cn(
+                    "w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-center",
+                    !isPaid && "bg-gray-100 text-gray-400"
+                  )} 
+                />
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center bg-[#e9ecef]">
-                <input type="text" value="0" className="w-full h-[32px] bg-transparent text-[13px] outline-none text-center" readOnly />
+                <input type="text" value={selectedEmployee ? Math.abs(selectedEmployee.balance).toFixed(2) : "0"} className="w-full h-[32px] bg-transparent text-[13px] font-bold text-gray-600 outline-none text-center" readOnly />
               </div>
               <div className="bg-[#343a40] flex items-center justify-center gap-1.5 p-1">
                 <button onClick={() => fileInputRef.current?.click()} className="bg-white p-1 rounded-sm shadow-sm hover:bg-gray-100">
@@ -239,22 +405,30 @@ export function EmployeeLedger() {
 
             {/* Total Row */}
             <div className="grid grid-cols-[50px_130px_1fr_100px_120px_100px_100px_80px] bg-white border-b border-gray-200 mt-auto">
-              <div className="col-span-3 border-r border-gray-200 p-2 flex items-center justify-center">
+              <div className="col-span-3 border-r border-gray-200 p-2 flex items-center justify-end pr-4">
                 <span className="font-bold text-[14px] text-gray-800">Total :</span>
               </div>
               <div className="border-r border-gray-200 p-2 flex items-center justify-center">
-                <span className="font-bold text-[14px] text-gray-800">0</span>
+                <span className="font-bold text-[14px] text-gray-800">
+                  {transactions.reduce((acc, curr) => curr.type === 'SALARY' ? acc + curr.amount : acc, 0).toFixed(2)}
+                </span>
               </div>
               <div className="border-r border-gray-200 p-2 flex items-center justify-center">
-                <span className="font-bold text-[14px] text-gray-800">0</span>
+                <span className="font-bold text-[14px] text-gray-800">
+                  {transactions.reduce((acc, curr) => curr.type === 'PAYMENT' ? acc + curr.amount : acc, 0).toFixed(2)}
+                </span>
               </div>
               <div className="border-r border-gray-200 p-2 flex items-center justify-center">
-                <span className="font-bold text-[14px] text-gray-800">0</span>
+                <span className="font-bold text-[14px] text-gray-800">
+                  {transactions.reduce((acc, curr) => acc + curr.discount, 0).toFixed(2)}
+                </span>
               </div>
               <div className="border-r border-gray-200 p-2 flex items-center justify-center">
-                <span className="font-bold text-[14px] text-gray-800">0</span>
+                <span className="font-bold text-[14px] text-[#dc3545]">
+                  {selectedEmployee ? Math.abs(selectedEmployee.balance).toFixed(2) : "0.00"}
+                </span>
               </div>
-              <div className="p-2 flex items-center justify-center">
+              <div className="p-2 flex items-center justify-center no-print">
               </div>
             </div>
 

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../api/apiClient';
 import { useTranslation } from 'react-i18next';
 import { 
   Contact, 
@@ -32,6 +33,26 @@ export function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPrivacyOn, setIsPrivacyOn] = useState(false);
   const [selectedDate, setSelectedDate] = useState('2026-05-23');
+  const [metrics, setMetrics] = useState({
+    totalCustomers: 0,
+    totalProducts: 0,
+    totalInvoices: 0,
+    totalSales: 0
+  });
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const response = await apiClient.get('/dashboard/metrics');
+        if (response.data.success) {
+          setMetrics(response.data.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard metrics:', error);
+      }
+    };
+    fetchMetrics();
+  }, []);
 
   return (
     <div className="flex flex-col">
@@ -81,7 +102,7 @@ export function Dashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard 
             title={t('dashboard_page.todays_sale')}
-            amount="0" 
+            amount={metrics.todaysSale ? parseFloat(metrics.todaysSale).toFixed(2) : "0"} 
             color="teal" 
             showEye={true}
             onPlusClick={() => navigate('/admin/sales-invoice')}
@@ -89,24 +110,24 @@ export function Dashboard() {
             onMoreInfoClick={() => navigate('/admin/sales')}
           />
           <StatCard 
-            title={t('dashboard_page.today_purchase')} 
-            amount="0" 
+            title="Today Purchase" 
+            amount={metrics.todayPurchase ? parseFloat(metrics.todayPurchase).toFixed(2) : "0"} 
             color="yellow" 
             showEye={false}
             onPlusClick={() => navigate('/admin/create_invoices/company_purchase')}
             onMoreInfoClick={() => navigate('/admin/purchase')}
           />
           <StatCard 
-            title={t('dashboard_page.current_stock_status')}
-            amount="0" 
+            title="Current Stock Status"
+            amount={metrics.currentStockStatus ? parseFloat(metrics.currentStockStatus).toFixed(0) : "0"} 
             color="yellow" 
             showEye={false}
             onPlusClick={() => navigate('/admin/create_invoices/company_purchase')}
             onMoreInfoClick={() => navigate('/admin/stock-details')}
           />
           <StatCard 
-            title={t('dashboard_page.todays_expenses')}
-            amount="0" 
+            title="Today's Expenses"
+            amount={metrics.todaysExpenses ? parseFloat(metrics.todaysExpenses).toFixed(2) : "0"} 
             color="red" 
             showEye={false}
             onPlusClick={() => navigate('/admin/expenses-ledger/expense_ledger')}
@@ -118,7 +139,7 @@ export function Dashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <SummaryCard 
             title={t('dashboard_page.customer_outstanding')}
-            amount="0" 
+            amount={metrics.customerOutstanding ? parseFloat(metrics.customerOutstanding).toFixed(2) : "0"} 
             color="green" 
             icon={Contact} 
             onPlusClick={() => navigate('/admin/party-ledger/customer_payment')}
@@ -126,16 +147,16 @@ export function Dashboard() {
           />
           <SummaryCard 
             title={t('dashboard_page.company_outstanding')}
-            amount="0" 
+            amount={metrics.companyOutstanding ? parseFloat(metrics.companyOutstanding).toFixed(2) : "0"} 
             color="blue" 
             icon={PenTool} 
             onPlusClick={() => navigate('/admin/party-ledger/company_payment')}
             onMoreInfoClick={() => navigate('/admin/party_outstanding/company_outstanding')}
           />
           <SummaryCard 
-            title={t('dashboard_page.all_accounts_balance')}
-            amount="0" 
-            color="green" 
+            title="All Accounts Balance" 
+            amount={metrics.allAccountsBalance ? parseFloat(metrics.allAccountsBalance).toFixed(2) : "0"} 
+            color="purple" 
             icon={Contact} 
             onPlusClick={() => navigate('/admin/bank-ledger')}
             onMoreInfoClick={() => navigate('/admin/allbookbalance')}
@@ -151,10 +172,10 @@ export function Dashboard() {
 
         <div className="w-full">
           {/* Main Chart Area */}
-          <ChartSection />
+          <ChartSection chartData={metrics.chartData} />
         </div>
 
-        <AlertCards />
+        <AlertCards alerts={metrics.alerts} />
       </div>
 
       <CollectionReportModal 

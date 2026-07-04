@@ -1,19 +1,30 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import apiClient from '../api/apiClient';
 import { X, Printer, Calendar, Paperclip, PlusSquare, Filter, FileDown, Search, ChevronDown, ChevronUp, Edit2, Trash2 } from 'lucide-react';
 import { cn } from '../utils';
+import { useSettings } from '../context/SettingsContext';
 
 export function CustomerLedger() {
+  const { settings } = useSettings();
   const navigate = useNavigate();
-  const fileInputRef = React.useRef(null);
-  const [entries, setEntries] = React.useState([]);
-  const [showFilter, setShowFilter] = React.useState(true);
-  const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
-  const [customerSearch, setCustomerSearch] = React.useState("");
-  const dropdownRef = React.useRef(null);
-  const [entryDate, setEntryDate] = React.useState("2026-05-23");
-  const dateInputRef = React.useRef(null);
-  const [isPaymentIn, setIsPaymentIn] = React.useState(true);
+  const location = useLocation();
+  const fileInputRef = useRef(null);
+  const [entries, setEntries] = useState([]);
+  const [showFilter, setShowFilter] = useState(true);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const dropdownRef = useRef(null);
+  
+  const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
+  const dateInputRef = useRef(null);
+  const [isPaymentIn, setIsPaymentIn] = useState(true);
+  
+  const [customers, setCustomers] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentDiscount, setPaymentDiscount] = useState('');
+  const [paymentRemark, setPaymentRemark] = useState('');
 
   const formatDisplayDate = (dateString) => {
     if (!dateString) return "";
@@ -24,7 +35,8 @@ export function CustomerLedger() {
     return dateString;
   };
   
-  React.useEffect(() => {
+  useEffect(() => {
+    fetchCustomers();
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
@@ -34,15 +46,70 @@ export function CustomerLedger() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const dummyCustomers = [
-    { id: 1, name: 'SIDDU', balance: '10,350', details: 'City: Mobile No: drug liecence:' },
-    { id: 2, name: 'SIDDU', balance: '0', details: 'City: Mobile No:' },
-    { id: 3, name: 'ahsish', balance: '1,500', details: 'City: Mobile No:' },
-    { id: 4, name: 'ravi sir', balance: '5,400', details: 'City: Mobile No: 8051942554 drug liecence:' },
-  ];
+  // Auto-select customer if navigated from CustomerOutstanding
+  useEffect(() => {
+    if (location.state?.customer) {
+      const c = location.state.customer;
+      setCustomerSearch(c.name || '');
+      setSelectedCustomer(c);
+      fetchLedger(c);
+    }
+  }, [location.state]);
 
-  const handleAddEntry = () => {
-    setEntries([...entries, { id: Date.now(), date: formatDisplayDate(entryDate) }]);
+  const fetchCustomers = async () => {
+    try {
+      const res = await apiClient.get('/customers');
+      if (res.data.success) {
+        setCustomers(res.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching customers', err);
+    }
+  };
+
+  const fetchLedger = async (customer) => {
+    try {
+      const res = await apiClient.get(`/ledger/${customer.id}`);
+      if (res.data.success) {
+        setEntries(res.data.data);
+        setSelectedCustomer(res.data.customer);
+      }
+    } catch (err) {
+      console.error('Error fetching ledger', err);
+    }
+  };
+
+  const handleSelectCustomer = (c) => {
+    setCustomerSearch(c.name);
+    setSelectedCustomer(c);
+    setIsDropdownOpen(false);
+    fetchLedger(c);
+  };
+
+  const handleAddEntry = async () => {
+    if (!selectedCustomer) return alert('Please select a customer first');
+    if (!paymentAmount && !paymentDiscount) return alert('Please enter an amount or discount');
+    
+    try {
+      const payload = {
+        date: entryDate,
+        amount: parseFloat(paymentAmount) || 0,
+        discount: parseFloat(paymentDiscount) || 0,
+        remark: paymentRemark,
+        paymentType: isPaymentIn ? 'IN' : 'OUT',
+        paymentMode: 'Cash'
+      };
+      const res = await apiClient.post(`/ledger/${selectedCustomer.id}/payment`, payload);
+      if (res.data.success) {
+        setPaymentAmount('');
+        setPaymentDiscount('');
+        setPaymentRemark('');
+        fetchLedger(selectedCustomer);
+      }
+    } catch (err) {
+      console.error('Error adding payment', err);
+      alert('Failed to add payment');
+    }
   };
 
   const handleExport = () => {
@@ -50,10 +117,19 @@ export function CustomerLedger() {
     const csvRows = [headers.join(',')];
     
     if (entries.length === 0) {
-      csvRows.push(['1', `"${formatDisplayDate(entryDate)}"`, '"Sample Information"', '"-"', '0', '0', '0', '0'].join(','));
+      csvRows.push(['1', `"${formatDisplayDate(entryDate)}"`, '"-"', '"-"', '0', '0', '0', '0'].join(','));
     } else {
       entries.forEach((entry, index) => {
-        csvRows.push([index + 1, `"${entry.date || '23-05-2026'}"`, '"Sample Information"', '"-"', '0', '0', '0', '0'].join(','));
+        csvRows.push([
+          index + 1, 
+          `"${new Date(entry.date).toLocaleDateString()}"`, 
+          `"${entry.remark || '-'}"`, 
+          `"${entry.voucherNo || '-'}"`, 
+          entry.type === 'INVOICE' ? entry.amount : 0, 
+          entry.type !== 'INVOICE' ? entry.paymentIn || entry.amount : 0, 
+          entry.discount || 0, 
+          entry.balance
+        ].join(','));
       });
     }
     
@@ -122,7 +198,7 @@ export function CustomerLedger() {
             <div className="flex flex-col gap-1 w-full max-w-[min(96vw,600px)]">
                <div className="flex justify-between items-center px-1">
                  <label className="text-[13px] font-bold text-gray-800">Customer Name</label>
-                 <span className="text-[13px] font-bold text-[#dc3545]">Account Balance : 0</span>
+                 <span className="text-[13px] font-bold text-[#dc3545]">Account Balance : ₹{(selectedCustomer?.balance || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
                </div>
                <div className="relative" ref={dropdownRef}>
                  <div className="relative flex items-center cursor-pointer" onClick={() => setIsDropdownOpen(true)}>
@@ -137,33 +213,29 @@ export function CustomerLedger() {
                      className="w-full bg-[#add8e6] border border-[#add8e6] text-[#0056b3] placeholder-[#0056b3] rounded-[3px] px-3 py-1.5 pr-10 text-[14px] outline-none font-medium cursor-pointer"
                    />
                    <div className="absolute right-2 flex items-center gap-1.5 text-gray-400">
-                     <X className="w-3 h-3 hover:text-gray-600 cursor-pointer" onClick={(e) => { e.stopPropagation(); setCustomerSearch(''); }} />
+                     <X className="w-3 h-3 hover:text-gray-600 cursor-pointer" onClick={(e) => { e.stopPropagation(); setCustomerSearch(''); setSelectedCustomer(null); setEntries([]); }} />
                      {isDropdownOpen ? <ChevronUp className="w-4 h-4 cursor-pointer hover:text-gray-600" /> : <ChevronDown className="w-4 h-4 cursor-pointer hover:text-gray-600" />}
                    </div>
                  </div>
                  
                  {isDropdownOpen && (
                    <div className="absolute top-full left-0 w-full mt-0.5 bg-white border border-gray-300 rounded-[3px] shadow-xl z-50 max-h-[300px] overflow-y-auto">
-                     {dummyCustomers.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase())).map((c, index) => (
+                     {customers.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase())).map((c, index) => (
                        <div 
                          key={c.id} 
-                         onClick={() => { setCustomerSearch(c.name); setIsDropdownOpen(false); }}
-                         className={`p-2 border-b border-gray-200 hover:bg-[#add8e6] cursor-pointer flex justify-between ${index === 1 ? 'bg-[#add8e6]' : 'bg-white'}`}
+                         onClick={() => handleSelectCustomer(c)}
+                         className={`p-2 border-b border-gray-200 hover:bg-[#add8e6] cursor-pointer flex justify-between ${selectedCustomer?.id === c.id ? 'bg-[#add8e6]' : 'bg-white'}`}
                        >
                          <div className="flex flex-col">
                            <span className="font-bold text-[13px] text-gray-900">{c.name}</span>
-                           <span className="text-[11px] text-gray-800 font-medium mt-0.5">{c.details}</span>
+                           <span className="text-[11px] text-gray-800 font-medium mt-0.5">{c.city || ''} {c.mobile ? `Mobile: ${c.mobile}` : ''}</span>
                          </div>
                          <div className="flex flex-col items-end justify-between">
-                           <span className="text-[13px] text-gray-800 font-medium">{c.balance}</span>
-                           <div className="flex gap-2 mt-1">
-                             <Edit2 className="w-3.5 h-3.5 text-[#17a2b8] hover:text-cyan-700" onClick={(e) => e.stopPropagation()} />
-                             <Trash2 className="w-3.5 h-3.5 text-[#dc3545] hover:text-red-700" onClick={(e) => e.stopPropagation()} />
-                           </div>
+                           <span className="text-[13px] text-gray-800 font-medium">₹{(c.balance || 0).toLocaleString()}</span>
                          </div>
                        </div>
                      ))}
-                     {dummyCustomers.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase())).length === 0 && (
+                     {customers.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase())).length === 0 && (
                        <div className="p-3 text-center text-[12px] text-gray-500">No customers found</div>
                      )}
                    </div>
@@ -190,8 +262,9 @@ export function CustomerLedger() {
               <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center">
                 Voucher No
               </div>
-              <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center">
+              <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex flex-col justify-center">
                 Bill Amount
+                {settings.showDueDays && <span className="text-[10px] text-gray-400 font-normal mt-0.5">(Due Days Visible)</span>}
               </div>
               <div 
                 className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center gap-1.5 cursor-pointer select-none"
@@ -205,8 +278,9 @@ export function CustomerLedger() {
               <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center">
                 Dis.
               </div>
-              <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex items-center justify-center">
+              <div className="border-r border-gray-600 py-2.5 text-[13px] font-bold flex flex-col justify-center">
                 Balance
+                {settings.accountingFormat && <span className="text-[10px] text-blue-300 font-normal mt-0.5">(Dr/Cr Format)</span>}
               </div>
               <div className="py-2.5 text-[13px] font-bold flex items-center justify-center">
                 ACTION
@@ -220,29 +294,33 @@ export function CustomerLedger() {
                   {index + 1}
                 </div>
                 <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  {entry.date || "23-05-2026"}
+                  {new Date(entry.date).toLocaleDateString()}
                 </div>
                 <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  Sample Information
+                  {entry.remark || '-'}
                 </div>
                 <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  -
+                  {entry.voucherNo || '-'}
+                </div>
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] font-bold text-gray-800">
+                  {entry.type === 'INVOICE' && entry.amount > 0 ? entry.amount.toFixed(2) : '-'}
+                </div>
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] font-bold text-[#28a745]">
+                  {entry.paymentIn > 0 ? entry.paymentIn.toFixed(2) : (entry.type === 'PAYMENT_OUT' ? <span className="text-[#dc3545]">(OUT) {entry.amount.toFixed(2)}</span> : '-')}
                 </div>
                 <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  0
+                  {entry.discount > 0 ? entry.discount.toFixed(2) : '-'}
                 </div>
-                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  0
-                </div>
-                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  0
-                </div>
-                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-600">
-                  0
+                <div className={`border-r border-gray-200 p-1 flex items-center justify-center text-[13px] font-bold ${entry.balance < 0 ? 'text-[#28a745]' : 'text-[#dc3545]'}`}>
+                  {settings.accountingFormat ? (
+                    <>{Math.abs(entry.balance).toFixed(2)} {entry.balance < 0 ? 'Cr' : 'Dr'}</>
+                  ) : (
+                    <>{entry.balance.toFixed(2)}</>
+                  )}
                 </div>
                 <div className="p-1 flex items-center justify-center">
-                  <button className="text-red-500 hover:text-red-700" onClick={() => setEntries(entries.filter(e => e.id !== entry.id))}>
-                    <X className="w-4 h-4" />
+                  <button className="text-red-500 hover:text-red-700">
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -282,22 +360,22 @@ export function CustomerLedger() {
                 </button>
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center">
-                 <input type="text" placeholder="Enter Other Information" className="w-full h-[32px] px-2 text-[13px] outline-none text-center placeholder-gray-400" />
+                 <input type="text" value={paymentRemark} onChange={e => setPaymentRemark(e.target.value)} placeholder="Enter Other Information" className="w-full h-[32px] px-2 text-[13px] outline-none text-center placeholder-gray-400" />
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center">
                 <input type="text" className="w-full h-[32px] px-2 text-[13px] outline-none" readOnly />
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center">
-                <input type="text" value="0" className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-center" readOnly />
+                <input type="text" value="0" className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-center bg-gray-50" readOnly />
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center">
-                <input type="text" value="0" className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-center" readOnly />
+                <input type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} placeholder="0" className="w-full h-[32px] border border-[#add8e6] bg-[#e8f4f8] rounded-[3px] px-2 text-[13px] outline-none text-center font-bold" />
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center">
-                <input type="text" value="0" className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-center" readOnly />
+                <input type="number" value={paymentDiscount} onChange={e => setPaymentDiscount(e.target.value)} placeholder="0" className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-center" />
               </div>
               <div className="border-r border-gray-200 p-1 flex items-center bg-[#e9ecef]">
-                <input type="text" value="0" className="w-full h-[32px] bg-transparent text-[13px] outline-none text-center" readOnly />
+                <input type="text" value={selectedCustomer ? Math.abs(selectedCustomer.balance).toFixed(2) : "0"} className="w-full h-[32px] bg-transparent text-[13px] outline-none text-center" readOnly />
               </div>
               <div className="bg-[#343a40] flex items-center justify-center gap-1.5 p-1">
                 <input 
@@ -326,16 +404,24 @@ export function CustomerLedger() {
                 <span className="font-bold text-[14px] text-gray-800">Total</span>
               </div>
               <div className="border-r border-gray-200 p-2 flex items-center justify-center">
-                <span className="font-bold text-[14px] text-gray-800">0</span>
+                <span className="font-bold text-[14px] text-gray-800">
+                  {entries.reduce((acc, entry) => entry.type === 'INVOICE' ? acc + entry.amount : acc, 0).toFixed(2)}
+                </span>
               </div>
               <div className="border-r border-gray-200 p-2 flex items-center justify-center">
-                <span className="font-bold text-[14px] text-gray-800">0</span>
+                <span className="font-bold text-[14px] text-gray-800">
+                  {entries.reduce((acc, entry) => acc + entry.paymentIn, 0).toFixed(2)}
+                </span>
               </div>
               <div className="border-r border-gray-200 p-2 flex items-center justify-center">
-                <span className="font-bold text-[14px] text-gray-800">0</span>
+                <span className="font-bold text-[14px] text-gray-800">
+                  {entries.reduce((acc, entry) => acc + entry.discount, 0).toFixed(2)}
+                </span>
               </div>
               <div className="border-r border-gray-200 p-2 flex items-center justify-center">
-                <span className="font-bold text-[14px] text-gray-800">0</span>
+                <span className="font-bold text-[14px] text-gray-800">
+                  {selectedCustomer ? Math.abs(selectedCustomer.balance).toFixed(2) : "0.00"}
+                </span>
               </div>
               <div className="p-2 flex items-center justify-center">
               </div>

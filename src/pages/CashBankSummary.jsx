@@ -1,41 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Plus, Upload, Printer, FileDown, Eye, Calendar, Filter } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
-
-// Sample data for demo
-const SAMPLE_DATA = {
-  'Main Cash': {
-    openingBalance: 12500,
-    transactions: [
-      { date: '17-05-2026', info: 'Sales Invoice #INV-1025 - Ramesh Traders', paymentIn: 15000, paymentOut: 0 },
-      { date: '18-05-2026', info: 'Purchase Payment - ABC Suppliers', paymentIn: 0, paymentOut: 8000 },
-      { date: '19-05-2026', info: 'Sales Invoice #INV-1031 - Suresh Enterprises', paymentIn: 5000, paymentOut: 0 },
-      { date: '20-05-2026', info: 'Office Expenses - Stationery', paymentIn: 0, paymentOut: 1200 },
-      { date: '21-05-2026', info: 'Sales Invoice #INV-1040 - Kavita Stores', paymentIn: 3200, paymentOut: 0 },
-      { date: '22-05-2026', info: 'Salary Payment - Staff', paymentIn: 0, paymentOut: 25000 },
-      { date: '23-05-2026', info: 'Sales Invoice #INV-1045 - Priya Fashions', paymentIn: 5750, paymentOut: 0 },
-    ]
-  },
-  'HDFC Bank A/c': {
-    openingBalance: 85000,
-    transactions: [
-      { date: '17-05-2026', info: 'NEFT Transfer - Ramesh Traders', paymentIn: 45000, paymentOut: 0 },
-      { date: '18-05-2026', info: 'Cheque Payment - Global Traders', paymentIn: 0, paymentOut: 30000 },
-      { date: '20-05-2026', info: 'Online Transfer - Modern Agencies', paymentIn: 18500, paymentOut: 0 },
-      { date: '21-05-2026', info: 'Bank Charges', paymentIn: 0, paymentOut: 500 },
-      { date: '23-05-2026', info: 'UPI Credit - Kavita Stores', paymentIn: 9200, paymentOut: 0 },
-    ]
-  },
-  'SBI Bank A/c': {
-    openingBalance: 42000,
-    transactions: [
-      { date: '19-05-2026', info: 'IMPS Transfer - Priya Fashions', paymentIn: 12000, paymentOut: 0 },
-      { date: '21-05-2026', info: 'Cheque Payment - Sunrise Wholesale', paymentIn: 0, paymentOut: 31000 },
-      { date: '22-05-2026', info: 'NEFT Credit - ABC Suppliers', paymentIn: 7600, paymentOut: 0 },
-    ]
-  }
-};
+import apiClient from '../api/apiClient';
 
 const DATE_RANGES = ['Last 7 Days', 'Last 15 Days', 'Last 30 Days', 'This Month', 'Last Month', 'Custom'];
 
@@ -44,12 +11,72 @@ export function CashBankSummary() {
   const printRef = useRef();
   const { formatAmount, currentCurrency } = useSettings();
 
-  const [selectedAccount, setSelectedAccount] = useState('Main Cash');
+  const [accountsList, setAccountsList] = useState([]);
+  const [selectedAccountId, setSelectedAccountId] = useState('');
   const [dateRange, setDateRange] = useState('Last 7 Days');
   const [showPreview, setShowPreview] = useState(false);
+  const [accountData, setAccountData] = useState({ openingBalance: 0, transactions: [] });
 
-  const accounts = Object.keys(SAMPLE_DATA);
-  const accountData = SAMPLE_DATA[selectedAccount] || { openingBalance: 0, transactions: [] };
+  useEffect(() => {
+    fetchAccounts();
+  }, []);
+
+  const fetchAccounts = async () => {
+    try {
+      const res = await apiClient.get('/banks');
+      if (res.data.success && res.data.data.length > 0) {
+        setAccountsList(res.data.data);
+        setSelectedAccountId(res.data.data[0].id.toString());
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedAccountId) {
+      fetchTransactions(selectedAccountId);
+    }
+  }, [selectedAccountId]);
+
+  const fetchTransactions = async (id) => {
+    try {
+      const res = await apiClient.get(`/banks/${id}/transactions`);
+      if (res.data.success) {
+        const bank = res.data.bank;
+        const txs = res.data.data || [];
+        
+        let totalInAmt = 0;
+        let totalOutAmt = 0;
+        
+        const mappedTxs = txs.map(t => {
+          const paymentIn = t.isCredit ? (t.transferAmount || 0) : 0;
+          const paymentOut = !t.isCredit ? (t.transferAmount || 0) : 0;
+          totalInAmt += paymentIn;
+          totalOutAmt += paymentOut;
+          
+          return {
+            date: new Date(t.date).toLocaleDateString('en-GB').replace(/\//g, '-'),
+            info: t.remark || t.otherBankName || 'Transfer',
+            paymentIn,
+            paymentOut
+          };
+        });
+
+        const closingBal = bank.balance || 0;
+        const openingBal = closingBal - totalInAmt + totalOutAmt;
+
+        setAccountData({
+          openingBalance: openingBal,
+          transactions: mappedTxs
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const selectedAccountName = accountsList.find(a => a.id.toString() === selectedAccountId)?.name || 'Account';
 
   // Calculate running balance
   let runningBalance = accountData.openingBalance;
@@ -97,7 +124,7 @@ export function CashBankSummary() {
     URL.revokeObjectURL(url);
   };
 
-  const isCash = selectedAccount.toLowerCase().includes('cash');
+  const isCash = selectedAccountName.toLowerCase().includes('cash');
 
   return (
     <>
@@ -118,7 +145,7 @@ export function CashBankSummary() {
           <div style={{ fontSize: '14px', fontWeight: 'bold', marginTop: '4px' }}>
             {isCash ? 'Cash Summary Report' : 'Bank Summary Report'}
           </div>
-          <div style={{ fontSize: '11px', marginTop: '2px', color: '#555' }}>Account: {selectedAccount} | Period: {dateLabel}</div>
+          <div style={{ fontSize: '11px', marginTop: '2px', color: '#555' }}>Account: {selectedAccountName} | Period: {dateLabel}</div>
           <div style={{ fontSize: '10px', color: '#888', marginTop: '2px' }}>Generated on: {now}</div>
         </div>
 
@@ -238,11 +265,11 @@ export function CashBankSummary() {
                   </span>
                 </div>
                 <select
-                  value={selectedAccount}
-                  onChange={e => setSelectedAccount(e.target.value)}
+                  value={selectedAccountId}
+                  onChange={e => setSelectedAccountId(e.target.value)}
                   className="w-full h-[32px] border border-[#4F46E5] rounded-[3px] px-2 text-[13px] outline-none bg-[#add8e6] text-[#0056b3]"
                 >
-                  {accounts.map(a => <option key={a}>{a}</option>)}
+                  {accountsList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </div>
 
@@ -364,7 +391,7 @@ export function CashBankSummary() {
                 <div className="text-[15px] font-bold text-gray-700 mt-1">
                   {isCash ? 'Cash Summary Report' : 'Bank Summary Report'}
                 </div>
-                <div className="text-[12px] text-gray-500 mt-1">Account: <strong>{selectedAccount}</strong> | Period: <strong>{dateLabel}</strong></div>
+                <div className="text-[12px] text-gray-500 mt-1">Account: <strong>{selectedAccountName}</strong> | Period: <strong>{dateLabel}</strong></div>
                 <div className="text-[11px] text-gray-400 mt-1">Generated on: {now}</div>
               </div>
 

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import apiClient from '../api/apiClient';
 
 export const SUPPORTED_CURRENCIES = {
   INR: { code: 'INR', locale: 'en-IN', symbol: '₹' },
@@ -30,22 +31,42 @@ export function SettingsProvider({ children }) {
     };
   });
 
-  React.useEffect(() => {
-    localStorage.setItem('sidebar_settings_v3', JSON.stringify(settings));
-  }, [settings]);
+  useEffect(() => {
+    // Sync initial settings from backend
+    apiClient.get('/settings')
+      .then(res => {
+        if (res.data.success && res.data.data) {
+          setSettings(prev => ({ ...prev, ...res.data.data }));
+        }
+      })
+      .catch(err => console.error("Failed to load settings from server:", err));
+  }, []);
 
-  const toggleSetting = (key) => {
+  const toggleSetting = async (key) => {
+    const newValue = !settings[key];
     setSettings(prev => ({
       ...prev,
-      [key]: !prev[key]
+      [key]: newValue
     }));
+    // Sync to backend
+    try {
+      await apiClient.put('/settings', { [key]: newValue });
+    } catch (error) {
+      console.error("Failed to sync setting:", error);
+    }
   };
 
-  const updateSetting = (key, value) => {
+  const updateSetting = async (key, value) => {
     setSettings(prev => ({
       ...prev,
       [key]: value
     }));
+    // Sync to backend
+    try {
+      await apiClient.put('/settings', { [key]: value });
+    } catch (error) {
+      console.error("Failed to sync setting:", error);
+    }
   };
 
   const formatAmount = (amount) => {

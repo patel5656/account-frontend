@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Settings, Image as ImageIcon } from 'lucide-react';
+import apiClient from '../api/apiClient';
 
 export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
   const [isActive, setIsActive] = useState(true);
@@ -31,9 +32,50 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
   const [showPartyTags, setShowPartyTags] = useState(true);
   const [showDueDate, setShowDueDate] = useState(true);
   const [defaultDueDaysSettings, setDefaultDueDaysSettings] = useState('7');
+  const [availableTags, setAvailableTags] = useState([]);
 
   const toggleSwitch = (key) => {
     setToggles(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      apiClient.get('/party-tags')
+        .then(res => {
+          if (res.data.success) setAvailableTags(res.data.data);
+        })
+        .catch(() => setAvailableTags([]));
+
+      apiClient.get('/party-settings')
+        .then(res => {
+          if (res.data.success && res.data.data) {
+            const settings = res.data.data;
+            setShowPartyTags(settings.showPartyTags);
+            setShowDueDate(settings.showDueDate);
+            setDefaultDueDaysSettings(settings.defaultDueDays.toString());
+            // Only set form dueDays to default if it's currently at 7 (meaning user hasn't changed it manually yet)
+            setDueDays(settings.defaultDueDays.toString());
+          }
+        })
+        .catch(err => console.error("Failed to fetch settings", err));
+    }
+  }, [isOpen]);
+
+  const handleSaveSettings = async () => {
+    try {
+      await apiClient.put('/party-settings', {
+        defaultDueDays: defaultDueDaysSettings,
+        showPartyTags,
+        showDueDate,
+        extraColumns: [] // Placeholder for future extra columns dynamic state
+      });
+      setIsSettingOpen(false);
+      // Update the actual form due days if they just changed the default
+      setDueDays(defaultDueDaysSettings);
+    } catch (error) {
+      console.error("Failed to save settings", error);
+      alert("Failed to save settings. Please try again.");
+    }
   };
 
   const handleSubmit = () => {
@@ -43,7 +85,8 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
           id: Date.now(), 
           name: partyName, 
           mobile: mobileNumber, 
-          city: city, 
+          city: city,
+          partyTags: partyTags,
           type: defaultType, 
           balance: 0,
           address,
@@ -57,7 +100,12 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
           partyLimit,
           interestRate,
           loyaltyPoints,
-          joiningDate
+          joiningDate,
+          dueDays,
+          drugLicense,
+          wholeParty: toggles.wholeParty,
+          sezParty: toggles.sezParty,
+          focParty: toggles.focParty
         } 
       }));
     }
@@ -162,41 +210,32 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
                 </div>
                 <div className="flex-1 flex flex-col gap-1 relative">
                   <label className="text-[14px] font-bold text-gray-800">City</label>
-                  <div className="relative">
-                    <select
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] appearance-none"
-                    >
-                      <option value=""></option>
-                      <option value="Delhi">Delhi</option>
-                      <option value="Mumbai">Mumbai</option>
-                    </select>
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                      <X className="w-3 h-3 text-gray-400 mr-1" />
-                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                  </div>
+                  <input
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Enter city"
+                    className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+                  />
                 </div>
               </div>
 
               {/* Row 3: Party Tags */}
               <div className="flex flex-col gap-1 relative">
                 <label className="text-[14px] font-bold text-gray-800">Party Tags</label>
-                <div className="relative">
-                  <select
-                    value={partyTags}
-                    onChange={(e) => setPartyTags(e.target.value)}
-                    className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] appearance-none"
-                  >
-                    <option value="">Enter Tags</option>
-                    <option value="Tag 1">Tag 1</option>
-                    <option value="Tag 2">Tag 2</option>
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                  </div>
-                </div>
+                <input
+                  type="text"
+                  list="party-tags-list"
+                  value={partyTags}
+                  onChange={(e) => setPartyTags(e.target.value)}
+                  placeholder="Select or enter tag"
+                  className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+                />
+                <datalist id="party-tags-list">
+                  {availableTags.map(tag => (
+                    <option key={tag.id} value={tag.name} />
+                  ))}
+                </datalist>
               </div>
 
               {/* Row 5: Four Toggles */}
@@ -278,21 +317,20 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
                     </div>
                     <div className="flex flex-col gap-1 relative">
                       <label className="text-[14px] font-bold text-gray-800">Gst Applicable</label>
-                      <div className="relative">
-                        <select
-                          value={gstApplicable}
-                          onChange={(e) => setGstApplicable(e.target.value)}
-                          className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] appearance-none"
-                        >
-                          <option value="GST">GST</option>
-                          <option value="COMPOSITION">COMPOSITION</option>
-                          <option value="UNREGISTERED">UNREGISTERED</option>
-                          <option value="CONSUMER">CONSUMER</option>
-                        </select>
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </div>
-                      </div>
+                      <input
+                        type="text"
+                        list="gst-applicable-list"
+                        value={gstApplicable}
+                        onChange={(e) => setGstApplicable(e.target.value)}
+                        placeholder="Select or enter GST type"
+                        className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+                      />
+                      <datalist id="gst-applicable-list">
+                        <option value="GST" />
+                        <option value="COMPOSITION" />
+                        <option value="UNREGISTERED" />
+                        <option value="CONSUMER" />
+                      </datalist>
                     </div>
                   </div>
 
@@ -300,26 +338,21 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
                   <div className="grid grid-cols-[1.2fr_2fr_1.2fr] gap-4">
                     <div className="flex flex-col gap-1 relative">
                       <label className="text-[14px] font-bold text-gray-800">State</label>
-                      <div className="relative">
-                        <select
-                          value={stateName}
-                          onChange={(e) => setStateName(e.target.value)}
-                          className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] appearance-none"
-                        >
-                          <option value="Karnataka">Karnataka</option>
-                          <option value="Delhi">Delhi</option>
-                          <option value="Maharashtra">Maharashtra</option>
-                          <option value="Uttar Pradesh">Uttar Pradesh</option>
-                          <option value="Gujarat">Gujarat</option>
-                        </select>
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                          <X 
-                            className="w-3 h-3 text-gray-400 mr-1 cursor-pointer pointer-events-auto" 
-                            onClick={() => setStateName('')} 
-                          />
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </div>
-                      </div>
+                      <input
+                        type="text"
+                        list="state-list"
+                        value={stateName}
+                        onChange={(e) => setStateName(e.target.value)}
+                        placeholder="Select or enter state"
+                        className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+                      />
+                      <datalist id="state-list">
+                        <option value="Karnataka" />
+                        <option value="Delhi" />
+                        <option value="Maharashtra" />
+                        <option value="Uttar Pradesh" />
+                        <option value="Gujarat" />
+                      </datalist>
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-[14px] font-bold text-gray-800">Email Address</label>
@@ -333,20 +366,19 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
                     </div>
                     <div className="flex flex-col gap-1 relative">
                       <label className="text-[14px] font-bold text-gray-800">Party Type</label>
-                      <div className="relative">
-                        <select
-                          value={partyType}
-                          onChange={(e) => setPartyType(e.target.value)}
-                          className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] appearance-none"
-                        >
-                          <option value="company">company</option>
-                          <option value="retailer">retailer</option>
-                          <option value="distributor">distributor</option>
-                        </select>
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </div>
-                      </div>
+                      <input
+                        type="text"
+                        list="party-type-list"
+                        value={partyType}
+                        onChange={(e) => setPartyType(e.target.value)}
+                        placeholder="Select or enter party type"
+                        className="w-full border border-gray-300 bg-white rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+                      />
+                      <datalist id="party-type-list">
+                        <option value="company" />
+                        <option value="retailer" />
+                        <option value="distributor" />
+                      </datalist>
                     </div>
                   </div>
 
@@ -509,7 +541,7 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
             {/* Footer */}
             <div className="bg-white px-5 py-4 flex justify-end gap-2 border-t border-gray-100">
               <button 
-                onClick={() => setIsSettingOpen(false)}
+                onClick={handleSaveSettings}
                 className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-[7px] rounded-[3px] text-[14px] font-medium transition-colors"
               >
                 Save

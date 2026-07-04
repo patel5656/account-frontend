@@ -1,15 +1,79 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Share2, MessageCircle, Upload, Download, ExternalLink } from 'lucide-react';
+import apiClient from '../api/apiClient';
 
 export function GstrPurchaseReturn() {
   const navigate = useNavigate();
+  const [data, setData] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [selectedParty, setSelectedParty] = useState('');
+  const [selectedPeriod, setSelectedPeriod] = useState('All');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const invoiceRes = await apiClient.get('/invoices?type=PURCHASE_RETURN');
+      const customerRes = await apiClient.get('/customers');
+      
+      if (invoiceRes.data?.success) {
+        setData(invoiceRes.data.data || []);
+      }
+      
+      if (customerRes.data?.success) {
+        setCustomers(customerRes.data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredData = data.filter(invoice => {
+    if (selectedParty && selectedParty !== 'Select Name') {
+      return invoice.customer?.name === selectedParty;
+    }
+    return true;
+  });
 
   const handleExportCSV = () => {
-    const csvContent = [
-      ['Date/Invoice No.', 'Party Name', 'GSTIN', 'State', 'Taxable Amount', 'GST %', 'Quantity', 'IGST', 'CGST', 'SGST', 'Sub Total', 'Grand Total'],
-      ['', '', '', 'Total', '0', '', '', '0', '0', '0', '0', '0']
-    ].map(e => e.join(",")).join("\n");
+    const headers = ['Date/Invoice No.', 'Party Name', 'GSTIN', 'State', 'Taxable Amount', 'GST %', 'Quantity', 'IGST', 'CGST', 'SGST', 'Sub Total', 'Grand Total'];
+    let rowsContent = [];
+    
+    filteredData.forEach(invoice => {
+      invoice.items.forEach(item => {
+         const itemTaxableAmount = item.amount;
+         const gstPercent = item.product?.tax || 0;
+         const totalGstAmount = itemTaxableAmount * (gstPercent / 100);
+         // Assuming intra-state for default, splitting between CGST and SGST
+         const igst = 0; 
+         const cgst = totalGstAmount / 2;
+         const sgst = totalGstAmount / 2;
+         
+         rowsContent.push([
+           `${new Date(invoice.date).toLocaleDateString()} / ${invoice.invoiceNo}`,
+           invoice.customer?.name || 'Cash',
+           invoice.customer?.gstin || '-',
+           invoice.customer?.state || '-',
+           itemTaxableAmount.toFixed(2),
+           `${gstPercent}%`,
+           item.quantity,
+           igst.toFixed(2),
+           cgst.toFixed(2),
+           sgst.toFixed(2),
+           itemTaxableAmount.toFixed(2),
+           (itemTaxableAmount + totalGstAmount).toFixed(2)
+         ].join(','));
+      });
+    });
+
+    const csvContent = [headers.join(','), ...rowsContent].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -18,8 +82,7 @@ export function GstrPurchaseReturn() {
   };
 
   const handleDownload = () => {
-    const data = { message: "GSTR Purchase Return Data" };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(filteredData, null, 2)], { type: 'application/json' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = "gstr_purchase_return.json";
@@ -38,6 +101,14 @@ export function GstrPurchaseReturn() {
     }
   };
 
+  // Calculate totals for footer
+  let totalTaxable = 0;
+  let totalIgst = 0;
+  let totalCgst = 0;
+  let totalSgst = 0;
+  let totalSub = 0;
+  let totalGrand = 0;
+
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] p-4 flex flex-col relative pb-[80px]">
       
@@ -45,25 +116,31 @@ export function GstrPurchaseReturn() {
       <div className="bg-white p-4 rounded shadow-sm border border-gray-200 mb-4 flex flex-wrap items-center gap-6">
         <div className="flex flex-col gap-1.5 w-full sm:max-w-[250px]">
           <label className="text-[13px] font-bold text-gray-800">Select Period</label>
-          <select className="h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white">
-            <option>Select</option>
+          <select 
+            value={selectedPeriod}
+            onChange={(e) => setSelectedPeriod(e.target.value)}
+            className="h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white"
+          >
+            <option value="All">All Time</option>
+            <option value="ThisMonth">This Month</option>
           </select>
         </div>
 
         <div className="flex flex-col gap-1.5 w-full sm:max-w-[300px]">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" />
-              <div className="w-8 h-4 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#007bff]"></div>
-            </div>
             <label className="text-[13px] font-bold text-gray-800">Party Name</label>
           </div>
-          <select className="h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-400 bg-gray-50" disabled>
-            <option>Select Name</option>
+          <select 
+            value={selectedParty}
+            onChange={(e) => setSelectedParty(e.target.value)}
+            className="h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white"
+          >
+            <option value="">Select Name</option>
+            {customers.map(c => (
+              <option key={c.id} value={c.name}>{c.name}</option>
+            ))}
           </select>
         </div>
-
-
       </div>
 
       {/* Main Card */}
@@ -72,47 +149,92 @@ export function GstrPurchaseReturn() {
         {/* Header */}
         <div className="text-center py-4 border-b border-gray-200">
           <h2 className="text-[14px] text-gray-700 mb-1">GST Purchase Return Summary</h2>
-          <p className="text-[14px] font-bold text-gray-800">From 30-Apr-2026 To 30-May-2026</p>
         </div>
 
         {/* Table */}
         <div className="p-4 w-full">
           <div className="table-scroll w-full overflow-x-auto">
-            <table className="w-full border-collapse border border-black text-center">
-            <thead>
-              <tr>
-                <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[8%] whitespace-nowrap">Date<br/>Invoice No.</th>
-                <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[20%] whitespace-nowrap">Party Name</th>
-                <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[10%] whitespace-nowrap">GSTIN</th>
-                <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[8%] whitespace-nowrap">State</th>
-                <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[8%] whitespace-nowrap">Taxable<br/>Amount</th>
-                <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[5%] whitespace-nowrap">GST %</th>
-                <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[6%] whitespace-nowrap">Quantity</th>
-                <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[6%] whitespace-nowrap">IGST</th>
-                <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[6%] whitespace-nowrap">CGST</th>
-                <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[6%] whitespace-nowrap">SGST</th>
-                <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[8%] whitespace-nowrap">Sub Total</th>
-                <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[9%] whitespace-nowrap">Grand Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* Total Row */}
-              <tr>
-                <td className="py-3 px-2 border border-black text-[13px]"></td>
-                <td className="py-3 px-2 border border-black text-[13px]"></td>
-                <td className="py-3 px-2 border border-black text-[13px]"></td>
-                <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 text-center">Total</td>
-                <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 text-center">0</td>
-                <td className="py-3 px-2 border border-black text-[13px]"></td>
-                <td className="py-3 px-2 border border-black text-[13px]"></td>
-                <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 text-center">0</td>
-                <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 text-center">0</td>
-                <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 text-center">0</td>
-                <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 text-center">0</td>
-                <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 text-center">0</td>
-              </tr>
-            </tbody>
-          </table>
+            {loading ? (
+              <div className="text-center py-10 text-gray-500">Loading data...</div>
+            ) : (
+              <table className="w-full border-collapse border border-black text-center">
+                <thead>
+                  <tr>
+                    <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[8%] whitespace-nowrap">Date<br/>Invoice No.</th>
+                    <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[20%] whitespace-nowrap">Party Name</th>
+                    <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[10%] whitespace-nowrap">GSTIN</th>
+                    <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[8%] whitespace-nowrap">State</th>
+                    <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[8%] whitespace-nowrap">Taxable<br/>Amount</th>
+                    <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[5%] whitespace-nowrap">GST %</th>
+                    <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[6%] whitespace-nowrap">Quantity</th>
+                    <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[6%] whitespace-nowrap">IGST</th>
+                    <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[6%] whitespace-nowrap">CGST</th>
+                    <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[6%] whitespace-nowrap">SGST</th>
+                    <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[8%] whitespace-nowrap">Sub Total</th>
+                    <th className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 w-[9%] whitespace-nowrap">Grand Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredData.length === 0 ? (
+                    <tr>
+                      <td colSpan="12" className="py-4 text-center text-gray-500 text-[13px]">No purchase return records found.</td>
+                    </tr>
+                  ) : (
+                    filteredData.map(invoice => {
+                      return invoice.items.map(item => {
+                        const itemTaxableAmount = item.amount;
+                        const gstPercent = item.product?.tax || 0;
+                        const totalGstAmount = itemTaxableAmount * (gstPercent / 100);
+                        const igst = 0; 
+                        const cgst = totalGstAmount / 2;
+                        const sgst = totalGstAmount / 2;
+                        const grandTotal = itemTaxableAmount + totalGstAmount;
+
+                        totalTaxable += itemTaxableAmount;
+                        totalIgst += igst;
+                        totalCgst += cgst;
+                        totalSgst += sgst;
+                        totalSub += itemTaxableAmount;
+                        totalGrand += grandTotal;
+
+                        return (
+                          <tr key={`${invoice.id}-${item.id}`}>
+                            <td className="py-3 px-2 border border-black text-[13px]">{new Date(invoice.date).toLocaleDateString()}<br/>{invoice.invoiceNo}</td>
+                            <td className="py-3 px-2 border border-black text-[13px]">{invoice.customer?.name || 'Cash'}</td>
+                            <td className="py-3 px-2 border border-black text-[13px]">{invoice.customer?.gstin || '-'}</td>
+                            <td className="py-3 px-2 border border-black text-[13px]">{invoice.customer?.state || '-'}</td>
+                            <td className="py-3 px-2 border border-black text-[13px]">{itemTaxableAmount.toFixed(2)}</td>
+                            <td className="py-3 px-2 border border-black text-[13px]">{gstPercent}%</td>
+                            <td className="py-3 px-2 border border-black text-[13px]">{item.quantity}</td>
+                            <td className="py-3 px-2 border border-black text-[13px]">{igst.toFixed(2)}</td>
+                            <td className="py-3 px-2 border border-black text-[13px]">{cgst.toFixed(2)}</td>
+                            <td className="py-3 px-2 border border-black text-[13px]">{sgst.toFixed(2)}</td>
+                            <td className="py-3 px-2 border border-black text-[13px]">{itemTaxableAmount.toFixed(2)}</td>
+                            <td className="py-3 px-2 border border-black text-[13px]">{grandTotal.toFixed(2)}</td>
+                          </tr>
+                        );
+                      });
+                    })
+                  )}
+
+                  {/* Total Row */}
+                  <tr className="bg-gray-50">
+                    <td className="py-3 px-2 border border-black text-[13px]"></td>
+                    <td className="py-3 px-2 border border-black text-[13px]"></td>
+                    <td className="py-3 px-2 border border-black text-[13px]"></td>
+                    <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 text-center">Total</td>
+                    <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 text-center">{totalTaxable.toFixed(2)}</td>
+                    <td className="py-3 px-2 border border-black text-[13px]"></td>
+                    <td className="py-3 px-2 border border-black text-[13px]"></td>
+                    <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 text-center">{totalIgst.toFixed(2)}</td>
+                    <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 text-center">{totalCgst.toFixed(2)}</td>
+                    <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 text-center">{totalSgst.toFixed(2)}</td>
+                    <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 text-center">{totalSub.toFixed(2)}</td>
+                    <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800 text-center">{totalGrand.toFixed(2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </div>

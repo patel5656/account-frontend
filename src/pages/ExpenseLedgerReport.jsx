@@ -1,10 +1,115 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Plus } from 'lucide-react';
-import { cn } from '../utils';
+import { X, Plus, Trash2, Edit } from 'lucide-react';
+import apiClient from '../api/apiClient';
 
 export function ExpenseLedgerReport() {
   const navigate = useNavigate();
+  
+  const [expenses, setExpenses] = useState([]);
+  const [selectedExpenseName, setSelectedExpenseName] = useState('');
+  const [selectedExpenseId, setSelectedExpenseId] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [dateFilter, setDateFilter] = useState('Today');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchExpenses();
+  }, []);
+
+  const fetchExpenses = async () => {
+    try {
+      const res = await apiClient.get('/expenses');
+      if (res.data.success) {
+        setExpenses(res.data.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch expenses:", err);
+    }
+  };
+
+  const handleExpenseChange = (e) => {
+    const name = e.target.value;
+    setSelectedExpenseName(name);
+    
+    const matched = expenses.find(ex => ex.name === name);
+    if (matched) {
+      setSelectedExpenseId(matched.id);
+    } else {
+      setSelectedExpenseId(null);
+      setTransactions([]);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedExpenseId) {
+      fetchTransactions(selectedExpenseId);
+    }
+  }, [selectedExpenseId]);
+
+  const fetchTransactions = async (id) => {
+    setLoading(true);
+    try {
+      const res = await apiClient.get(`/expenses/${id}/transactions`);
+      if (res.data.success) {
+        setTransactions(res.data.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch transactions:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getFilteredTransactions = () => {
+    if (dateFilter === 'All Time') return transactions;
+    
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    return transactions.filter(t => {
+      const tDate = new Date(t.date);
+      switch(dateFilter) {
+        case 'Today':
+          return tDate >= startOfToday;
+        case 'Yesterday': {
+          const startOfYesterday = new Date(startOfToday);
+          startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+          return tDate >= startOfYesterday && tDate < startOfToday;
+        }
+        case 'Last 7 Days': {
+          const last7 = new Date(startOfToday);
+          last7.setDate(last7.getDate() - 7);
+          return tDate >= last7;
+        }
+        case 'Last 30 Days': {
+          const last30 = new Date(startOfToday);
+          last30.setDate(last30.getDate() - 30);
+          return tDate >= last30;
+        }
+        case 'This Month': {
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          return tDate >= startOfMonth;
+        }
+        case 'Last Month': {
+          const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+          return tDate >= startOfLastMonth && tDate <= endOfLastMonth;
+        }
+        default:
+          return true;
+      }
+    });
+  };
+
+  const filteredData = getFilteredTransactions();
+  const totalExpenseAmount = filteredData.reduce((acc, curr) => acc + (curr.expenseAmount || 0), 0);
+  const totalPaidAmount = filteredData.reduce((acc, curr) => acc + (curr.paidAmount || 0), 0);
+  const totalBalance = filteredData.length > 0 ? filteredData[filteredData.length - 1].balance : 0;
+
+  const currentDateString = new Date().toLocaleDateString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric'
+  }).replace(/ /g, '-');
 
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] flex flex-col p-3">
@@ -41,17 +146,15 @@ export function ExpenseLedgerReport() {
                <input 
                  type="text" 
                  list="expense-heads"
+                 value={selectedExpenseName}
+                 onChange={handleExpenseChange}
                  placeholder="Select or Search Name..." 
                  className="w-full bg-[#add8e6] border border-[#add8e6] text-[#0056b3] placeholder-[#0056b3]/70 rounded-[3px] px-3 py-1.5 text-[13px] outline-none font-medium focus:border-blue-400"
                />
                <datalist id="expense-heads">
-                 <option value="Office Rent" />
-                 <option value="Electricity Bill" />
-                 <option value="Internet Bill" />
-                 <option value="Stationery" />
-                 <option value="Tea & Coffee" />
-                 <option value="Petrol/Travel" />
-                 <option value="Staff Salary" />
+                 {expenses.map(ex => (
+                   <option key={ex.id} value={ex.name} />
+                 ))}
                </datalist>
              </div>
 
@@ -59,10 +162,15 @@ export function ExpenseLedgerReport() {
              <div className="flex-1 flex flex-col gap-1">
                <div className="flex justify-between items-center">
                  <label className="text-[13px] font-bold text-gray-800">Date</label>
-                 <span className="text-[13px] font-bold text-[#4F46E5]">(29-May-2026)</span>
+                 <span className="text-[13px] font-bold text-[#4F46E5]">({currentDateString})</span>
                </div>
                <div className="relative">
-                 <select className="w-full min-w-0 border border-gray-300 bg-white text-gray-700 rounded-[3px] pl-3 pr-8 py-1.5 text-[13px] outline-none appearance-none cursor-pointer hover:border-gray-400">
+                 <select 
+                   value={dateFilter}
+                   onChange={(e) => setDateFilter(e.target.value)}
+                   className="w-full min-w-0 border border-gray-300 bg-white text-gray-700 rounded-[3px] pl-3 pr-8 py-1.5 text-[13px] outline-none appearance-none cursor-pointer hover:border-gray-400"
+                 >
+                   <option>All Time</option>
                    <option>Today</option>
                    <option>Yesterday</option>
                    <option>Last 7 Days</option>
@@ -83,10 +191,10 @@ export function ExpenseLedgerReport() {
         </div>
 
         {/* Data Table */}
-        <div className="flex-1 overflow-x-auto overflow-y-hidden min-h-0 w-full">
+        <div className="flex-1 overflow-x-auto overflow-y-auto min-h-0 w-full relative">
           <div className="min-w-[900px] flex flex-col h-full">
             {/* Table Header */}
-            <div className="bg-[#343a40] text-white grid grid-cols-[80px_130px_1fr_120px_120px_120px_100px] text-center border-b border-gray-600">
+            <div className="bg-[#343a40] text-white grid grid-cols-[80px_130px_1fr_120px_120px_120px_100px] text-center border-b border-gray-600 sticky top-0 z-10">
               <div className="border-r border-gray-600 py-3 text-[13px] font-bold flex items-center justify-center">
                 S.NO.
               </div>
@@ -110,21 +218,60 @@ export function ExpenseLedgerReport() {
               </div>
             </div>
 
+            {/* Table Body */}
+            <div className="flex-1 bg-white">
+              {loading ? (
+                <div className="p-4 text-center text-gray-500 text-sm font-medium">Loading transactions...</div>
+              ) : filteredData.length === 0 ? (
+                <div className="p-4 text-center text-gray-500 text-sm font-medium">
+                  {selectedExpenseId ? "No transactions found for the selected period." : "Please select an Expense Head to view transactions."}
+                </div>
+              ) : (
+                filteredData.map((item, index) => (
+                  <div key={item.id} className="grid grid-cols-[80px_130px_1fr_120px_120px_120px_100px] border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                    <div className="border-r border-gray-200 p-2 flex items-center justify-center text-[13px] text-gray-800">
+                      {index + 1}
+                    </div>
+                    <div className="border-r border-gray-200 p-2 flex items-center justify-center text-[13px] text-gray-800">
+                      {new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-')}
+                    </div>
+                    <div className="border-r border-gray-200 p-2 flex items-center text-[13px] text-gray-800">
+                      {item.remark || '-'}
+                    </div>
+                    <div className="border-r border-gray-200 p-2 flex items-center justify-center text-[13px] text-gray-800 font-medium">
+                      {item.expenseAmount || 0}
+                    </div>
+                    <div className="border-r border-gray-200 p-2 flex items-center justify-center text-[13px] text-gray-800 font-medium text-green-600">
+                      {item.paidAmount || 0}
+                    </div>
+                    <div className="border-r border-gray-200 p-2 flex items-center justify-center text-[13px] text-gray-800 font-medium text-blue-600">
+                      {item.balance || 0}
+                    </div>
+                    <div className="p-2 flex items-center justify-center gap-2">
+                      <button className="text-blue-500 hover:text-blue-700" title="Edit">
+                        <Edit className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
             {/* Total Row */}
-            <div className="grid grid-cols-[80px_130px_1fr_120px_120px_120px_100px] bg-white border-b border-gray-200">
+            <div className="grid grid-cols-[80px_130px_1fr_120px_120px_120px_100px] bg-white border-t-2 border-gray-300 sticky bottom-0 z-10 shadow-[0_-2px_4px_rgba(0,0,0,0.05)]">
               <div className="border-r border-gray-200 p-3"></div>
               <div className="border-r border-gray-200 p-3"></div>
               <div className="border-r border-gray-200 p-3 flex items-center justify-center">
                  <span className="text-[14px] font-bold text-gray-800">GRAND TOTAL</span>
               </div>
               <div className="border-r border-gray-200 p-3 flex items-center justify-center">
-                 <span className="text-[14px] font-bold text-gray-800">0</span>
+                 <span className="text-[14px] font-bold text-gray-800">{totalExpenseAmount}</span>
               </div>
               <div className="border-r border-gray-200 p-3 flex items-center justify-center">
-                 <span className="text-[14px] font-bold text-gray-800">0</span>
+                 <span className="text-[14px] font-bold text-gray-800">{totalPaidAmount}</span>
               </div>
               <div className="border-r border-gray-200 p-3 flex items-center justify-center">
-                 <span className="text-[14px] font-bold text-gray-800">0</span>
+                 <span className="text-[14px] font-bold text-gray-800">{totalBalance}</span>
               </div>
               <div className="p-3"></div>
             </div>

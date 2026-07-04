@@ -1,20 +1,153 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload } from 'lucide-react';
+import { Upload, Loader2, Download } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { getCategorywiseSale } from '../api/financial';
+import apiClient from '../api/apiClient';
 
 export function CategorywiseSaleSummary() {
   const navigate = useNavigate();
 
+  const [period, setPeriod] = useState('Today');
+  const [customers, setCustomers] = useState([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState('all');
+  const [reportData, setReportData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  
+  // Date calculation states for display
+  const [displayStartDate, setDisplayStartDate] = useState('');
+  const [displayEndDate, setDisplayEndDate] = useState('');
+
+  useEffect(() => {
+    // Fetch customers
+    apiClient.get('/customers')
+      .then(res => setCustomers(res.data?.data || []))
+      .catch(err => console.error("Failed to fetch customers", err));
+  }, []);
+
+  useEffect(() => {
+    fetchReport();
+  }, [period, selectedCustomerId]);
+
+  const fetchReport = async () => {
+    setLoading(true);
+    try {
+      const today = new Date();
+      let start = new Date(today);
+      let end = new Date(today);
+
+      switch (period) {
+        case 'Today':
+          break;
+        case 'This Week':
+          start.setDate(today.getDate() - today.getDay());
+          break;
+        case 'This Month':
+          start = new Date(today.getFullYear(), today.getMonth(), 1);
+          break;
+        case 'This Year':
+          start = new Date(today.getFullYear(), 0, 1);
+          break;
+        case 'All Time':
+          start = new Date(2000, 0, 1);
+          break;
+        default:
+          break;
+      }
+
+      // Format for API
+      const startDateStr = start.toISOString().split('T')[0];
+      const endDateStr = end.toISOString().split('T')[0];
+      
+      // Update display dates
+      if (period === 'All Time') {
+        setDisplayStartDate('All Time');
+        setDisplayEndDate('All Time');
+      } else {
+        setDisplayStartDate(start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-'));
+        setDisplayEndDate(end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-'));
+      }
+
+      const res = await getCategorywiseSale(
+        period === 'All Time' ? null : startDateStr,
+        period === 'All Time' ? null : endDateStr,
+        selectedCustomerId
+      );
+
+      setReportData(res.data?.data || []);
+    } catch (error) {
+      console.error("Failed to fetch categorywise sale", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalQty = reportData.reduce((sum, item) => sum + (item.totalQuantity || 0), 0);
+  const totalAmt = reportData.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
+  const totalDisc = reportData.reduce((sum, item) => sum + (item.totalDiscount || 0), 0);
+
   const handleExport = () => {
-    const csvContent = [
-      ['#', 'Category Name', 'Total Quantity', 'Total Amount', 'Total Discount'],
-      ['', 'Totals :', '0', '0', '0']
-    ].map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "categorywise_sale_summary.csv";
-    link.click();
+    const doc = new jsPDF();
+    
+    // Add professional header
+    doc.setFontSize(18);
+    doc.setTextColor(40);
+    doc.text('Categorywise Sales Summary', 14, 22);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    const dateText = period === 'All Time' ? 'All Time' : `From ${displayStartDate} to ${displayEndDate}`;
+    doc.text(`Period: ${dateText}`, 14, 30);
+    
+    // Prepare table data
+    const tableColumn = ["#", "Category Name", "Total Quantity", "Total Amount (Rs)", "Total Discount (Rs)"];
+    const tableRows = [];
+
+    reportData.forEach((row, i) => {
+      tableRows.push([
+        i + 1,
+        row.categoryName,
+        row.totalQuantity,
+        row.totalAmount?.toFixed(2),
+        row.totalDiscount?.toFixed(2)
+      ]);
+    });
+
+    // Add totals row
+    tableRows.push([
+      '', 
+      'Totals :', 
+      totalQty.toString(), 
+      totalAmt?.toFixed(2), 
+      totalDisc?.toFixed(2)
+    ]);
+
+    // Generate table
+    autoTable(doc, {
+      startY: 38,
+      head: [tableColumn],
+      body: tableRows,
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' },
+      footStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [249, 250, 251] },
+      margin: { top: 38 },
+      didParseCell: function(data) {
+        // Highlight totals row
+        if (data.row.index === tableRows.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [240, 240, 240];
+        }
+        // Right align numbers
+        if (data.column.index > 1) {
+          data.cell.styles.halign = 'right';
+        }
+      }
+    });
+
+    // Save the PDF
+    doc.save(`categorywise_sale_summary_${new Date().getTime()}.pdf`);
   };
 
   return (
@@ -29,8 +162,16 @@ export function CategorywiseSaleSummary() {
               {/* Select Period */}
               <div className="flex flex-col gap-1 w-full sm:max-w-[250px]">
                 <label className="text-[13px] font-bold text-gray-800 px-1">Select Period</label>
-                <select className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white">
-                  <option>Select</option>
+                <select 
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                  className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white"
+                >
+                  <option value="Today">Today</option>
+                  <option value="This Week">This Week</option>
+                  <option value="This Month">This Month</option>
+                  <option value="This Year">This Year</option>
+                  <option value="All Time">All Time</option>
                 </select>
               </div>
 
@@ -42,8 +183,15 @@ export function CategorywiseSaleSummary() {
                   </div>
                   <label className="text-[13px] font-bold text-gray-800">Party Name</label>
                 </div>
-                <select className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-400 bg-white">
-                  <option>Select Name</option>
+                <select 
+                  value={selectedCustomerId}
+                  onChange={(e) => setSelectedCustomerId(e.target.value)}
+                  className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-800 bg-white"
+                >
+                  <option value="all">All Parties</option>
+                  {customers.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -52,7 +200,7 @@ export function CategorywiseSaleSummary() {
             <div className="flex flex-col gap-1 w-full sm:max-w-[200px]">
               <label className="text-[13px] font-bold text-gray-800 px-1 text-right">Discount Type</label>
               <select className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white">
-                <option>MRP</option>
+                <option>Applied Discount</option>
               </select>
             </div>
 
@@ -65,7 +213,9 @@ export function CategorywiseSaleSummary() {
             {/* Title */}
             <div className="text-center mb-1">
               <h3 className="text-[14px] font-normal text-gray-600">Categorywise Sales Summary</h3>
-              <p className="text-[14px] font-bold text-gray-800">From 23-May-2026 to 23-May-2026</p>
+              <p className="text-[14px] font-bold text-gray-800">
+                {period === 'All Time' ? 'All Time' : `From ${displayStartDate} to ${displayEndDate}`}
+              </p>
             </div>
 
             {/* Table */}
@@ -81,26 +231,46 @@ export function CategorywiseSaleSummary() {
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td className="border border-gray-800 py-1.5 px-2 h-[28px]"></td>
-                  <td className="border border-gray-800 py-1.5 px-2"></td>
-                  <td className="border border-gray-800 py-1.5 px-2"></td>
-                  <td className="border border-gray-800 py-1.5 px-2"></td>
-                  <td className="border border-gray-800 py-1.5 px-2"></td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-800 py-1.5 px-2"></td>
-                  <td className="border border-gray-800 py-1.5 px-2 text-right pr-4">
-                    <span className="font-bold text-[13px] text-gray-900">Totals :</span>
-                  </td>
-                  <td className="border border-gray-800 py-1.5 px-2"></td>
-                  <td className="border border-gray-800 py-1.5 px-2 text-right pr-2">
-                    <span className="font-bold text-[13px] text-gray-900">0</span>
-                  </td>
-                  <td className="border border-gray-800 py-1.5 px-2 text-right pr-2">
-                    <span className="font-bold text-[13px] text-gray-900">0</span>
-                  </td>
-                </tr>
+                {loading ? (
+                  <tr>
+                    <td colSpan="5" className="border border-gray-800 py-4 text-center">
+                      <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-500" />
+                    </td>
+                  </tr>
+                ) : reportData.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="border border-gray-800 py-4 text-center text-gray-500 text-[13px]">
+                      No sales found for the selected criteria.
+                    </td>
+                  </tr>
+                ) : (
+                  reportData.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="border border-gray-800 py-1.5 px-2 text-center">{idx + 1}</td>
+                      <td className="border border-gray-800 py-1.5 px-2">{row.categoryName}</td>
+                      <td className="border border-gray-800 py-1.5 px-2 text-right">{row.totalQuantity}</td>
+                      <td className="border border-gray-800 py-1.5 px-2 text-right">{row.totalAmount?.toFixed(2)}</td>
+                      <td className="border border-gray-800 py-1.5 px-2 text-right">{row.totalDiscount?.toFixed(2)}</td>
+                    </tr>
+                  ))
+                )}
+                {reportData.length > 0 && (
+                  <tr>
+                    <td className="border border-gray-800 py-1.5 px-2"></td>
+                    <td className="border border-gray-800 py-1.5 px-2 text-right pr-4">
+                      <span className="font-bold text-[13px] text-gray-900">Totals :</span>
+                    </td>
+                    <td className="border border-gray-800 py-1.5 px-2 text-right">
+                      <span className="font-bold text-[13px] text-gray-900">{totalQty}</span>
+                    </td>
+                    <td className="border border-gray-800 py-1.5 px-2 text-right pr-2">
+                      <span className="font-bold text-[13px] text-gray-900">{totalAmt?.toFixed(2)}</span>
+                    </td>
+                    <td className="border border-gray-800 py-1.5 px-2 text-right pr-2">
+                      <span className="font-bold text-[13px] text-gray-900">{totalDisc?.toFixed(2)}</span>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -109,35 +279,20 @@ export function CategorywiseSaleSummary() {
 
       </div>
 
-      {/* Footer Buttons */}
-      <div className="fixed bottom-0 left-0 md:left-[220px] right-0 bg-white/90 backdrop-blur-sm border-t border-gray-200 p-2 sm:p-3 footer-btns z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-        <button 
-          onClick={() => navigate(-1)}
-          className="bg-[#dc3545] hover:bg-[#c82333] text-white text-[13px] font-medium px-4 py-1.5 rounded-[3px] flex items-center justify-center gap-1 shadow-sm transition-colors"
-        >
-          <span className="text-[16px] leading-none mt-[-2px]">&laquo;</span> Go back
-        </button>
-        <button 
-          onClick={() => window.open('https://web.whatsapp.com/', '_blank')}
-          className="bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] shadow-sm transition-colors"
-        >
-          <WhatsappIcon className="w-4 h-4" />
-        </button>
-        <button 
-          onClick={handleExport}
-          className="bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 text-[13px] font-bold px-3 py-1.5 rounded-[3px] flex items-center gap-1 shadow-sm transition-colors"
-        >
-          <Upload className="w-4 h-4" strokeWidth={2.5} /> Export
-        </button>
+      {/* Action Buttons */}
+      <div className="fixed bottom-0 left-0 right-0 md:left-[220px] bg-white border-t border-gray-200 p-3 flex justify-between items-center z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <div className="flex gap-2">
+          {/* Add settings/print buttons if needed */}
+        </div>
+        <div className="flex gap-2">
+          <button 
+            onClick={handleExport}
+            className="bg-[#4F46E5] hover:bg-[#4338ca] text-white px-6 py-2 rounded-[3px] text-[13px] font-bold transition-colors shadow-sm flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" /> Export PDF
+          </button>
+        </div>
       </div>
-
     </div>
   );
 }
-
-// Custom Whatsapp SVG Icon
-const WhatsappIcon = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.662-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
-  </svg>
-);

@@ -43,11 +43,11 @@ export function ImportDataModal({ isOpen, onClose }) {
       <div className="bg-white rounded-[3px] shadow-xl w-full sm:max-w-[500px] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
         
         {/* Header */}
-        <div className="bg-[#17a2b8] pl-4 pr-0 flex items-center justify-between h-[45px]">
+        <div className="bg-[#007bff] pl-4 pr-0 flex items-center justify-between h-[45px]">
           <h2 className="text-[15px] text-white font-medium">Import Data</h2>
           <button 
             onClick={handleClose}
-            className="bg-[#dc3545] text-white h-full px-3.5 hover:bg-[#c82333] transition-colors flex items-center justify-center"
+            className="text-white h-full px-3.5 hover:bg-[#0069d9] transition-colors flex items-center justify-center"
           >
             <X className="w-[18px] h-[18px]" strokeWidth={2.5} />
           </button>
@@ -61,7 +61,7 @@ export function ImportDataModal({ isOpen, onClose }) {
             <select 
               value={importFrom}
               onChange={(e) => setImportFrom(e.target.value)}
-              className="w-full border border-gray-300 rounded-[3px] px-3 py-[7px] text-[14px] text-gray-700 outline-none focus:border-[#17a2b8] focus:ring-[3px] focus:ring-[#17a2b8]/20 transition-all cursor-pointer"
+              className="w-full border border-gray-300 rounded-[3px] px-3 py-[7px] text-[14px] text-gray-700 outline-none focus:border-[#007bff] focus:ring-[3px] focus:ring-[#007bff]/20 transition-all cursor-pointer"
             >
               <option value="General Import">General Import</option>
               <option value="Tally">Tally</option>
@@ -95,7 +95,7 @@ export function ImportDataModal({ isOpen, onClose }) {
         <div className="bg-[#f8f9fa] border-t border-gray-200 px-4 py-3 sm:px-5">
           <button 
             onClick={handleImport}
-            className="flex items-center gap-1.5 bg-[#17a2b8] hover:bg-[#138496] text-white px-3 py-1.5 rounded-[3px] text-[14px] transition-colors shadow-sm focus:ring-[3px] focus:ring-[#17a2b8]/50 outline-none"
+            className="flex items-center gap-1.5 bg-[#007bff] hover:bg-[#0069d9] text-white px-3 py-1.5 rounded-[3px] text-[14px] transition-colors shadow-sm focus:ring-[3px] focus:ring-[#007bff]/50 outline-none"
           >
             <FileDown className="w-[14px] h-[14px]" strokeWidth={2.5} />
             {getButtonText()}

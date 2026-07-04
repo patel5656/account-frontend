@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../api/apiClient';
 import { 
   X, 
   Plus, 
@@ -14,23 +15,44 @@ import {
   Calculator,
   Info
 } from 'lucide-react';
+import { CollectionReportModal } from '../components/CollectionReportModal';
 
 export function PurchaseReturn() {
   const navigate = useNavigate();
   const [companyToggle, setCompanyToggle] = useState(false);
   const [collectionModalOpen, setCollectionModalOpen] = useState(false);
   const [loadingSheetModalOpen, setLoadingSheetModalOpen] = useState(false);
+  const [isToggleOn, setIsToggleOn] = useState(false);
+  const [salesData, setSalesData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedInvoices, setSelectedInvoices] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const tableData = [
-    { id: 1, invoiceNo: 'PR-2026-001', name: 'ABC Suppliers Pvt Ltd', date: '23-May-2026', amount: '₹15,000', status: 'COMPLETED' },
-    { id: 2, invoiceNo: 'PR-2026-002', name: 'XYZ Electronics', date: '22-May-2026', amount: '₹8,500', status: 'PENDING' }
-  ];
+  const [invoices, setInvoices] = useState([]);
 
-  const filteredData = tableData.filter(item => 
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    item.invoiceNo.toLowerCase().includes(searchQuery.toLowerCase())
+  useEffect(() => {
+    fetchInvoices();
+  }, []);
+
+  const fetchInvoices = async () => {
+    try {
+      const res = await apiClient.get('/inventory/PURCHASE_RETURN');
+      if (res.data.data) {
+        setInvoices(res.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch purchase returns', error);
+    }
+  };
+
+  const filteredData = invoices.filter(item => 
+    (item.customer?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (item.invoiceNo || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const totalAmt = filteredData.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0);
+  const totalPaid = filteredData.reduce((acc, curr) => acc + (curr.status === 'PAID' ? curr.totalAmount : 0), 0);
+  const totalBal = totalAmt - totalPaid;
 
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] flex flex-col p-3 relative">
@@ -76,17 +98,10 @@ export function PurchaseReturn() {
           <div className="flex flex-col gap-2">
             <div className="flex justify-between items-center px-1">
               <div className="flex flex-wrap items-center gap-2">
-                <div 
-                  onClick={() => setCompanyToggle(!companyToggle)}
-                  className={`w-8 h-4 rounded-full relative cursor-pointer transition-colors ${companyToggle ? 'bg-[#007bff]' : 'bg-gray-300'}`}
-                >
-                  <div className={`absolute top-[2px] w-3 h-3 bg-white rounded-full transition-all shadow-sm ${companyToggle ? 'left-[18px]' : 'left-[2px]'}`} />
-                </div>
                 <span className="text-[13px] font-bold text-gray-800">Company Name</span>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[13px] font-bold text-gray-800">Date</span>
-                <span className="text-[12px] font-medium text-blue-500">(23-May-2026)</span>
               </div>
             </div>
             
@@ -127,15 +142,15 @@ export function PurchaseReturn() {
         <div className="bg-[#343a40] text-white flex flex-col sm:grid sm:grid-cols-3 text-center border-b border-gray-600 py-1.5">
            <div className="flex flex-col items-center justify-center">
              <span className="font-bold text-[13px] tracking-wide">TOTAL AMT:</span>
-             <span className="font-bold text-[14px]">0</span>
+             <span className="font-bold text-[14px]">₹{totalAmt.toFixed(2)}</span>
            </div>
            <div className="flex flex-col items-center justify-center">
              <span className="font-bold text-[13px] tracking-wide">TOTAL PAID:</span>
-             <span className="font-bold text-[14px]">0</span>
+             <span className="font-bold text-[14px]">₹{totalPaid.toFixed(2)}</span>
            </div>
            <div className="flex flex-col items-center justify-center">
              <span className="font-bold text-[13px] tracking-wide">BALANCE:</span>
-             <span className="font-bold text-[14px]">0</span>
+             <span className="font-bold text-[14px]">₹{totalBal.toFixed(2)}</span>
            </div>
         </div>
 
@@ -160,11 +175,11 @@ export function PurchaseReturn() {
                     <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3 text-[13px] text-gray-600">{index + 1}</td>
                       <td className="px-4 py-3 text-[13px] font-medium text-gray-800">{row.invoiceNo}</td>
-                      <td className="px-4 py-3 text-[14px] font-bold text-gray-900">{row.name}</td>
-                      <td className="px-4 py-3 text-[13px] text-gray-600">{row.date}</td>
-                      <td className="px-4 py-3 text-[13px] font-bold text-gray-800">{row.amount}</td>
+                      <td className="px-4 py-3 text-[14px] font-bold text-gray-900">{row.customer?.name || 'Cash'}</td>
+                      <td className="px-4 py-3 text-[13px] text-gray-600">{new Date(row.date).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 text-[13px] font-bold text-gray-800">₹{row.totalAmount?.toFixed(2)}</td>
                       <td className="px-4 py-3 text-center">
-                        <span className={`px-2 py-1 rounded text-[11px] font-bold tracking-wide ${row.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        <span className={`px-2 py-1 rounded text-[11px] font-bold tracking-wide ${row.status === 'PAID' || row.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                           {row.status}
                         </span>
                       </td>
@@ -186,122 +201,10 @@ export function PurchaseReturn() {
 
       </div>
 
-      {/* Collection Report Modal */}
-      {collectionModalOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-[4px] shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col">
-            
-            {/* Modal Header */}
-            <div className="bg-[#4F46E5] px-4 py-3 flex items-center justify-between">
-              <div className="flex flex-wrap items-center gap-2">
-                <BarChart2 className="w-5 h-5 text-white" strokeWidth={3} />
-                <h3 className="text-white font-medium text-[16px]">Collection Report</h3>
-              </div>
-              <button onClick={() => setCollectionModalOpen(false)} className="text-white hover:text-red-200 transition-colors">
-                <X className="w-5 h-5 font-bold text-white" strokeWidth={3} />
-              </button>
-            </div>
-            
-            <div className="p-4 sm:p-6 flex flex-col gap-4">
-              
-              {/* Select Period and Date */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
-                <div className="flex flex-col gap-1 w-full sm:w-auto">
-                  <label className="text-[14px] font-bold text-gray-800">Select Period</label>
-                  <select className="min-w-0 border border-gray-300 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-600 outline-none w-[200px]">
-                    <option>Today</option>
-                    <option>Yesterday</option>
-                    <option>Last 7 Days</option>
-                    <option>Last 30 Days</option>
-                    <option>Last Month</option>
-                    <option>This Month</option>
-                    <option>Custom Range</option>
-                  </select>
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5 bg-[#4F46E5] text-white px-3 py-1.5 rounded-[4px] text-[13px] font-bold">
-                  <Calendar className="w-4 h-4" />
-                  23-May-2026
-                </div>
-              </div>
-
-              {/* Metric Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {/* Today's Sales */}
-                <div className="bg-[#4F46E5] rounded-[4px] p-4 text-white relative overflow-hidden">
-                  <div className="flex flex-col relative z-10">
-                    <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                      <BarChart2 className="w-5 h-5" strokeWidth={2.5} />
-                      <span className="font-bold text-[15px]">Today's Sales</span>
-                    </div>
-                    <span className="text-[28px] font-bold leading-none">0</span>
-                  </div>
-                  <ShoppingCart className="w-16 h-16 absolute right-[-10px] bottom-[-10px] opacity-30 rotate-12" />
-                  <ShoppingCart className="w-10 h-10 absolute right-4 top-1/2 -translate-y-1/2 opacity-100" />
-                </div>
-                
-                {/* Cash Sales */}
-                <div className="bg-[#28a745] rounded-[4px] p-4 text-white relative overflow-hidden">
-                  <div className="flex flex-col relative z-10">
-                    <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                      <span className="bg-white text-[#28a745] px-1 rounded-sm text-[10px] font-bold">₹</span>
-                      <span className="font-bold text-[15px]">Cash Sales</span>
-                    </div>
-                    <span className="text-[28px] font-bold leading-none">0</span>
-                  </div>
-                  <Coins className="w-10 h-10 absolute right-4 top-1/2 -translate-y-1/2 opacity-100" />
-                </div>
-                
-                {/* Credit Sales */}
-                <div className="bg-[#dc3545] rounded-[4px] p-4 text-white relative overflow-hidden">
-                  <div className="flex flex-col relative z-10">
-                    <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
-                      <span className="font-bold text-[15px]">Credit Sales</span>
-                    </div>
-                    <span className="text-[28px] font-bold leading-none">0</span>
-                  </div>
-                  <BadgeDollarSign className="w-10 h-10 absolute right-4 top-1/2 -translate-y-1/2 opacity-100" />
-                </div>
-              </div>
-
-              {/* Empty Divider */}
-              <div className="h-[20px] rounded-full border border-gray-200 mt-2 mb-2 w-full"></div>
-
-              {/* Total Collection Banner */}
-              <div className="bg-[#28a745] rounded-[4px] px-4 py-3 text-white flex items-center justify-between">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Calculator className="w-5 h-5" strokeWidth={2.5} />
-                  <span className="font-bold text-[15px] uppercase">Total Collection</span>
-                </div>
-                <div className="font-bold text-[22px]">
-                  ₹0
-                </div>
-              </div>
-
-              {/* Empty State message */}
-              <div className="flex flex-col items-center justify-center py-12 gap-3 text-gray-500">
-                <div className="w-12 h-12 bg-gray-500 rounded-full flex items-center justify-center text-white">
-                  <Info className="w-6 h-6" strokeWidth={3} />
-                </div>
-                <p className="text-[15px]">No sales or payment data found for selected date range</p>
-              </div>
-
-            </div>
-            
-            {/* Modal Footer */}
-            <div className="border-t border-gray-200 px-4 py-3 flex justify-end">
-              <button 
-                onClick={() => setCollectionModalOpen(false)} 
-                className="flex items-center gap-1.5 bg-[#6c757d] hover:bg-[#5a6268] text-white px-4 py-1.5 rounded-[4px] text-[14px] transition-colors shadow-sm"
-              >
-                <X className="w-4 h-4 font-bold" strokeWidth={3} />
-                Close
-              </button>
-            </div>
-            
-          </div>
-        </div>
-      )}
+      <CollectionReportModal 
+        isOpen={collectionModalOpen} 
+        onClose={() => setCollectionModalOpen(false)} 
+      />
 
       {/* Loading Sheet Modal */}
       {loadingSheetModalOpen && (
@@ -321,10 +224,16 @@ export function PurchaseReturn() {
               <div className="flex justify-between items-center mb-4">
                 <span className="text-[14px] text-gray-700">Select Invoices</span>
                 <div className="flex flex-wrap items-center gap-2">
-                  <button className="border border-[#007bff] text-[#007bff] hover:bg-blue-50 px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors">
+                  <button 
+                    onClick={() => setSelectedInvoices(filteredData.map(inv => inv.id))}
+                    className="border border-[#007bff] text-[#007bff] hover:bg-blue-50 px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors"
+                  >
                     Select All
                   </button>
-                  <button className="border border-gray-400 text-gray-600 hover:bg-gray-50 px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors">
+                  <button 
+                    onClick={() => setSelectedInvoices([])}
+                    className="border border-gray-400 text-gray-600 hover:bg-gray-50 px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors"
+                  >
                     Deselect All
                   </button>
                 </div>
@@ -352,7 +261,34 @@ export function PurchaseReturn() {
                     </tr>
                   </thead>
                   <tbody>
-                    {/* Empty table rows */}
+                    {filteredData.length > 0 ? (
+                      filteredData.map((row, index) => (
+                        <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onClick={() => {
+                          if (selectedInvoices.includes(row.id)) {
+                            setSelectedInvoices(selectedInvoices.filter(id => id !== row.id));
+                          } else {
+                            setSelectedInvoices([...selectedInvoices, row.id]);
+                          }
+                        }}>
+                          <td className="px-3 py-2 text-[13px] border-r border-gray-100">
+                            <input 
+                              type="checkbox" 
+                              checked={selectedInvoices.includes(row.id)}
+                              readOnly
+                              className="cursor-pointer" 
+                            />
+                          </td>
+                          <td className="px-3 py-2 text-[13px] text-gray-800 border-r border-gray-100">{row.invoiceNo}</td>
+                          <td className="px-3 py-2 text-[13px] font-medium text-gray-800 border-r border-gray-100">{row.customer?.name || 'Cash'}</td>
+                          <td className="px-3 py-2 text-[13px] text-gray-600 border-r border-gray-100">{new Date(row.date).toLocaleDateString()}</td>
+                          <td className="px-3 py-2 text-[13px] font-bold text-gray-800">₹{row.totalAmount?.toFixed(2)}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="5" className="px-4 py-8 text-center text-gray-500 text-[14px]">No invoices available for Loading Sheet</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
           </div>
@@ -362,7 +298,7 @@ export function PurchaseReturn() {
             {/* Modal Footer */}
             <div className="bg-[#f8f9fa] border-t border-gray-200 px-4 py-3 flex justify-between items-center">
               <div className="text-[14px] text-gray-600">
-                Selected: 0 of 0
+                Selected: {selectedInvoices.length} of {filteredData.length}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button 
@@ -371,10 +307,41 @@ export function PurchaseReturn() {
                 >
                   Cancel
                 </button>
-                <button className="bg-[#28a745] hover:bg-[#218838] opacity-80 text-white px-4 py-1.5 rounded-[3px] text-[14px] font-medium transition-colors shadow-sm">
+                <button 
+                  onClick={() => {
+                    if (selectedInvoices.length === 0) return alert('Select invoices first');
+                    const selectedData = filteredData.filter(inv => selectedInvoices.includes(inv.id));
+                    let text = "Loading Sheet Details:\n\n";
+                    selectedData.forEach((inv, i) => {
+                      text += `${i + 1}. Invoice: ${inv.invoiceNo} | Party: ${inv.customer?.name || 'Cash'} | Amount: Rs. ${inv.totalAmount?.toFixed(2)}\n`;
+                    });
+                    const url = `https://web.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+                    window.open(url, '_blank');
+                  }}
+                  className="bg-[#28a745] hover:bg-[#218838] opacity-80 text-white px-4 py-1.5 rounded-[3px] text-[14px] font-medium transition-colors shadow-sm"
+                >
                   Send WhatsApp PDFs
                 </button>
-                <button className="bg-[#28a745] hover:bg-[#218838] opacity-80 text-white px-4 py-1.5 rounded-[3px] text-[14px] font-medium transition-colors shadow-sm">
+                <button 
+                  onClick={async () => {
+                    if (selectedInvoices.length === 0) return alert('Select invoices first');
+                    try {
+                      const { default: apiClient } = await import('../api/apiClient');
+                      const response = await apiClient.post('/loading-sheet/generate-pdf', { invoiceIds: selectedInvoices }, { responseType: 'blob' });
+                      const url = window.URL.createObjectURL(new Blob([response.data]));
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.setAttribute('download', `LoadingSheet_${Date.now()}.pdf`);
+                      document.body.appendChild(link);
+                      link.click();
+                      link.parentNode.removeChild(link);
+                    } catch (error) {
+                      console.error('PDF Error:', error);
+                      alert('Failed to generate PDF');
+                    }
+                  }}
+                  className="bg-[#28a745] hover:bg-[#218838] opacity-80 text-white px-4 py-1.5 rounded-[3px] text-[14px] font-medium transition-colors shadow-sm"
+                >
                   Generate Loading Sheet
                 </button>
               </div>

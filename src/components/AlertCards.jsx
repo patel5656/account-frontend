@@ -3,13 +3,13 @@ import { Hourglass, AlertTriangle, ShoppingCart, Bell, Package, ArrowRight, File
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../utils';
 
-export function AlertCards() {
+export function AlertCards({ alerts }) {
   const navigate = useNavigate();
   
   const cards = [
     {
       title: "Expired Products",
-      number: "0",
+      number: alerts?.expiredCount?.toString() || "0",
       subtitle: "Already Expired Products",
       icon: AlertTriangle,
       theme: "orange",
@@ -21,7 +21,7 @@ export function AlertCards() {
     },
     {
       title: "Reorder Quantity",
-      number: "0",
+      number: alerts?.reorderCount?.toString() || "0",
       subtitle: "Products Need Reorder",
       icon: ShoppingCart,
       theme: "blue",
@@ -33,7 +33,7 @@ export function AlertCards() {
     },
     {
       title: "Reminder",
-      number: "0",
+      number: alerts?.remindersCount?.toString() || "0",
       subtitle: "Payment & Follow-up",
       icon: Bell,
       theme: "purple",
@@ -46,12 +46,12 @@ export function AlertCards() {
     {
       title: "Day Book Summary",
       metrics: [
-        { label: 'Receipts', value: '₹0' },
-        { label: 'Payments', value: '₹0' },
-        { label: 'Cash In', value: '₹0' },
-        { label: 'Cash Out', value: '₹0' },
-        { label: 'Balance', value: '₹0' },
-        { label: 'Txns', value: '0' },
+        { label: 'Receipts', value: `₹${alerts?.daybook?.receipts?.toFixed(2) || '0'}` },
+        { label: 'Payments', value: `₹${alerts?.daybook?.payments?.toFixed(2) || '0'}` },
+        { label: 'Cash In', value: `₹${alerts?.daybook?.cashIn?.toFixed(2) || '0'}` },
+        { label: 'Cash Out', value: `₹${alerts?.daybook?.cashOut?.toFixed(2) || '0'}` },
+        { label: 'Balance', value: `₹${alerts?.daybook?.balance?.toFixed(2) || '0'}` },
+        { label: 'Txns', value: alerts?.daybook?.txnsCount?.toString() || '0' },
       ],
       icon: FileText,
       theme: "green",

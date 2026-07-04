@@ -1,13 +1,37 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link2, ChevronUp, Edit, Trash2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import axios from 'axios';
 import { cn } from '../utils';
 import { useSettings } from '../context/SettingsContext';
 
 export function SettingsDrawer({ isOpen, onClose }) {
   const location = useLocation();
+  const { t } = useTranslation();
   const { settings, toggleSetting, updateSetting } = useSettings();
+  const [currencies, setCurrencies] = useState([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchCurrencies();
+    }
+  }, [isOpen]);
+
+  const fetchCurrencies = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('http://localhost:5000/api/v1/currencies', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        setCurrencies(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching currencies:", error);
+    }
+  };
+
   if (!isOpen) return null;
 
   const isLedgerRoute = location.pathname.includes('/party-ledger/');
@@ -32,161 +56,140 @@ export function SettingsDrawer({ isOpen, onClose }) {
           
           <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
             <div className="space-y-[8px] flex flex-col">
-               <ToggleSetting label="Quick Product" />
-               <ToggleSetting label="Party First" />
-               <ToggleSetting label="Show Shipping Party" />
-               <ToggleSetting label="Show Company" />
-               <ToggleSetting label="Show Product Code" />
-               <ToggleSetting label="Show Batch No" />
-               <ToggleSetting label="Compalsary Batch No" />
-               <ToggleSetting label="Show GST" />
-               <ToggleSetting label="Show HSN" />
-               <ToggleSetting label="Show MRP" defaultChecked={true} />
-               <ToggleSetting label="Show List Price" />
-               <ToggleSetting label="Show Purchase Price" />
-               <ToggleSetting label="Show Discount" defaultChecked={true} />
-               <ToggleSetting label="Hide Total Discount" />
-               <ToggleSetting label="Hide Fright Charge" />
-               <ToggleSetting label="Show Price First" />
-               <ToggleSetting label="Show Unit" defaultChecked={true} />
-               <ToggleSetting label="Show Warning" />
-               <ToggleSetting label="Low Stock Qty" />
-               <ToggleSetting label="Negative Stock Lock" />
-               <ToggleSetting label="Use Product Code" />
-               <ToggleSetting label="Use Barcode" defaultChecked={true} />
-               <ToggleSetting label="Use Points" />
-               <ToggleSetting label="Use Store" />
-               <ToggleSetting label="Use Sub Item" />
-               <ToggleSetting label="Use Sub Inventory" />
-               <ToggleSetting label="Manual Qty" />
-               <ToggleSetting label="Sale Price" />
-               <ToggleSetting label="Whole Sale Price" />
-               <ToggleSetting label="Qty-wise Rate" />
-               <ToggleSetting label="Category-wise Discount" />
-               <ToggleSetting label="Auto Bill Print" defaultChecked={true} />
-               <ToggleSetting label="Auto Raw. Quantity" />
-               <ToggleSetting label="Sale by Commission" />
-               <ToggleSetting label="Subhead Amount" />
-               <ToggleSetting label="Manufacture" defaultChecked={true} />
-               <ToggleSetting label="Zero Price" />
-               <ToggleSetting label="Merge Quantity" />
-               <ToggleSetting label="Custom Profit (in %)" />
-               <ToggleSetting label="Booking Date" />
-               <ToggleSetting label="Focus Unit" />
-               <ToggleSetting label="Auto Estimate" />
-               <ToggleSetting label="Profit on Average" />
-               <ToggleSetting label="Strict Search" defaultChecked={true} />
-               <ToggleSetting label="Extra Paid Amount" />
-               <ToggleSetting label="Sale Price Calculator" />
-               <ToggleSetting label="Quantity Calculator" />
-               <ToggleSetting label="Single Payment Mode" />
-               <ToggleSetting label="Set Reminder Date" />
-               <ToggleSetting label="Auto Credit Invoice" />
-               <ToggleSetting label="Storewise Billing" defaultChecked={true} />
-               <ToggleSetting label="Hide Manufacture Date" />
-               <ToggleSetting label="Hide Expiry Date" />
-               <ToggleSetting label="Customer-wise Rate" defaultChecked={true} />
-               <ToggleSetting label="Default Cash Payment" defaultChecked={true} />
+               <ToggleSetting label="Quick Product" checked={settings.quickProduct} onChange={() => toggleSetting('quickProduct')} />
+               <ToggleSetting label="Show Shipping Party" checked={settings.showShippingParty} onChange={() => toggleSetting('showShippingParty')} />
+               <ToggleSetting label="Show Company" checked={settings.showCompany} onChange={() => toggleSetting('showCompany')} />
+               <ToggleSetting label="Show Product Code" checked={settings.showProductCode} onChange={() => toggleSetting('showProductCode')} />
+               <ToggleSetting label="Show Batch No" checked={settings.showBatchNo} onChange={() => toggleSetting('showBatchNo')} />
+               <ToggleSetting label="Show GST" checked={settings.showGST} onChange={() => toggleSetting('showGST')} />
+               <ToggleSetting label="Show HSN" checked={settings.showHSN} onChange={() => toggleSetting('showHSN')} />
+               <ToggleSetting label="Show MRP" checked={settings.showMRP} onChange={() => toggleSetting('showMRP')} />
+               <ToggleSetting label="Show List Price" checked={settings.showListPrice} onChange={() => toggleSetting('showListPrice')} />
+               <ToggleSetting label="Show Purchase Price" checked={settings.showPurchasePrice} onChange={() => toggleSetting('showPurchasePrice')} />
+               <ToggleSetting label="Show Discount" checked={settings.showDiscount} onChange={() => toggleSetting('showDiscount')} />
+               <ToggleSetting label="Hide Total Discount" checked={settings.hideTotalDiscount} onChange={() => toggleSetting('hideTotalDiscount')} />
+               <ToggleSetting label="Hide Fright Charge" checked={settings.hideFreightCharge} onChange={() => toggleSetting('hideFreightCharge')} />
+               <ToggleSetting label="Show Unit" checked={settings.showUnit} onChange={() => toggleSetting('showUnit')} />
+               <ToggleSetting label="Show Warning" checked={settings.showWarning} onChange={() => toggleSetting('showWarning')} />
+               <ToggleSetting label="Negative Stock Lock" checked={settings.negativeStockLock} onChange={() => toggleSetting('negativeStockLock')} />
+               <ToggleSetting label="Use Product Code" checked={settings.useProductCode} onChange={() => toggleSetting('useProductCode')} />
+               <ToggleSetting label="Use Barcode" checked={settings.useBarcode} onChange={() => toggleSetting('useBarcode')} />
+               <ToggleSetting label="Use Points" checked={settings.usePoints} onChange={() => toggleSetting('usePoints')} />
+               <ToggleSetting label="Use Store" checked={settings.useStore} onChange={() => toggleSetting('useStore')} />
+               <ToggleSetting label="Manual Qty" checked={settings.manualQty} onChange={() => toggleSetting('manualQty')} />
+               <ToggleSetting label="Sale Price" checked={settings.salePrice} onChange={() => toggleSetting('salePrice')} />
+               <ToggleSetting label="Whole Sale Price" checked={settings.wholeSalePrice} onChange={() => toggleSetting('wholeSalePrice')} />
+               <ToggleSetting label="Qty-wise Rate" checked={settings.qtyWiseRate} onChange={() => toggleSetting('qtyWiseRate')} />
+               <ToggleSetting label="Category-wise Discount" checked={settings.categoryWiseDiscount} onChange={() => toggleSetting('categoryWiseDiscount')} />
+               <ToggleSetting label="Sale by Commission" checked={settings.saleByCommission} onChange={() => toggleSetting('saleByCommission')} />
+               <ToggleSetting label="Manufacture" checked={settings.manufacture} onChange={() => toggleSetting('manufacture')} />
+               <ToggleSetting label="Single Payment Mode" checked={settings.singlePaymentMode} onChange={() => toggleSetting('singlePaymentMode')} />
+               <ToggleSetting label="Set Reminder Date" checked={settings.setReminderDate} onChange={() => toggleSetting('setReminderDate')} />
+               <ToggleSetting label="Auto Credit Invoice" checked={settings.autoCreditInvoice} onChange={() => toggleSetting('autoCreditInvoice')} />
+               <ToggleSetting label="Hide Manufacture Date" checked={settings.hideManufactureDate} onChange={() => toggleSetting('hideManufactureDate')} />
+               <ToggleSetting label="Hide Expiry Date" checked={settings.hideExpiryDate} onChange={() => toggleSetting('hideExpiryDate')} />
+               <ToggleSetting label="Customer-wise Rate" checked={settings.customerWiseRate} onChange={() => toggleSetting('customerWiseRate')} />
+               <ToggleSetting label="Default Cash Payment" checked={settings.defaultCashPayment} onChange={() => toggleSetting('defaultCashPayment')} />
             </div>
             
             {/* Select Inputs at bottom of dropdown */}
             <div className="mt-4 space-y-3 pb-2">
               <div>
                 <label className="block text-white text-[11px] font-bold mb-1">Customer Wise Rate Type</label>
-                <select className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none">
-                  <option>Both</option>
-                  <option>Percentage</option>
-                  <option>Amount</option>
+                <select className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" value={settings.customerWiseRateType || 'Both'} onChange={(e) => updateSetting('customerWiseRateType', e.target.value)}>
+                  <option value="Both">Both</option>
+                  <option value="Percentage">Percentage</option>
+                  <option value="Amount">Amount</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-white text-[11px] font-bold mb-1">Discount Type</label>
-                <select className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none">
-                  <option>Both</option>
-                  <option>Percentage</option>
-                  <option>Amount</option>
+                <select className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" value={settings.discountType || 'Both'} onChange={(e) => updateSetting('discountType', e.target.value)}>
+                  <option value="Both">Both</option>
+                  <option value="Percentage">Percentage</option>
+                  <option value="Amount">Amount</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-white text-[11px] font-bold mb-1">Voucher Head</label>
-                <input type="text" defaultValue="OS-" className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" />
+                <input type="text" value={settings.voucherHead || ''} onChange={(e) => updateSetting('voucherHead', e.target.value)} className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" />
               </div>
 
               <div>
                 <label className="block text-white text-[11px] font-bold mb-1">Voucher Heads</label>
-                <select className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none">
-                  <option>Select Voucher Head</option>
+                <select className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" value={settings.voucherHeads || ''} onChange={(e) => updateSetting('voucherHeads', e.target.value)}>
+                  <option value="">Select Voucher Head</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-white text-[11px] font-bold mb-1">Filter Method</label>
-                <select className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none">
-                  <option>Default</option>
-                  <option>Advance</option>
+                <select className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" value={settings.filterMethod || 'Default'} onChange={(e) => updateSetting('filterMethod', e.target.value)}>
+                  <option value="Default">Default</option>
+                  <option value="Advanced">Advance</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-white text-[11px] font-bold mb-1">Batch Date Input Type</label>
-                <select className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none">
-                  <option>Month</option>
-                  <option>Date</option>
-                  <option>Year</option>
+                <select className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" value={settings.batchDateInputType || 'Month'} onChange={(e) => updateSetting('batchDateInputType', e.target.value)}>
+                  <option value="Month">Month</option>
+                  <option value="Date">Date</option>
+                  <option value="Year">Year</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-white text-[11px] font-bold mb-1">Points Value (in %)</label>
-                <input type="number" defaultValue="0" className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" />
+                <input type="number" value={settings.pointsValue || 0} onChange={(e) => updateSetting('pointsValue', parseFloat(e.target.value))} className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" />
               </div>
 
               <div>
                 <label className="block text-white text-[11px] font-bold mb-1">Invoice Round Up</label>
-                <input type="number" defaultValue="0" className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" />
+                <input type="number" value={settings.invoiceRoundUp || 0} onChange={(e) => updateSetting('invoiceRoundUp', parseFloat(e.target.value))} className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" />
               </div>
 
               <div>
                 <label className="block text-white text-[11px] font-bold mb-1">TCS (in %)</label>
-                <input type="number" defaultValue="0" className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" />
+                <input type="number" value={settings.tcs || 0} onChange={(e) => updateSetting('tcs', parseFloat(e.target.value))} className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" />
               </div>
 
               <div>
                 <label className="block text-white text-[11px] font-bold mb-1">Whole Sale Profit %</label>
-                <input type="number" defaultValue="0" className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" />
+                <input type="number" value={settings.wholeSaleProfit || 0} onChange={(e) => updateSetting('wholeSaleProfit', parseFloat(e.target.value))} className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-white text-[11px] font-bold mb-1">Sale Profit %</label>
-                  <input type="number" defaultValue="0" className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" />
+                  <input type="number" value={settings.saleProfit || 0} onChange={(e) => updateSetting('saleProfit', parseFloat(e.target.value))} className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" />
                 </div>
                 <div>
                   <label className="block text-white text-[11px] font-bold mb-1">Round up to</label>
-                  <input type="number" defaultValue="2" className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" />
+                  <input type="number" value={settings.roundUpTo || 2} onChange={(e) => updateSetting('roundUpTo', parseInt(e.target.value))} className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-white text-[11px] font-bold mb-1">Default Unit</label>
-                  <input type="text" defaultValue="pcs" className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" />
+                  <input type="text" value={settings.defaultUnit || 'pcs'} onChange={(e) => updateSetting('defaultUnit', e.target.value)} className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" />
                 </div>
                 <div>
                   <label className="block text-white text-[11px] font-bold mb-1">GST UQC</label>
-                  <select className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none">
-                    <option>PCS-PIECES</option>
+                  <select className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" value={settings.gstUqc || 'PCS-PIECES'} onChange={(e) => updateSetting('gstUqc', e.target.value)}>
+                    <option value="PCS-PIECES">PCS-PIECES</option>
                   </select>
                 </div>
               </div>
 
               <div>
                 <label className="block text-white text-[11px] font-bold mb-1">Default Product Type</label>
-                <select className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none">
-                  <option>Product</option>
-                  <option>Service</option>
+                <select className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" value={settings.defaultProductType || 'Product'} onChange={(e) => updateSetting('defaultProductType', e.target.value)}>
+                  <option value="Product">Product</option>
+                  <option value="Service">Service</option>
                 </select>
               </div>
 
@@ -266,46 +269,33 @@ export function SettingsDrawer({ isOpen, onClose }) {
             
             {/* Settings List */}
             <div className="space-y-[15px] mt-2">
-              <ToggleSetting label="Subhead Amount" />
-              <ToggleSetting label="Manufacture" defaultChecked={true} />
-              <ToggleSetting label="Zero Price" />
-              <ToggleSetting label="Merge Quantity" defaultChecked={true} />
-              <ToggleSetting label="Custom Profit (in %)" />
-              <ToggleSetting label="Booking Date" />
-              <ToggleSetting label="Focus Unit" />
-              <ToggleSetting label="Auto Estimate" />
-              <ToggleSetting label="Profit on Average" />
-              <ToggleSetting label="Strict Search" defaultChecked={true} />
-              <ToggleSetting label="Extra Paid Amount" />
-              <ToggleSetting label="Sale Price Calculator" />
-              <ToggleSetting label="Quantity Calculator" />
-              <ToggleSetting label="Single Payment Mode" />
-              <ToggleSetting label="Set Reminder Date" />
-              <ToggleSetting label="Auto Credit Invoice" />
-              <ToggleSetting label="Storewise Billing" defaultChecked={true} />
-              <ToggleSetting label="Hide Manufacture Date" />
-              <ToggleSetting label="Hide Expiry Date" />
-              <ToggleSetting label="Customer-wise Rate" defaultChecked={true} />
-              <ToggleSetting label="Default Cash Payment" defaultChecked={true} />
+              <ToggleSetting label="Manufacture" checked={settings.manufacture} onChange={() => toggleSetting('manufacture')} />
+              <ToggleSetting label="Single Payment Mode" checked={settings.singlePaymentMode} onChange={() => toggleSetting('singlePaymentMode')} />
+              <ToggleSetting label="Set Reminder Date" checked={settings.setReminderDate} onChange={() => toggleSetting('setReminderDate')} />
+              <ToggleSetting label="Auto Credit Invoice" checked={settings.autoCreditInvoice} onChange={() => toggleSetting('autoCreditInvoice')} />
+              <ToggleSetting label="Hide Manufacture Date" checked={settings.hideManufactureDate} onChange={() => toggleSetting('hideManufactureDate')} />
+              <ToggleSetting label="Hide Expiry Date" checked={settings.hideExpiryDate} onChange={() => toggleSetting('hideExpiryDate')} />
+              <ToggleSetting label="Customer-wise Rate" checked={settings.customerWiseRate} onChange={() => toggleSetting('customerWiseRate')} />
+              <ToggleSetting label="Default Cash Payment" checked={settings.defaultCashPayment} onChange={() => toggleSetting('defaultCashPayment')} />
             </div>
 
             {/* Select and Input Fields */}
             <div className="mt-5 space-y-4">
               <div>
                 <label className="block text-white text-[12.5px] font-bold mb-1">Customer Wise Rate Type</label>
-                <select className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50">
-                  <option>Both</option>
-                  <option>Percentage</option>
-                  <option>Amount</option>
+                <select className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" value={settings.customerWiseRateType || 'Both'} onChange={(e) => updateSetting('customerWiseRateType', e.target.value)}>
+                  <option value="Both">Both</option>
+                  <option value="Percentage">Percentage</option>
+                  <option value="Amount">Amount</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-white text-[12.5px] font-bold mb-1">Discount Type</label>
-                <select className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50">
-                  <option>Both</option>
-                  <option>Percentage</option>
-                  <option>Amount</option>
+                <select className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" value={settings.discountType || 'Both'} onChange={(e) => updateSetting('discountType', e.target.value)}>
+                  <option value="Both">Both</option>
+                  <option value="Percentage">Percentage</option>
+                  <option value="Amount">Amount</option>
                 </select>
               </div>
 
@@ -313,84 +303,85 @@ export function SettingsDrawer({ isOpen, onClose }) {
                 <label className="block text-white text-[12.5px] font-bold mb-1">Voucher Head</label>
                 <input 
                   type="text" 
-                  defaultValue="OS-"
+                  value={settings.voucherHead || ''}
+                  onChange={(e) => updateSetting('voucherHead', e.target.value)}
                   className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" 
                 />
               </div>
 
               <div>
                 <label className="block text-white text-[12.5px] font-bold mb-1">Voucher Heads</label>
-                <select className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50">
-                  <option>Select Voucher Head</option>
+                <select className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" value={settings.voucherHeads || ''} onChange={(e) => updateSetting('voucherHeads', e.target.value)}>
+                  <option value="">Select Voucher Head</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-white text-[12.5px] font-bold mb-1">Filter Method</label>
-                <select className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50">
-                  <option>Default</option>
-                  <option>Advanced</option>
+                <select className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" value={settings.filterMethod || 'Default'} onChange={(e) => updateSetting('filterMethod', e.target.value)}>
+                  <option value="Default">Default</option>
+                  <option value="Advanced">Advanced</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-white text-[12.5px] font-bold mb-1">Batch Date Input Type</label>
-                <select className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50">
-                  <option>Month</option>
-                  <option>Date</option>
-                  <option>Year</option>
+                <select className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" value={settings.batchDateInputType || 'Month'} onChange={(e) => updateSetting('batchDateInputType', e.target.value)}>
+                  <option value="Month">Month</option>
+                  <option value="Date">Date</option>
+                  <option value="Year">Year</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-white text-[12.5px] font-bold mb-1">Points Value (in %)</label>
-                <input type="number" defaultValue="0" className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" />
+                <input type="number" value={settings.pointsValue || 0} onChange={(e) => updateSetting('pointsValue', parseFloat(e.target.value))} className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" />
               </div>
 
               <div>
                 <label className="block text-white text-[12.5px] font-bold mb-1">Invoice Round Up</label>
-                <input type="number" defaultValue="0" className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" />
+                <input type="number" value={settings.invoiceRoundUp || 0} onChange={(e) => updateSetting('invoiceRoundUp', parseFloat(e.target.value))} className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" />
               </div>
 
               <div>
                 <label className="block text-white text-[12.5px] font-bold mb-1">TCS (in %)</label>
-                <input type="number" defaultValue="0" className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" />
+                <input type="number" value={settings.tcs || 0} onChange={(e) => updateSetting('tcs', parseFloat(e.target.value))} className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" />
               </div>
 
               <div>
                 <label className="block text-white text-[12.5px] font-bold mb-1">Whole Sale Profit %</label>
-                <input type="number" defaultValue="0" className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" />
+                <input type="number" value={settings.wholeSaleProfit || 0} onChange={(e) => updateSetting('wholeSaleProfit', parseFloat(e.target.value))} className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-white text-[12.5px] font-bold mb-1">Sale Profit %</label>
-                  <input type="number" defaultValue="0" className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" />
+                  <input type="number" value={settings.saleProfit || 0} onChange={(e) => updateSetting('saleProfit', parseFloat(e.target.value))} className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" />
                 </div>
                 <div>
                   <label className="block text-white text-[12.5px] font-bold mb-1">Round up to</label>
-                  <input type="number" defaultValue="2" className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" />
+                  <input type="number" value={settings.roundUpTo || 2} onChange={(e) => updateSetting('roundUpTo', parseInt(e.target.value))} className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-white text-[12.5px] font-bold mb-1">Default Unit</label>
-                  <input type="text" defaultValue="pcs" className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" />
+                  <input type="text" value={settings.defaultUnit || 'pcs'} onChange={(e) => updateSetting('defaultUnit', e.target.value)} className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" />
                 </div>
                 <div>
                   <label className="block text-white text-[12.5px] font-bold mb-1">GST UQC</label>
-                  <select className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50">
-                    <option>PCS-PIECES</option>
+                  <select className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" value={settings.gstUqc || 'PCS-PIECES'} onChange={(e) => updateSetting('gstUqc', e.target.value)}>
+                    <option value="PCS-PIECES">PCS-PIECES</option>
                   </select>
                 </div>
               </div>
 
               <div>
                 <label className="block text-white text-[12.5px] font-bold mb-1">Default Product Type</label>
-                <select className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50">
-                  <option>Product</option>
-                  <option>Service</option>
+                <select className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" value={settings.defaultProductType || 'Product'} onChange={(e) => updateSetting('defaultProductType', e.target.value)}>
+                  <option value="Product">Product</option>
+                  <option value="Service">Service</option>
                 </select>
               </div>
 
@@ -466,18 +457,18 @@ export function SettingsDrawer({ isOpen, onClose }) {
             
             {/* Settings List */}
             <div className="space-y-[15px] mt-2">
-              <ToggleSetting label="Show Product Code" defaultChecked={true} />
-              <ToggleSetting label="Show Brand Name" defaultChecked={true} />
-              <ToggleSetting label="Show Category" defaultChecked={true} />
-              <ToggleSetting label="Show GST" defaultChecked={true} />
-              <ToggleSetting label="Show HSN" defaultChecked={true} />
-              <ToggleSetting label="Show Cash Sale Price" defaultChecked={true} />
-              <ToggleSetting label="Show Credit Sale Price" defaultChecked={true} />
-              <ToggleSetting label="Show MRP" defaultChecked={true} />
-              <ToggleSetting label="Show Whole Sale Price" defaultChecked={true} />
-              <ToggleSetting label="Show Purchase Price" defaultChecked={true} />
-              <ToggleSetting label="Show Branches" defaultChecked={true} />
-              <ToggleSetting label="Show Stock Qty" defaultChecked={true} />
+              <ToggleSetting label="Show Product Code" checked={settings.showProductCodeField} onChange={() => toggleSetting('showProductCodeField')} />
+              <ToggleSetting label="Show Brand Name" checked={settings.showBrandName} onChange={() => toggleSetting('showBrandName')} />
+              <ToggleSetting label="Show Category" checked={settings.showCategory} onChange={() => toggleSetting('showCategory')} />
+              <ToggleSetting label="Show GST" checked={settings.showGST} onChange={() => toggleSetting('showGST')} />
+              <ToggleSetting label="Show HSN" checked={settings.showHSN} onChange={() => toggleSetting('showHSN')} />
+              <ToggleSetting label="Show Cash Sale Price" checked={settings.showCashSalePrice} onChange={() => toggleSetting('showCashSalePrice')} />
+              <ToggleSetting label="Show Credit Sale Price" checked={settings.showCreditSalePrice} onChange={() => toggleSetting('showCreditSalePrice')} />
+              <ToggleSetting label="Show MRP" checked={settings.showMRP} onChange={() => toggleSetting('showMRP')} />
+              <ToggleSetting label="Show Whole Sale Price" checked={settings.showWholeSalePrice} onChange={() => toggleSetting('showWholeSalePrice')} />
+              <ToggleSetting label="Show Purchase Price" checked={settings.showPurchasePrice} onChange={() => toggleSetting('showPurchasePrice')} />
+              <ToggleSetting label="Show Branches" checked={settings.showBranches} onChange={() => toggleSetting('showBranches')} />
+              <ToggleSetting label="Show Stock Qty" checked={settings.showStockQty} onChange={() => toggleSetting('showStockQty')} />
             </div>
 
           </div>
@@ -576,8 +567,8 @@ export function SettingsDrawer({ isOpen, onClose }) {
             
             {/* Settings List */}
             <div className="space-y-[15px] mt-2">
-              <ToggleSetting label="Show Due Days" defaultChecked={true} />
-              <ToggleSetting label="Show Bank Details" />
+              <ToggleSetting label="Show Due Days" checked={settings.showDueDays} onChange={() => toggleSetting('showDueDays')} />
+              <ToggleSetting label="Show Bank Details" checked={settings.showBankDetails} onChange={() => toggleSetting('showBankDetails')} />
               <ToggleSetting 
                 label={
                   <>
@@ -585,8 +576,10 @@ export function SettingsDrawer({ isOpen, onClose }) {
                     (Debit/Credit)
                   </>
                 } 
+                checked={settings.accountingFormat}
+                onChange={() => toggleSetting('accountingFormat')}
               />
-              <ToggleSetting label="Bill-wise Payment" />
+              <ToggleSetting label="Bill-wise Payment" checked={settings.billWisePayment} onChange={() => toggleSetting('billWisePayment')} />
             </div>
 
           </div>
@@ -647,9 +640,21 @@ export function SettingsDrawer({ isOpen, onClose }) {
 
           {/* Settings List */}
           <div className="space-y-[10px] mb-6">
-            <ToggleSetting label="WhatsApp" />
-            <ToggleSetting label="Send WhatsApp" />
-            <ToggleSetting label="Send SMS" />
+            <ToggleSetting 
+              label="WhatsApp" 
+              checked={settings?.whatsapp} 
+              onChange={() => toggleSetting('whatsapp')} 
+            />
+            <ToggleSetting 
+              label="Send WhatsApp" 
+              checked={settings?.sendWhatsapp} 
+              onChange={() => toggleSetting('sendWhatsapp')} 
+            />
+            <ToggleSetting 
+              label="Send SMS" 
+              checked={settings?.sendSms} 
+              onChange={() => toggleSetting('sendSms')} 
+            />
             <ToggleSetting 
               label="Customer Challan" 
               checked={settings?.showCustomerChallan} 
@@ -670,12 +675,21 @@ export function SettingsDrawer({ isOpen, onClose }) {
               checked={settings?.showSalesOrder} 
               onChange={() => toggleSetting('showSalesOrder')} 
             />
-            <ToggleSetting label="Merge Party Ledger" />
-            <ToggleSetting label="Separate Stock" />
-            <ToggleSetting label="Separate Bill" />
-            <ToggleSetting label="Party Type Both" />
-            <ToggleSetting label="Txn Date Only" />
-            <ToggleSetting label="Interest on Invoices" />
+            <ToggleSetting 
+              label="Merge Party Ledger" 
+              checked={settings?.mergePartyLedger} 
+              onChange={() => toggleSetting('mergePartyLedger')} 
+            />
+            <ToggleSetting 
+              label="Party Type Both" 
+              checked={settings?.partyTypeBoth} 
+              onChange={() => toggleSetting('partyTypeBoth')} 
+            />
+            <ToggleSetting 
+              label="Interest on Invoices" 
+              checked={settings?.interestOnInvoices} 
+              onChange={() => toggleSetting('interestOnInvoices')} 
+            />
           </div>
 
           {/* Form Fields */}
@@ -687,10 +701,18 @@ export function SettingsDrawer({ isOpen, onClose }) {
                 onChange={(e) => updateSetting('currency', e.target.value)}
                 className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50"
               >
-                <option value="INR">INR (₹ - Indian Rupee)</option>
-                <option value="USD">USD ($ - US Dollar)</option>
-                <option value="EUR">EUR (€ - Euro)</option>
-                <option value="GBP">GBP (£ - British Pound)</option>
+                {currencies.length > 0 ? currencies.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.code} ({c.symbol} - {c.name})
+                  </option>
+                )) : (
+                  <>
+                    <option value="INR">INR (₹ - Indian Rupee)</option>
+                    <option value="USD">USD ($ - US Dollar)</option>
+                    <option value="EUR">EUR (€ - Euro)</option>
+                    <option value="GBP">GBP (£ - British Pound)</option>
+                  </>
+                )}
               </select>
             </div>
             
@@ -698,6 +720,8 @@ export function SettingsDrawer({ isOpen, onClose }) {
               <label className="block text-white text-[12.5px] font-bold mb-1.5">Set Voucher Head</label>
               <input 
                 type="text" 
+                value={settings.voucherHead || ''}
+                onChange={(e) => updateSetting('voucherHead', e.target.value)}
                 className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" 
               />
             </div>
@@ -706,6 +730,8 @@ export function SettingsDrawer({ isOpen, onClose }) {
               <label className="block text-white text-[12.5px] font-bold mb-1.5">Whatsapp Host</label>
               <input 
                 type="text" 
+                value={settings.whatsappHost || ''}
+                onChange={(e) => updateSetting('whatsappHost', e.target.value)}
                 className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" 
               />
             </div>
@@ -740,9 +766,7 @@ function ToggleSetting({ label, defaultChecked = false, checked, onChange }) {
         <input 
           type="checkbox" 
           className="sr-only peer" 
-          defaultChecked={defaultChecked} 
-          checked={checked}
-          onChange={onChange}
+          {...(checked !== undefined ? { checked, onChange } : { defaultChecked, onChange })}
         />
         <div className="w-9 h-[18px] bg-gray-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-[#0d6efd]"></div>
       </div>

@@ -10,7 +10,7 @@ import {
 import { PieChart, BarChart2, LineChart } from 'lucide-react';
 import { cn } from '../utils';
 
-export function ChartSection() {
+export function ChartSection({ chartData }) {
   const [timeframe, setTimeframe] = React.useState('30days');
   
   const dummyData = [
@@ -42,7 +42,9 @@ export function ChartSection() {
     { name: 'Dec', sales: 61000 }
   ];
 
-  const displayData = timeframe === '30days' ? dummyData : dummyData12Months;
+  // For 12 months, we would normally aggregate this data as well.
+  // We'll map the provided chartData for 30days and if timeframe is 12months we will use a fallback or an aggregated version.
+  const displayData = timeframe === '30days' ? (chartData || []) : dummyData12Months;
 
   return (
     <div className="bg-white rounded shadow-sm border border-gray-200 overflow-hidden h-full flex flex-col">

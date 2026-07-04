@@ -1,24 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Settings, Image as ImageIcon } from 'lucide-react';
 
-export function CategoryMasterModal({ isOpen, onClose }) {
+export function CategoryMasterModal({ isOpen, onClose, editData }) {
   const [isActive, setIsActive] = useState(true);
   const [categoryName, setCategoryName] = useState('');
   const [fileName, setFileName] = useState('');
+  const [purchaseDiscount, setPurchaseDiscount] = useState('0');
+  const [saleDiscount, setSaleDiscount] = useState('0');
   const fileInputRef = React.useRef(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (editData) {
+        setCategoryName(editData.name || '');
+        setPurchaseDiscount(editData.purchaseDiscount?.toString() || '0');
+        setSaleDiscount(editData.saleDiscount?.toString() || '0');
+        setIsActive(editData.isActive ?? true);
+        setFileName('');
+      } else {
+        setCategoryName('');
+        setPurchaseDiscount('0');
+        setSaleDiscount('0');
+        setIsActive(true);
+        setFileName('');
+      }
+    }
+  }, [isOpen, editData]);
 
   const handleSubmit = () => {
     if (categoryName.trim() !== '') {
       window.dispatchEvent(new CustomEvent('categoryAdded', { 
         detail: { 
-          id: Date.now(), 
+          id: editData ? editData.id : Date.now(),
+          isEdit: !!editData,
           name: categoryName, 
+          purchaseDiscount: parseFloat(purchaseDiscount) || 0,
+          saleDiscount: parseFloat(saleDiscount) || 0,
+          isActive
         } 
       }));
     }
-    setCategoryName('');
-    setFileName('');
-    setIsActive(true);
     onClose();
   };
 
@@ -38,7 +59,7 @@ export function CategoryMasterModal({ isOpen, onClose }) {
         
         {/* Header */}
         <div className="bg-[#4F46E5] flex items-center justify-between">
-          <h2 className="text-[15px] text-white font-medium tracking-wide pl-4 py-2.5">Category Master</h2>
+          <h2 className="text-[15px] text-white font-medium tracking-wide pl-4 py-2.5">{editData ? 'Edit Category' : 'Category Master'}</h2>
           <div className="flex items-center">
             <button 
               onClick={onClose} 
@@ -56,15 +77,6 @@ export function CategoryMasterModal({ isOpen, onClose }) {
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
                 <label className="text-[14px] font-bold text-gray-800">Category Name</label>
-                <div className="flex flex-wrap items-center gap-2">
-                  <div 
-                    className={`w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${isActive ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}
-                    onClick={() => setIsActive(!isActive)}
-                  >
-                    <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${isActive ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
-                  </div>
-                  <span className="text-[13px] font-bold text-gray-800 select-none">Active</span>
-                </div>
               </div>
               <input 
                 type="text" 
@@ -80,7 +92,8 @@ export function CategoryMasterModal({ isOpen, onClose }) {
                 <label className="text-[14px] font-bold text-gray-800">Purchase Discount</label>
                 <input 
                   type="text" 
-                  defaultValue="0"
+                  value={purchaseDiscount}
+                  onChange={(e) => setPurchaseDiscount(e.target.value)}
                   className="w-full border border-gray-300 rounded-[3px] px-3 py-[6px] text-[14px] outline-none focus:border-[#4F46E5]"
                 />
               </div>
@@ -88,7 +101,8 @@ export function CategoryMasterModal({ isOpen, onClose }) {
                 <label className="text-[14px] font-bold text-gray-800">Sale Discount</label>
                 <input 
                   type="text" 
-                  defaultValue="0"
+                  value={saleDiscount}
+                  onChange={(e) => setSaleDiscount(e.target.value)}
                   className="w-full border border-gray-300 rounded-[3px] px-3 py-[6px] text-[14px] outline-none focus:border-[#4F46E5]"
                 />
               </div>
