@@ -22,44 +22,64 @@ export function WarehouseMaster() {
   
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [editFormData, setEditFormData] = useState({ id: null, name: '', code: '', branch: '', manager: '', status: 'Active' });
+  const [editFormData, setEditFormData] = useState({ 
+    id: null, 
+    name: '', 
+    code: '', 
+    branchId: '', 
+    locationId: '', 
+    manager: '', 
+    status: 'Active' 
+  });
 
   const [rows, setRows] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const fetchWarehouses = async () => {
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      const res = await apiClient.get('/warehouses');
-      if (res.data.data) {
-        // Map data if needed
-        const mapped = res.data.data.map(w => ({
+      const [warehousesRes, branchesRes, locationsRes] = await Promise.all([
+        apiClient.get('/warehouses'),
+        apiClient.get('/branches'),
+        apiClient.get('/locations')
+      ]);
+
+      if (branchesRes.data && branchesRes.data.data) {
+        setBranches(branchesRes.data.data);
+      }
+      if (locationsRes.data && locationsRes.data.data) {
+        setLocations(locationsRes.data.data);
+      }
+      if (warehousesRes.data && warehousesRes.data.data) {
+        const mapped = warehousesRes.data.data.map(w => ({
           id: w.id,
           name: w.name,
           code: `WH-${w.id}`,
-          branch: 'All Branches', // Default since branch is not in Prisma
+          branchId: w.branchId ? w.branchId.toString() : '',
+          branchName: w.branch?.name || 'All Branches',
+          locationId: w.locationId ? w.locationId.toString() : '',
+          locationName: w.locRef?.name || 'All Locations',
           manager: w.location || '',
           status: w.isActive ? 'Active' : 'Inactive'
         }));
         setRows(mapped);
       }
     } catch (error) {
-      console.error(error);
+      console.error('Failed to load warehouse master details', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchWarehouses();
+    fetchData();
   }, []);
 
   useEffect(() => {
     const handleWarehouseAdded = (e) => {
-      setRows(prev => [...prev, {
-        id: e.detail.id,
-        name: e.detail.name,
-        code: `WH-${e.detail.id}`,
-        branch: 'All Branches',
-        manager: e.detail.location || '',
-        status: e.detail.isActive ? 'Active' : 'Inactive'
-      }]);
+      fetchData(); // Simplest way to ensure all relations are fetched properly
     };
     window.addEventListener('warehouseAdded', handleWarehouseAdded);
     return () => window.removeEventListener('warehouseAdded', handleWarehouseAdded);
@@ -77,7 +97,15 @@ export function WarehouseMaster() {
   });
 
   const handleEditClick = (row) => {
-    setEditFormData({ ...row });
+    setEditFormData({
+      id: row.id,
+      name: row.name,
+      code: row.code,
+      branchId: row.branchId || '',
+      locationId: row.locationId || '',
+      manager: row.manager,
+      status: row.status
+    });
     setEditModalOpen(true);
   };
 
@@ -86,21 +114,28 @@ export function WarehouseMaster() {
       await apiClient.put(`/warehouses/${editFormData.id}`, {
         name: editFormData.name,
         location: editFormData.manager,
-        isActive: editFormData.status === 'Active'
+        isActive: editFormData.status === 'Active',
+        branchId: editFormData.branchId ? parseInt(editFormData.branchId, 10) : null,
+        locationId: editFormData.locationId ? parseInt(editFormData.locationId, 10) : null
       });
       setEditModalOpen(false);
-      fetchWarehouses();
+      fetchData();
     } catch (error) {
       console.error('Update failed', error);
+      alert('Update failed');
     }
   };
 
   const handleDeleteClick = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this warehouse?')) {
+      return;
+    }
     try {
       await apiClient.delete(`/warehouses/${id}`);
-      fetchWarehouses();
+      fetchData();
     } catch (error) {
       console.error('Delete failed', error);
+      alert('Delete failed');
     }
   };
 
@@ -121,7 +156,7 @@ export function WarehouseMaster() {
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
     
     // Generate table
-    const tableColumn = ["#", "Warehouse Name", "WH Code", "Linked Branch", "Manager", "Status"];
+    const tableColumn = ["#", "Warehouse Name", "WH Code", "Linked Branch", "Location", "Manager", "Status"];
     const tableRows = [];
     
     filteredRows.forEach((row, index) => {
@@ -129,7 +164,8 @@ export function WarehouseMaster() {
         index + 1,
         row.name || '-',
         row.code || '-',
-        row.branch || '-',
+        row.branchName || '-',
+        row.locationName || '-',
         row.manager || '-',
         row.status || '-'
       ];
@@ -148,6 +184,11 @@ export function WarehouseMaster() {
     
     doc.save(`Warehouse_Master_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
   };
+
+  // Filter locations for Edit Modal based on selected branch
+  const filteredLocationsForEdit = locations.filter(
+    (loc) => loc.branchId === parseInt(editFormData.branchId, 10)
+  );
 
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] flex flex-col p-3 relative">
@@ -206,27 +247,33 @@ export function WarehouseMaster() {
         </div>
 
         {/* Data Table */}
-        <div className="flex-1">
-          <div className="w-full">
+        <div className="flex-1 overflow-x-auto">
+          <div className="min-w-[900px] w-full">
             {/* Table Header */}
-            <div className="grid grid-cols-[60px_1fr_150px_200px_150px_100px_120px] border-b border-gray-200">
+            <div className="grid grid-cols-[60px_1fr_120px_180px_180px_150px_100px_120px] border-b border-gray-200 bg-gray-50">
               <HeaderCell text="#" />
               <HeaderCell text="Warehouse Name" />
               <HeaderCell text="WH Code" />
               <HeaderCell text="Linked Branch" />
+              <HeaderCell text="Location" />
               <HeaderCell text="Manager" />
               <HeaderCell text="Status" />
               <HeaderCell text="Action" />
             </div>
 
             {/* Rows */}
-            {filteredRows.length > 0 ? (
+            {loading ? (
+              <div className="py-8 px-4 text-center text-gray-500 text-[14px]">
+                Loading warehouses...
+              </div>
+            ) : filteredRows.length > 0 ? (
               filteredRows.map((row, index) => (
-                <div key={row.id} className="grid grid-cols-[60px_1fr_150px_200px_150px_100px_120px] border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                <div key={row.id} className="grid grid-cols-[60px_1fr_120px_180px_180px_150px_100px_120px] border-b border-gray-200 hover:bg-gray-50 transition-colors">
                   <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{index + 1}</div>
                   <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center font-medium">{row.name}</div>
                   <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.code || ''}</div>
-                  <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.branch || ''}</div>
+                  <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center font-medium text-indigo-600">{row.branchName}</div>
+                  <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center font-medium text-teal-600">{row.locationName}</div>
                   <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.manager || ''}</div>
                   <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">
                     <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${row.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
@@ -249,7 +296,7 @@ export function WarehouseMaster() {
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-gray-200">
+        <div className="p-3 border-t border-gray-200 bg-gray-50">
           <span className="text-[12px] text-gray-500">Showing {filteredRows.length} of {rows.length} total</span>
         </div>
       </div>
@@ -266,57 +313,87 @@ export function WarehouseMaster() {
             </div>
             
             <div className="p-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[13px] font-bold text-gray-800">Warehouse Name</label>
-                  <input 
-                    type="text" 
-                    value={editFormData.name}
-                    onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
-                    className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 focus:outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)]"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[13px] font-bold text-gray-800">WH Code</label>
-                  <input 
-                    type="text" 
-                    value={editFormData.code}
-                    onChange={(e) => setEditFormData({...editFormData, code: e.target.value})}
-                    className="border border-gray-300 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 focus:outline-none focus:border-[#4F46E5]"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[13px] font-bold text-gray-800">Linked Branch</label>
-                  <input 
-                    type="text" 
-                    value={editFormData.branch}
-                    onChange={(e) => setEditFormData({...editFormData, branch: e.target.value})}
-                    className="border border-gray-300 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 focus:outline-none focus:border-[#4F46E5]"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[13px] font-bold text-gray-800">Manager</label>
-                  <input 
-                    type="text" 
-                    value={editFormData.manager}
-                    onChange={(e) => setEditFormData({...editFormData, manager: e.target.value})}
-                    className="border border-gray-300 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 focus:outline-none focus:border-[#4F46E5]"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center gap-2 mt-4">
-                <label className="text-[13px] font-bold text-gray-800">Status</label>
-                <div className="flex items-center gap-2">
-                  <div 
-                    className={`w-[36px] h-[20px] rounded-full relative cursor-pointer transition-colors ${editFormData.status === 'Active' ? 'bg-[#28a745]' : 'bg-gray-400'}`}
-                    onClick={() => setEditFormData({...editFormData, status: editFormData.status === 'Active' ? 'Inactive' : 'Active'})}
-                  >
-                    <div className={`w-[16px] h-[16px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${editFormData.status === 'Active' ? 'translate-x-[18px]' : 'translate-x-[2px]'}`}></div>
+              <div className="flex flex-col gap-4">
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[13px] font-bold text-gray-800">Warehouse Name</label>
+                    <input 
+                      type="text" 
+                      value={editFormData.name}
+                      onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
+                      className="border border-[#4F46E5] bg-[#e8e5ff] rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 focus:outline-none shadow-[0_0_0_0.2rem_rgba(79,70,229,0.25)]"
+                    />
                   </div>
-                  <span className={`text-[13px] font-bold ${editFormData.status === 'Active' ? 'text-green-600' : 'text-gray-500'} select-none`}>
-                    {editFormData.status}
-                  </span>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[13px] font-bold text-gray-800">WH Code</label>
+                    <input 
+                      type="text" 
+                      value={editFormData.code}
+                      onChange={(e) => setEditFormData({...editFormData, code: e.target.value})}
+                      disabled
+                      className="border border-gray-300 bg-gray-100 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-500 focus:outline-none cursor-not-allowed"
+                    />
+                  </div>
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[13px] font-bold text-gray-800">Link to Branch</label>
+                    <select 
+                      value={editFormData.branchId}
+                      onChange={(e) => setEditFormData({...editFormData, branchId: e.target.value, locationId: ''})}
+                      className="border border-gray-300 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 focus:outline-none focus:border-[#4F46E5] bg-white"
+                    >
+                      <option value="">Select Branch</option>
+                      {branches.map((b) => (
+                        <option key={b.id} value={b.id}>{b.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[13px] font-bold text-gray-800">Location</label>
+                    <select 
+                      value={editFormData.locationId}
+                      onChange={(e) => setEditFormData({...editFormData, locationId: e.target.value})}
+                      disabled={!editFormData.branchId}
+                      className="border border-gray-300 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 focus:outline-none focus:border-[#4F46E5] bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">Select Location</option>
+                      {filteredLocationsForEdit.map((loc) => (
+                        <option key={loc.id} value={loc.id}>{loc.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 col-span-2">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[13px] font-bold text-gray-800">Manager</label>
+                    <input 
+                      type="text" 
+                      value={editFormData.manager}
+                      onChange={(e) => setEditFormData({...editFormData, manager: e.target.value})}
+                      className="border border-gray-300 rounded-[4px] px-3 py-1.5 text-[14px] text-gray-800 focus:outline-none focus:border-[#4F46E5]"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[13px] font-bold text-gray-800">Status</label>
+                    <div className="flex items-center gap-2 mt-2">
+                      <div 
+                        className={`w-[36px] h-[20px] rounded-full relative cursor-pointer transition-colors ${editFormData.status === 'Active' ? 'bg-[#28a745]' : 'bg-gray-400'}`}
+                        onClick={() => setEditFormData({...editFormData, status: editFormData.status === 'Active' ? 'Inactive' : 'Active'})}
+                      >
+                        <div className={`w-[16px] h-[16px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${editFormData.status === 'Active' ? 'translate-x-[18px]' : 'translate-x-[2px]'}`}></div>
+                      </div>
+                      <span className={`text-[13px] font-bold ${editFormData.status === 'Active' ? 'text-green-600' : 'text-gray-500'} select-none`}>
+                        {editFormData.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </div>
             

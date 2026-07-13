@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RefreshCw, X, Settings, Check, Printer, Type, QrCode, Image as ImageIcon, Square, Circle, Minus, Save, ChevronDown, ChevronUp, Barcode as BarcodeIcon, Info } from 'lucide-react';
+import { RefreshCw, X, Settings, Check, Printer, Type, QrCode, Image as ImageIcon, Square, Circle, Minus, Save, ChevronDown, ChevronUp, Barcode as BarcodeIcon, Info, Eye, Edit, Trash2 } from 'lucide-react';
 import { cn } from '../utils';
+import apiClient from '../api/apiClient';
+import { ProductSelectDropdown } from '../components/ProductSelectDropdown';
 
 // Custom YouTube SVG Icon
 const YoutubeIcon = ({ className }) => (
@@ -38,6 +40,92 @@ export function BarcodePage() {
   const [heightGap, setHeightGap] = useState('1mm');
   const [labelCount, setLabelCount] = useState('1');
   const [pageBreak, setPageBreak] = useState('No');
+
+  // Integration States
+  const [products, setProducts] = useState([]);
+  const [units, setUnits] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState('');
+  const [selectedUnit, setSelectedUnit] = useState('');
+  const [printList, setPrintList] = useState([]);
+  const [editingItem, setEditingItem] = useState(null);
+  const [viewingItem, setViewingItem] = useState(null);
+
+  // Form Fields mapped to product
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const [mrpInput, setMrpInput] = useState('0');
+  const [salePriceInput, setSalePriceInput] = useState('0');
+  const [wholesalePriceInput, setWholesalePriceInput] = useState('0');
+  const [printQty, setPrintQty] = useState('0');
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  const fetchInitialData = async () => {
+    try {
+      const [prodRes, unitRes] = await Promise.all([
+        apiClient.get('/products'),
+        apiClient.get('/units')
+      ]);
+      setProducts(prodRes.data?.data || prodRes.data?.products || (Array.isArray(prodRes.data) ? prodRes.data : []));
+      setUnits(unitRes.data?.data || (Array.isArray(unitRes.data) ? unitRes.data : []));
+    } catch (error) {
+      console.error('Error fetching initial data:', error);
+    }
+  };
+
+  const handleProductSelect = (e) => {
+    const prodId = e.target.value;
+    setSelectedProduct(prodId);
+    if (prodId) {
+      const prod = products.find(p => p.id.toString() === prodId);
+      if (prod) {
+        setBarcodeInput(prod.barcode || '');
+        setMrpInput(prod.mrp?.toString() || '0');
+        setSalePriceInput(prod.salesPrice?.toString() || prod.price?.toString() || '0');
+        setWholesalePriceInput(prod.wholesalePrice?.toString() || '0');
+        const unit = units.find(u => u.id.toString() === prod.unitId?.toString());
+        setSelectedUnit(unit ? unit.name : (prod.unitId?.toString() || ''));
+      }
+    } else {
+      setBarcodeInput('');
+      setMrpInput('0');
+      setSalePriceInput('0');
+      setWholesalePriceInput('0');
+      setSelectedUnit('');
+    }
+  };
+
+  const handleAddToList = () => {
+    if (!selectedProduct) return alert('Please select a product');
+    if (!printQty || parseInt(printQty) <= 0) return alert('Please enter a valid quantity');
+    
+    const prod = products.find(p => p.id.toString() === selectedProduct);
+    const newItem = {
+      id: Date.now(),
+      productId: selectedProduct,
+      name: prod?.name || 'Unknown',
+      barcode: barcodeInput,
+      quantity: printQty,
+      salePrice: salePriceInput
+    };
+    setPrintList([...printList, newItem]);
+    
+    // Reset selection if needed, or keep it
+    setPrintQty('0');
+  };
+
+  const handleRemoveFromList = (id) => {
+    setPrintList(printList.filter(item => item.id !== id));
+  };
+
+  const handleEditItem = (item) => {
+    setEditingItem(item);
+  };
+
+  const handleViewItem = (item) => {
+    setViewingItem(item);
+  };
 
   const handlePresetClick = (preset) => {
     setActivePreset(preset);
@@ -749,9 +837,16 @@ export function BarcodePage() {
               <div className="flex flex-col gap-1.5">
                 <label className="text-[13px] font-bold text-gray-800">Barcode Template</label>
                 <div className="flex gap-1.5">
-                  <select className="flex-1 h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-400 bg-white focus:border-[#17a2b8]">
-                    <option>Select Template (or use default)</option>
-                  </select>
+                  <div className="flex-1 relative flex">
+                    <input 
+                      list="barcode-templates"
+                      placeholder="Select Template (or use default)"
+                      className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white focus:border-[#17a2b8]"
+                    />
+                    <datalist id="barcode-templates">
+                      <option value="Select Template (or use default)" />
+                    </datalist>
+                  </div>
                   <button 
                     onClick={() => setShowTemplates(true)}
                     className="bg-[#17a2b8] hover:bg-[#138496] text-white px-2.5 rounded-[3px] flex items-center justify-center transition-colors focus:outline-none"
@@ -784,22 +879,41 @@ export function BarcodePage() {
                       <span className="text-[13px] font-bold text-gray-800 select-none">Manufacture Product</span>
                     </div>
                   </div>
-                  <select className="w-full h-[32px] border border-gray-300 bg-[#a6cdec] rounded-[3px] px-2 text-[13px] outline-none text-gray-700 focus:border-[#17a2b8]">
-                    <option>Enter Product Name or Barcode</option>
-                  </select>
+                  <div className="w-full h-[32px] border border-gray-300 bg-[#a6cdec] rounded-[3px] focus-within:border-[#17a2b8]">
+                    <ProductSelectDropdown 
+                      products={products}
+                      value={selectedProduct}
+                      onChange={(id) => handleProductSelect({ target: { value: id } })}
+                      onEdit={() => {}}
+                      onDelete={() => {}}
+                    />
+                  </div>
                 </div>
                 
                 <div className="flex-1 flex flex-col gap-1.5">
                   <label className="text-[13px] font-bold text-gray-800">Product Units</label>
-                  <select className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-400 bg-white focus:border-[#17a2b8]">
-                    <option>Select Unit</option>
-                  </select>
+                  <div className="flex-1 relative flex">
+                    <input 
+                      list="product-units-list"
+                      value={selectedUnit}
+                      onChange={(e) => setSelectedUnit(e.target.value)}
+                      placeholder="Select Unit"
+                      className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white focus:border-[#17a2b8]"
+                    />
+                    <datalist id="product-units-list">
+                      {units.map(u => (
+                        <option key={u.id} value={u.name} />
+                      ))}
+                    </datalist>
+                  </div>
                 </div>
 
                 <div className="flex-1 flex flex-col gap-1.5">
                   <label className="text-[13px] font-bold text-gray-800">Barcode</label>
                   <input 
                     type="text"
+                    value={barcodeInput}
+                    onChange={(e) => setBarcodeInput(e.target.value)}
                     placeholder="Barcode Number"
                     className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none placeholder-gray-400 text-gray-700 bg-white focus:border-[#17a2b8]"
                   />
@@ -812,7 +926,8 @@ export function BarcodePage() {
                   <label className="text-[13px] font-bold text-gray-800">MRP</label>
                   <input 
                     type="text"
-                    defaultValue="0"
+                    value={mrpInput}
+                    onChange={(e) => setMrpInput(e.target.value)}
                     className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white focus:border-[#17a2b8]"
                   />
                 </div>
@@ -820,7 +935,8 @@ export function BarcodePage() {
                   <label className="text-[13px] font-bold text-gray-800">Sale Price</label>
                   <input 
                     type="text"
-                    defaultValue="0"
+                    value={salePriceInput}
+                    onChange={(e) => setSalePriceInput(e.target.value)}
                     className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white focus:border-[#17a2b8]"
                   />
                 </div>
@@ -828,7 +944,8 @@ export function BarcodePage() {
                   <label className="text-[13px] font-bold text-gray-800">Whole Sale Price</label>
                   <input 
                     type="text"
-                    defaultValue="0"
+                    value={wholesalePriceInput}
+                    onChange={(e) => setWholesalePriceInput(e.target.value)}
                     className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white focus:border-[#17a2b8]"
                   />
                 </div>
@@ -892,8 +1009,9 @@ export function BarcodePage() {
                 <div className="flex-1 flex flex-col gap-1.5">
                   <label className="text-[13px] font-bold text-gray-800">Quantity to Print</label>
                   <input 
-                    type="text"
-                    defaultValue="0"
+                    type="number"
+                    value={printQty}
+                    onChange={(e) => setPrintQty(e.target.value)}
                     className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white focus:border-[#17a2b8]"
                   />
                 </div>
@@ -935,7 +1053,10 @@ export function BarcodePage() {
 
           {/* Buttons */}
           <div className="flex gap-2 justify-center mt-6 mb-2">
-            <button className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[3px] text-[13px] font-medium flex items-center justify-center gap-1.5 transition-colors focus:outline-none">
+            <button 
+              onClick={handleAddToList}
+              className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-1.5 rounded-[3px] text-[13px] font-medium flex items-center justify-center gap-1.5 transition-colors focus:outline-none"
+            >
               <Check className="w-3.5 h-3.5" strokeWidth={3} /> Submit
             </button>
             <button className="bg-[#17a2b8] hover:bg-[#138496] text-white px-4 py-1.5 rounded-[3px] text-[13px] font-medium flex items-center justify-center gap-1.5 transition-colors focus:outline-none">
@@ -959,13 +1080,106 @@ export function BarcodePage() {
                 </tr>
               </thead>
               <tbody>
-                {/* Empty space below header just like screenshot */}
+                {printList.map((item, index) => (
+                  <tr key={item.id} className="border-b border-gray-200">
+                    <td className="py-2 px-2 text-left text-[12px] font-medium border-r border-gray-200">{index + 1}</td>
+                    <td className="py-2 px-2 text-left text-[12px] font-medium border-r border-gray-200">{item.name}</td>
+                    <td className="py-2 px-2 text-left text-[12px] font-medium border-r border-gray-200">{item.barcode}</td>
+                    <td className="py-2 px-2 text-left text-[12px] font-medium border-r border-gray-200">{item.quantity}</td>
+                    <td className="py-2 px-2 text-left text-[12px] font-medium border-r border-gray-200">{item.salePrice}</td>
+                    <td className="py-2 px-2 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button 
+                          onClick={() => handleViewItem(item)}
+                          className="text-[#17a2b8] hover:text-[#138496] bg-[#e0f7fa] p-1.5 rounded-sm transition-colors focus:outline-none"
+                          title="View"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                        <button 
+                          onClick={() => handleEditItem(item)}
+                          className="text-[#0d6efd] hover:text-[#0b5ed7] bg-[#e6f0ff] p-1.5 rounded-sm transition-colors focus:outline-none"
+                          title="Edit"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button 
+                          onClick={() => handleRemoveFromList(item.id)}
+                          className="text-[#dc3545] hover:text-[#c82333] bg-[#fce4e4] p-1.5 rounded-sm transition-colors focus:outline-none"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {printList.length === 0 && (
+                  <tr>
+                    <td colSpan="6" className="text-center py-4 text-gray-500 text-[12px]">No barcodes added to print list.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
           <div className="h-6 w-full border border-t-0 border-gray-300"></div>
         </div>
       </div>
+
+      {/* Edit Modal */}
+      {editingItem && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-[3px] p-5 w-[400px] shadow-2xl">
+            <h2 className="text-[15px] font-bold text-gray-800 mb-4 border-b pb-2">Edit Print Item</h2>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-bold text-gray-800">Quantity to Print</label>
+                <input 
+                  type="number" 
+                  className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 focus:border-[#17a2b8]"
+                  value={editingItem.quantity}
+                  onChange={e => setEditingItem({...editingItem, quantity: e.target.value})}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-bold text-gray-800">Sale Price</label>
+                <input 
+                  type="text" 
+                  className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 focus:border-[#17a2b8]"
+                  value={editingItem.salePrice}
+                  onChange={e => setEditingItem({...editingItem, salePrice: e.target.value})}
+                />
+              </div>
+              <div className="flex gap-2 justify-end mt-4">
+                <button className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors" onClick={() => setEditingItem(null)}>Cancel</button>
+                <button className="bg-[#0d6efd] hover:bg-[#0b5ed7] text-white px-4 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors" onClick={() => {
+                  setPrintList(printList.map(i => i.id === editingItem.id ? editingItem : i));
+                  setEditingItem(null);
+                }}>Save Changes</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Modal */}
+      {viewingItem && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-[3px] p-5 w-[400px] shadow-2xl">
+            <h2 className="text-[15px] font-bold text-gray-800 mb-4 border-b pb-2">View Print Item</h2>
+            <div className="flex flex-col gap-3 text-[13px] text-gray-700">
+              <div className="grid grid-cols-3 border-b pb-1"><span className="font-bold text-gray-800">Product Name</span> <span className="col-span-2">{viewingItem.name}</span></div>
+              <div className="grid grid-cols-3 border-b pb-1"><span className="font-bold text-gray-800">Barcode</span> <span className="col-span-2">{viewingItem.barcode}</span></div>
+              <div className="grid grid-cols-3 border-b pb-1"><span className="font-bold text-gray-800">Quantity</span> <span className="col-span-2">{viewingItem.quantity}</span></div>
+              <div className="grid grid-cols-3 border-b pb-1"><span className="font-bold text-gray-800">Sale Price</span> <span className="col-span-2">{viewingItem.salePrice}</span></div>
+              <div className="flex gap-2 justify-end mt-4">
+                <button className="bg-[#17a2b8] hover:bg-[#138496] text-white px-4 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors" onClick={() => setViewingItem(null)}>Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

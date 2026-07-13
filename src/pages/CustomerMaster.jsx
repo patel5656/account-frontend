@@ -185,10 +185,7 @@ export function CustomerMaster() {
     setEditData({
       ...row,
       toggles: { 
-        moreInfo: true, 
-        wholeParty: row.wholeParty || false, 
-        sezParty: row.sezParty || false, 
-        focParty: row.focParty || false 
+        moreInfo: true
       }
     });
     setEditModalOpen(true);
@@ -217,9 +214,7 @@ export function CustomerMaster() {
           interestRate: parseFloat(editData.interestRate),
           loyaltyPoints: parseInt(editData.loyaltyPoints, 10),
           joiningDate: editData.joiningDate,
-          wholeParty: editData.toggles?.wholeParty || false,
-          sezParty: editData.toggles?.sezParty || false,
-          focParty: editData.toggles?.focParty || false
+
         };
         const res = await apiClient.put(`/customers/${selectedRow.id}`, payload);
         if (res.data.success) {
@@ -637,8 +632,8 @@ export function CustomerMaster() {
                   </datalist>
                 </div>
 
-                {/* Row 4: Four Toggles */}
-                <div className="flex justify-between items-center mt-4 px-2 sm:px-10">
+                {/* Row 4: More Info Toggle */}
+                <div className="flex items-center mt-4 px-2">
                   <div className="flex flex-col items-center gap-2">
                     <div 
                       className={`w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${editData?.toggles?.moreInfo ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}
@@ -647,33 +642,6 @@ export function CustomerMaster() {
                       <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${editData?.toggles?.moreInfo ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
                     </div>
                     <span className="text-[11px] font-bold text-gray-800">More Info</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-2">
-                    <div 
-                      className={`w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${editData?.toggles?.wholeParty ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}
-                      onClick={() => setEditData({...editData, toggles: {...editData.toggles, wholeParty: !editData?.toggles?.wholeParty}})}
-                    >
-                      <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${editData?.toggles?.wholeParty ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
-                    </div>
-                    <span className="text-[11px] font-bold text-gray-800">Whole Party</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-2">
-                    <div 
-                      className={`w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${editData?.toggles?.sezParty ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}
-                      onClick={() => setEditData({...editData, toggles: {...editData.toggles, sezParty: !editData?.toggles?.sezParty}})}
-                    >
-                      <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${editData?.toggles?.sezParty ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
-                    </div>
-                    <span className="text-[11px] font-bold text-gray-800">SEZ Party</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-2">
-                    <div 
-                      className={`w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${editData?.toggles?.focParty ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}
-                      onClick={() => setEditData({...editData, toggles: {...editData.toggles, focParty: !editData?.toggles?.focParty}})}
-                    >
-                      <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${editData?.toggles?.focParty ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
-                    </div>
-                    <span className="text-[11px] font-bold text-gray-800">FOC Party</span>
                   </div>
                 </div>
 

@@ -1,12 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../api/apiClient';
 
 export function TradingAccount() {
   const navigate = useNavigate();
 
-  const [fromDate, setFromDate] = useState('2026-05-24');
-  const [toDate, setToDate] = useState('2026-05-24');
-  const [reportDates, setReportDates] = useState({ from: '2026-05-24', to: '2026-05-24' });
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+  const formatDate = (date) => date.toISOString().split('T')[0];
+  
+  const defaultFrom = formatDate(firstDay);
+  const defaultTo = formatDate(today);
+
+  const [fromDate, setFromDate] = useState(defaultFrom);
+  const [toDate, setToDate] = useState(defaultTo);
+  const [reportDates, setReportDates] = useState({ from: defaultFrom, to: defaultTo });
   const [reportData, setReportData] = useState({
     sales: 0,
     salesReturn: 0,
@@ -27,7 +35,7 @@ export function TradingAccount() {
     return `${dayStr}-${monthName}-${yearNum}`;
   };
 
-  const handleShowReport = () => {
+  const handleShowReport = async () => {
     const d1 = new Date(fromDate);
     const d2 = new Date(toDate);
     
@@ -38,27 +46,33 @@ export function TradingAccount() {
 
     setReportDates({ from: fromDate, to: toDate });
     
-    const timeDiff = Math.abs(d2.getTime() - d1.getTime());
-    const daysCount = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
-    
-    // Generate dynamic mock accounting values based on the number of days selected
-    const sales = daysCount * 4500;
-    const salesReturn = Math.round(sales * 0.04);
-    const openingStock = 8500;
-    const closingStock = 12500;
-    const purchase = daysCount * 2500;
-    const purchaseReturn = Math.round(purchase * 0.03);
-    
-    setReportData({
-      sales,
-      salesReturn,
-      openingStock,
-      closingStock,
-      purchase,
-      purchaseReturn,
-      hasLoaded: true
-    });
+    try {
+      const res = await apiClient.get('/financial/trading-account', {
+        params: { fromDate, toDate }
+      });
+      
+      if (res.data && res.data.success) {
+        const { sales, salesReturn, openingStock, closingStock, purchase, purchaseReturn } = res.data.data;
+        setReportData({
+          sales: sales || 0,
+          salesReturn: salesReturn || 0,
+          openingStock: openingStock || 0,
+          closingStock: closingStock || 0,
+          purchase: purchase || 0,
+          purchaseReturn: purchaseReturn || 0,
+          hasLoaded: true
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching trading account report:", error);
+      alert("Failed to load trading account data");
+    }
   };
+
+  useEffect(() => {
+    handleShowReport();
+  }, []); // Load initially
+
 
   const netSale = reportData.sales - reportData.salesReturn;
   const netPurchase = reportData.purchase - reportData.purchaseReturn;

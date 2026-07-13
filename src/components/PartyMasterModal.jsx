@@ -23,16 +23,15 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
   const [loyaltyPoints, setLoyaltyPoints] = useState('0');
   const [joiningDate, setJoiningDate] = useState('2026-06-04');
   const [toggles, setToggles] = useState({
-    moreInfo: false,
-    wholeParty: false,
-    sezParty: false,
-    focParty: false
+    moreInfo: false
   });
   const [isSettingOpen, setIsSettingOpen] = useState(false);
   const [showPartyTags, setShowPartyTags] = useState(true);
   const [showDueDate, setShowDueDate] = useState(true);
   const [defaultDueDaysSettings, setDefaultDueDaysSettings] = useState('7');
   const [availableTags, setAvailableTags] = useState([]);
+  const [extraColumns, setExtraColumns] = useState([]);
+  const [newExtraColumn, setNewExtraColumn] = useState({ name: '', defaultValue: '' });
 
   const toggleSwitch = (key) => {
     setToggles(prev => ({ ...prev, [key]: !prev[key] }));
@@ -53,24 +52,40 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
             setShowPartyTags(settings.showPartyTags);
             setShowDueDate(settings.showDueDate);
             setDefaultDueDaysSettings(settings.defaultDueDays.toString());
-            // Only set form dueDays to default if it's currently at 7 (meaning user hasn't changed it manually yet)
             setDueDays(settings.defaultDueDays.toString());
+            setExtraColumns(Array.isArray(settings.extraColumns) ? settings.extraColumns : []);
           }
         })
         .catch(err => console.error("Failed to fetch settings", err));
     }
   }, [isOpen]);
 
+  const handleAddExtraColumn = () => {
+    if (newExtraColumn.name.trim() === '') return;
+    setExtraColumns(prev => [...prev, { name: newExtraColumn.name.trim(), defaultValue: newExtraColumn.defaultValue.trim() }]);
+    setNewExtraColumn({ name: '', defaultValue: '' });
+  };
+
+  const handleDeleteExtraColumn = (index) => {
+    setExtraColumns(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSaveSettings = async () => {
     try {
+      // Agar new input mein kuch likha hai to auto-add karo before saving
+      let finalColumns = extraColumns;
+      if (newExtraColumn.name.trim() !== '') {
+        finalColumns = [...extraColumns, { name: newExtraColumn.name.trim(), defaultValue: newExtraColumn.defaultValue.trim() }];
+        setExtraColumns(finalColumns);
+        setNewExtraColumn({ name: '', defaultValue: '' });
+      }
       await apiClient.put('/party-settings', {
         defaultDueDays: defaultDueDaysSettings,
         showPartyTags,
         showDueDate,
-        extraColumns: [] // Placeholder for future extra columns dynamic state
+        extraColumns: finalColumns
       });
       setIsSettingOpen(false);
-      // Update the actual form due days if they just changed the default
       setDueDays(defaultDueDaysSettings);
     } catch (error) {
       console.error("Failed to save settings", error);
@@ -103,9 +118,7 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
           joiningDate,
           dueDays,
           drugLicense,
-          wholeParty: toggles.wholeParty,
-          sezParty: toggles.sezParty,
-          focParty: toggles.focParty
+
         } 
       }));
     }
@@ -128,7 +141,7 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
     setLoyaltyPoints('0');
     setJoiningDate('2026-06-04');
     setIsActive(true);
-    setToggles({ moreInfo: false, wholeParty: false, sezParty: false, focParty: false });
+    setToggles({ moreInfo: false });
     onClose();
   };
 
@@ -176,15 +189,17 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
                       </div>
                       <span className="text-[13px] font-bold text-gray-800 select-none">Active</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[13px] font-bold text-gray-800">Due Days</span>
-                      <input 
-                        type="text" 
-                        value={dueDays}
-                        onChange={(e) => setDueDays(e.target.value)}
-                        className="w-[60px] border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] outline-none focus:border-[#4F46E5] text-center"
-                      />
-                    </div>
+                    {showDueDate && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-bold text-gray-800">Due Days</span>
+                        <input 
+                          type="text" 
+                          value={dueDays}
+                          onChange={(e) => setDueDays(e.target.value)}
+                          className="w-[60px] border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] outline-none focus:border-[#4F46E5] text-center"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
                 <input 
@@ -221,25 +236,27 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
               </div>
 
               {/* Row 3: Party Tags */}
-              <div className="flex flex-col gap-1 relative">
-                <label className="text-[14px] font-bold text-gray-800">Party Tags</label>
-                <input
-                  type="text"
-                  list="party-tags-list"
-                  value={partyTags}
-                  onChange={(e) => setPartyTags(e.target.value)}
-                  placeholder="Select or enter tag"
-                  className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
-                />
-                <datalist id="party-tags-list">
-                  {availableTags.map(tag => (
-                    <option key={tag.id} value={tag.name} />
-                  ))}
-                </datalist>
-              </div>
+              {showPartyTags && (
+                <div className="flex flex-col gap-1 relative">
+                  <label className="text-[14px] font-bold text-gray-800">Party Tags</label>
+                  <input
+                    type="text"
+                    list="party-tags-list"
+                    value={partyTags}
+                    onChange={(e) => setPartyTags(e.target.value)}
+                    placeholder="Select or enter tag"
+                    className="w-full border border-gray-300 bg-white placeholder-gray-400 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5]"
+                  />
+                  <datalist id="party-tags-list">
+                    {availableTags.map(tag => (
+                      <option key={tag.id} value={tag.name} />
+                    ))}
+                  </datalist>
+                </div>
+              )}
 
-              {/* Row 5: Four Toggles */}
-              <div className="flex justify-between items-center mt-4 px-2 sm:px-10">
+              {/* Row 5: More Info Toggle */}
+              <div className="flex items-center mt-4 px-2">
                 <div className="flex flex-col items-center gap-2">
                   <div 
                     className={`w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${toggles.moreInfo ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}
@@ -248,33 +265,6 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
                     <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${toggles.moreInfo ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
                   </div>
                   <span className="text-[11px] font-bold text-gray-800">More Info</span>
-                </div>
-                <div className="flex flex-col items-center gap-2">
-                  <div 
-                    className={`w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${toggles.wholeParty ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}
-                    onClick={() => toggleSwitch('wholeParty')}
-                  >
-                    <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${toggles.wholeParty ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
-                  </div>
-                  <span className="text-[11px] font-bold text-gray-800">Whole Party</span>
-                </div>
-                <div className="flex flex-col items-center gap-2">
-                  <div 
-                    className={`w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${toggles.sezParty ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}
-                    onClick={() => toggleSwitch('sezParty')}
-                  >
-                    <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${toggles.sezParty ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
-                  </div>
-                  <span className="text-[11px] font-bold text-gray-800">SEZ Party</span>
-                </div>
-                <div className="flex flex-col items-center gap-2">
-                  <div 
-                    className={`w-[32px] h-[18px] rounded-full relative cursor-pointer transition-colors ${toggles.focParty ? 'bg-[#0d6efd]' : 'bg-gray-300'}`}
-                    onClick={() => toggleSwitch('focParty')}
-                  >
-                    <div className={`w-[14px] h-[14px] bg-white rounded-full absolute top-[2px] shadow-sm transition-transform ${toggles.focParty ? 'translate-x-[16px]' : 'translate-x-[2px]'}`}></div>
-                  </div>
-                  <span className="text-[11px] font-bold text-gray-800">FOC Party</span>
                 </div>
               </div>
 
@@ -488,16 +478,65 @@ export function PartyMasterModal({ isOpen, onClose, defaultType = 'COMPANY' }) {
                   <div className="py-2 text-[13px] font-bold text-gray-800 border-r border-gray-200">Default Value</div>
                   <div className="py-2"></div>
                 </div>
+
+                {/* Saved extra column rows */}
+                {extraColumns.map((col, index) => (
+                  <div key={index} className="grid grid-cols-[40px_1fr_1fr_40px] text-center bg-white items-center p-1 border-b border-gray-100">
+                    <div className="text-[13px] font-bold text-gray-800 flex items-center justify-center">{index + 1}</div>
+                    <div className="px-1">
+                      <input
+                        type="text"
+                        value={col.name}
+                        onChange={(e) => setExtraColumns(prev => prev.map((c, i) => i === index ? { ...c, name: e.target.value } : c))}
+                        className="w-full border border-blue-300 bg-[#a6cdec] rounded-[3px] px-2 py-1.5 text-[13px] outline-none font-bold"
+                      />
+                    </div>
+                    <div className="px-1">
+                      <input
+                        type="text"
+                        value={col.defaultValue}
+                        onChange={(e) => setExtraColumns(prev => prev.map((c, i) => i === index ? { ...c, defaultValue: e.target.value } : c))}
+                        className="w-full border border-gray-300 bg-white rounded-[3px] px-2 py-1.5 text-[13px] outline-none"
+                      />
+                    </div>
+                    <div className="flex items-center justify-center">
+                      <button
+                        onClick={() => handleDeleteExtraColumn(index)}
+                        className="bg-[#dc3545] hover:bg-[#c82333] text-white p-1 rounded-sm shadow-sm"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"></path></svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* New row input */}
                 <div className="grid grid-cols-[40px_1fr_1fr_40px] text-center bg-white items-center p-1">
                   <div className="text-[13px] font-bold text-gray-800 flex items-center justify-center">#</div>
                   <div className="px-1">
-                    <input type="text" placeholder="Ex. Firm Name | Vehicle No" className="w-full border border-blue-300 bg-[#a6cdec] placeholder-gray-500 rounded-[3px] px-2 py-1.5 text-[13px] outline-none font-bold" />
+                    <input
+                      type="text"
+                      value={newExtraColumn.name}
+                      onChange={(e) => setNewExtraColumn(prev => ({ ...prev, name: e.target.value }))}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddExtraColumn()}
+                      placeholder="Ex. Firm Name | Vehicle No"
+                      className="w-full border border-blue-300 bg-[#a6cdec] placeholder-gray-500 rounded-[3px] px-2 py-1.5 text-[13px] outline-none font-bold"
+                    />
                   </div>
                   <div className="px-1">
-                    <input type="text" className="w-full border border-gray-300 bg-white rounded-[3px] px-2 py-1.5 text-[13px] outline-none" />
+                    <input
+                      type="text"
+                      value={newExtraColumn.defaultValue}
+                      onChange={(e) => setNewExtraColumn(prev => ({ ...prev, defaultValue: e.target.value }))}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddExtraColumn()}
+                      className="w-full border border-gray-300 bg-white rounded-[3px] px-2 py-1.5 text-[13px] outline-none"
+                    />
                   </div>
                   <div className="flex items-center justify-center">
-                    <button className="bg-[#28a745] hover:bg-[#218838] text-white p-1 rounded-sm shadow-sm">
+                    <button
+                      onClick={handleAddExtraColumn}
+                      className="bg-[#28a745] hover:bg-[#218838] text-white p-1 rounded-sm shadow-sm"
+                    >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"></path></svg>
                     </button>
                   </div>

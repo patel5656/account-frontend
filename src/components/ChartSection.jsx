@@ -83,7 +83,7 @@ export function ChartSection({ chartData }) {
       <div className="p-4 flex-1 relative min-h-[300px] notranslate" translate="no">
          <div className="flex justify-center mb-4">
            <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
-              <div className="w-8 h-3 bg-[#4F46E5]"></div>
+              <div className="w-8 h-3 bg-[#3b82f6]"></div>
               <span>Sales</span>
            </div>
          </div>
@@ -99,7 +99,7 @@ export function ChartSection({ chartData }) {
               tickLine={false} 
               tick={{ fill: '#adb5bd', fontSize: 12 }} 
             />
-            <Bar dataKey="sales" fill="#4F46E5" />
+            <Bar dataKey="sales" fill="#3b82f6" />
           </BarChart>
         </ResponsiveContainer>
       </div>

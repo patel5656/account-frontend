@@ -1,66 +1,209 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, CheckCircle2, X } from 'lucide-react';
+import { CreditCard, CheckCircle2, X, Plus } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 
 export function SubscriptionManagement() {
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
-  const [editingIndex, setEditingIndex] = useState(null);
   const [activePlanIndex, setActivePlanIndex] = useState(1);
   const [billingPeriod, setBillingPeriod] = useState('monthly');
   const [plans, setPlans] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchPlans = async () => {
-      try {
-        const response = await apiClient.get('/plans');
-        if (response.data.success) {
-          // Map backend data to frontend structure
-          const formattedPlans = response.data.data.map(p => {
-            let featuresList = [];
-            if (Array.isArray(p.features)) featuresList = p.features;
-            else if (p.features && typeof p.features === 'object') {
-              featuresList = [
-                `${p.features.maxUsers || 'Unlimited'} User Licenses`,
-                `${p.features.maxProducts || 'Unlimited'} Products Max`,
-                'Email Support'
-              ];
-            } else {
-              featuresList = ['Standard Features', 'Email Support'];
-            }
+  const fetchPlans = async () => {
+    setIsLoading(true);
+    try {
+      const response = await apiClient.get('/plans');
+      if (response.data.success) {
+        // Map backend data to frontend structure
+        const formattedPlans = response.data.data.map(p => {
+          let parsedFeatures = {};
+          if (typeof p.features === 'string') {
+            try { parsedFeatures = JSON.parse(p.features); } catch(e) {}
+          } else if (p.features && typeof p.features === 'object') {
+            parsedFeatures = p.features;
+          }
 
-            return {
-              id: p.id,
-              name: p.name,
-              monthlyPrice: `₹${p.price}/mo`,
-              yearlyPrice: `₹${p.price * 10}/yr`, 
-              companies: p._count ? p._count.companies : 0, 
-              features: featuresList,
-              highlight: p.name.toLowerCase() === 'pro'
-            };
-          });
-          setPlans(formattedPlans);
-        }
-      } catch (error) {
-        console.error('Failed to fetch plans:', error);
-      } finally {
-        setIsLoading(false);
+          // Compute display price based on plan's own planType
+          const planType = parsedFeatures.planType || '';
+          let displayPrice = '';
+          if (planType === 'Monthly') {
+            displayPrice = `₹${p.price}/mo`;
+          } else if (planType === 'Yearly') {
+            displayPrice = `₹${p.price}/yr`;
+          } else if (planType === 'Lifetime') {
+            displayPrice = `₹${p.price} (Lifetime)`;
+          } else {
+            displayPrice = `₹${p.price}/mo`;
+          }
+
+          let featuresList = [
+            `${parsedFeatures.userLimit || parsedFeatures.users || 'Unlimited'} User Limit`,
+            `${parsedFeatures.invoiceLimit || parsedFeatures.invoices || 'Unlimited'} Invoice Limit`,
+            `${parsedFeatures.storageCapacity || parsedFeatures.storage || 'Unlimited'} Storage`,
+            'Email Support'
+          ].filter(Boolean);
+
+          return {
+            id: p.id,
+            name: p.name,
+            price: p.price,
+            planType,
+            displayPrice,
+            companies: p._count ? p._count.companies : 0, 
+            featuresList,
+            rawFeatures: parsedFeatures,
+            highlight: p.name.toLowerCase() === 'pro'
+          };
+        });
+        setPlans(formattedPlans);
       }
-    };
+    } catch (error) {
+      console.error('Failed to fetch plans:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchPlans();
   }, []);
 
-  const handleSaveChanges = () => {
-    if (editingIndex !== null) {
-      const updatedPlans = [...plans];
-      updatedPlans[editingIndex] = selectedPlan;
-      setPlans(updatedPlans);
-      setEditModalOpen(false);
-      setEditingIndex(null);
+  const handleSaveEdit = async () => {
+    try {
+      const payload = {
+        name: selectedPlan.name,
+        price: parseFloat(selectedPlan.price),
+        features: selectedPlan.rawFeatures
+      };
+      const res = await apiClient.put(`/plans/${selectedPlan.id}`, payload);
+      if (res.data.success) {
+        setEditModalOpen(false);
+        fetchPlans();
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Failed to update plan');
     }
   };
+
+  const handleSaveNew = async () => {
+    try {
+      const payload = {
+        name: selectedPlan.name,
+        price: parseFloat(selectedPlan.price),
+        features: selectedPlan.rawFeatures
+      };
+      const res = await apiClient.post('/plans', payload);
+      if (res.data.success) {
+        setAddModalOpen(false);
+        fetchPlans();
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Failed to create plan');
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      const res = await apiClient.delete(`/plans/${selectedPlan.id}`);
+      if (res.data.success) {
+        setDeleteModalOpen(false);
+        fetchPlans();
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Failed to delete plan. It might be in use.');
+    }
+  };
+
+  const openAddModal = () => {
+    setSelectedPlan({
+      name: '',
+      price: 0,
+      rawFeatures: { userLimit: '', invoiceLimit: '', storageCapacity: '', planType: '' }
+    });
+    setAddModalOpen(true);
+  };
+
+  const handleFeatureChange = (key, value) => {
+    setSelectedPlan(prev => ({
+      ...prev,
+      rawFeatures: {
+        ...prev.rawFeatures,
+        [key]: value
+      }
+    }));
+  };
+
+  const renderModalForm = (isNew) => (
+    <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Plan Name</label>
+        <input 
+          type="text" 
+          value={selectedPlan.name} 
+          onChange={(e) => setSelectedPlan({...selectedPlan, name: e.target.value})}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Price (Monthly)</label>
+        <input 
+          type="number" 
+          value={selectedPlan.price} 
+          onChange={(e) => setSelectedPlan({...selectedPlan, price: e.target.value})}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">User Limit</label>
+        <input 
+          type="text" 
+          placeholder="e.g. 10 or Unlimited"
+          value={selectedPlan.rawFeatures?.userLimit || selectedPlan.rawFeatures?.users || ''} 
+          onChange={(e) => handleFeatureChange('userLimit', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Limit</label>
+        <input 
+          type="text" 
+          placeholder="e.g. 500 or Unlimited"
+          value={selectedPlan.rawFeatures?.invoiceLimit || selectedPlan.rawFeatures?.invoices || ''} 
+          onChange={(e) => handleFeatureChange('invoiceLimit', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Storage Capacity</label>
+        <input 
+          type="text" 
+          placeholder="e.g. 5GB or Unlimited"
+          value={selectedPlan.rawFeatures?.storageCapacity || selectedPlan.rawFeatures?.storage || ''} 
+          onChange={(e) => handleFeatureChange('storageCapacity', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Plan Type</label>
+        <select
+          value={selectedPlan.rawFeatures?.planType || ''}
+          onChange={(e) => handleFeatureChange('planType', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+        >
+          <option value="">Select Type</option>
+          <option value="Monthly">Monthly</option>
+          <option value="Yearly">Yearly</option>
+          <option value="Lifetime">Lifetime</option>
+        </select>
+      </div>
+    </div>
+  );
 
   return (
     <div className="p-6 space-y-6">
@@ -70,9 +213,18 @@ export function SubscriptionManagement() {
           <p className="text-gray-500 mt-1">Manage SaaS plans and view active subscriptions</p>
         </div>
         
-        <div className="inline-flex items-center bg-gray-100 p-1 rounded border border-gray-200">
-          <button onClick={() => setBillingPeriod('monthly')} className={`px-3 py-1.5 rounded text-[10px] font-bold transition-all ${billingPeriod === 'monthly' ? 'bg-[#4F46E5] text-white shadow-sm' : 'text-gray-600'}`}>Monthly</button>
-          <button onClick={() => setBillingPeriod('yearly')} className={`px-3 py-1.5 rounded text-[10px] font-bold transition-all ${billingPeriod === 'yearly' ? 'bg-[#4F46E5] text-white shadow-sm' : 'text-gray-600'}`}>Yearly (Save 20%)</button>
+        <div className="flex gap-4 items-center">
+          <div className="inline-flex items-center bg-gray-100 p-1 rounded border border-gray-200">
+            <button onClick={() => setBillingPeriod('monthly')} className={`px-3 py-1.5 rounded text-[10px] font-bold transition-all ${billingPeriod === 'monthly' ? 'bg-[#4F46E5] text-white shadow-sm' : 'text-gray-600'}`}>Monthly</button>
+            <button onClick={() => setBillingPeriod('yearly')} className={`px-3 py-1.5 rounded text-[10px] font-bold transition-all ${billingPeriod === 'yearly' ? 'bg-[#4F46E5] text-white shadow-sm' : 'text-gray-600'}`}>Yearly (Save 20%)</button>
+          </div>
+          <button 
+            onClick={openAddModal}
+            className="flex items-center gap-2 px-4 py-2 bg-[#4F46E5] text-white rounded-lg hover:bg-indigo-700 font-medium text-sm transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Plan
+          </button>
         </div>
       </div>
 
@@ -97,13 +249,18 @@ export function SubscriptionManagement() {
               </span>
             )}
             <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
+            {plan.planType && (
+              <span className="mt-1 inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-600 border border-indigo-100">
+                {plan.planType}
+              </span>
+            )}
             <div className="mt-4 flex items-baseline text-3xl font-extrabold text-gray-900">
-              {billingPeriod === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice}
+              {plan.displayPrice}
             </div>
             <p className="mt-1 text-sm text-gray-500">{plan.companies} active companies</p>
             
             <ul className="mt-6 space-y-3">
-              {plan.features.map((feature, i) => (
+              {plan.featuresList.map((feature, i) => (
                 <li key={i} className="flex items-start">
                   <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0 mr-2" />
                   <span className="text-gray-600 text-sm">{feature}</span>
@@ -116,7 +273,6 @@ export function SubscriptionManagement() {
                 onClick={(e) => { 
                   e.stopPropagation(); 
                   setSelectedPlan({ ...plan }); 
-                  setEditingIndex(index);
                   setEditModalOpen(true); 
                 }}
                 className={`flex-1 py-2.5 px-4 rounded-xl font-medium transition-colors ${
@@ -146,35 +302,29 @@ export function SubscriptionManagement() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Plan Name</label>
-                <input 
-                  type="text" 
-                  value={selectedPlan.name} 
-                  onChange={(e) => setSelectedPlan({...selectedPlan, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
-                <input 
-                  type="text" 
-                  value={billingPeriod === 'monthly' ? selectedPlan.monthlyPrice : selectedPlan.yearlyPrice} 
-                  onChange={(e) => {
-                    if (billingPeriod === 'monthly') {
-                      setSelectedPlan({...selectedPlan, monthlyPrice: e.target.value});
-                    } else {
-                      setSelectedPlan({...selectedPlan, yearlyPrice: e.target.value});
-                    }
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
-                />
-              </div>
-            </div>
+            {renderModalForm(false)}
             <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
               <button onClick={() => setEditModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-              <button onClick={handleSaveChanges} className="px-4 py-2 text-sm font-medium text-white bg-[#4F46E5] rounded-lg hover:bg-indigo-700">Save Changes</button>
+              <button onClick={handleSaveEdit} className="px-4 py-2 text-sm font-medium text-white bg-[#4F46E5] rounded-lg hover:bg-indigo-700">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Plan Modal */}
+      {addModalOpen && selectedPlan && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden">
+            <div className="flex justify-between items-center p-4 border-b border-gray-200">
+              <h2 className="text-lg font-bold text-gray-900">Add New Plan</h2>
+              <button onClick={() => setAddModalOpen(false)} className="text-gray-500 hover:text-gray-700 focus:outline-none">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {renderModalForm(true)}
+            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
+              <button onClick={() => setAddModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+              <button onClick={handleSaveNew} className="px-4 py-2 text-sm font-medium text-white bg-[#4F46E5] rounded-lg hover:bg-indigo-700">Create Plan</button>
             </div>
           </div>
         </div>
@@ -193,7 +343,7 @@ export function SubscriptionManagement() {
             </div>
             <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
               <button onClick={() => setDeleteModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-              <button onClick={() => setDeleteModalOpen(false)} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">Yes, Delete</button>
+              <button onClick={handleDelete} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">Yes, Delete</button>
             </div>
           </div>
         </div>

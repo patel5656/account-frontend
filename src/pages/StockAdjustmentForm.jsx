@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../api/apiClient';
 import { 
   X, 
   Search, 
@@ -30,6 +31,124 @@ const FilterIcon = ({ className }) => (
 
 export function StockAdjustmentForm() {
   const navigate = useNavigate();
+
+  const [products, setProducts] = useState([]);
+  const [items, setItems] = useState([
+    { productId: '', name: '', currentStock: 0, actualQuantity: 0, price: 0 }
+  ]);
+  const [invoiceNo, setInvoiceNo] = useState(`ADJ-${new Date().getTime()}`);
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [remark, setRemark] = useState('');
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await apiClient.get('/products');
+        if (res.data?.success) {
+          setProducts(res.data.data.filter(p => p.status === 'Active' || p.status === 'ACTIVE'));
+        }
+      } catch (err) {
+        console.error("Failed to fetch products", err);
+      }
+    };
+    fetchProducts();
+  }, []);
+
+  const handleProductChange = (index, productId) => {
+    const product = products.find(p => p.id === parseInt(productId, 10));
+    if (product) {
+      const newItems = [...items];
+      newItems[index] = {
+        ...newItems[index],
+        productId: product.id,
+        name: product.name,
+        currentStock: product.stock,
+        actualQuantity: product.stock, // Initially no change
+        price: product.purchasePrice || product.price || 0
+      };
+      
+      // Add a new empty row if this was the last row
+      if (index === items.length - 1) {
+        newItems.push({ productId: '', name: '', currentStock: 0, actualQuantity: 0, price: 0 });
+      }
+      setItems(newItems);
+    }
+  };
+
+  const handleActualQtyChange = (index, val) => {
+    const newItems = [...items];
+    newItems[index].actualQuantity = val === '' ? '' : Number(val);
+    setItems(newItems);
+  };
+
+  const removeItem = (index) => {
+    const newItems = items.filter((_, i) => i !== index);
+    if (newItems.length === 0) {
+      newItems.push({ productId: '', name: '', currentStock: 0, actualQuantity: 0, price: 0 });
+    }
+    setItems(newItems);
+  };
+
+  const calculateRowAmount = (item) => {
+    if (!item.productId) return 0;
+    const diff = Number(item.actualQuantity || 0) - Number(item.currentStock || 0);
+    return diff * Number(item.price || 0);
+  };
+
+  const summary = items.reduce((acc, item) => {
+    if (!item.productId) return acc;
+    const diff = Number(item.actualQuantity || 0) - Number(item.currentStock || 0);
+    const amt = diff * Number(item.price || 0);
+    if (diff > 0) {
+      acc.increaseQty += diff;
+      acc.increaseAmt += amt;
+    } else if (diff < 0) {
+      acc.decreaseQty += Math.abs(diff);
+      acc.decreaseAmt += Math.abs(amt);
+    }
+    return acc;
+  }, { increaseQty: 0, increaseAmt: 0, decreaseQty: 0, decreaseAmt: 0 });
+
+  const totalItemsCount = items.filter(i => i.productId && (Number(i.actualQuantity || 0) !== Number(i.currentStock || 0))).length;
+  const netProfit = summary.increaseAmt - summary.decreaseAmt;
+
+  const handleSave = async () => {
+    const validItems = items.filter(i => i.productId && (Number(i.actualQuantity || 0) !== Number(i.currentStock || 0)));
+    
+    if (validItems.length === 0) {
+      alert("No stock changes to save.");
+      return;
+    }
+
+    const payload = {
+      invoiceNo,
+      date,
+      remark,
+      totalAmount: netProfit,
+      items: validItems.map(item => {
+        const diff = Number(item.actualQuantity || 0) - Number(item.currentStock || 0);
+        return {
+          productId: item.productId,
+          quantity: diff, // Negative for decrease, positive for increase
+          price: item.price,
+          amount: diff * item.price
+        };
+      })
+    };
+
+    try {
+      const res = await apiClient.post('/inventory/ADJUSTMENT', payload);
+      if (res.data) {
+        alert("Stock adjustment saved successfully!");
+        setItems([{ productId: '', name: '', currentStock: 0, actualQuantity: 0, price: 0 }]);
+        setInvoiceNo(`ADJ-${new Date().getTime()}`);
+        setRemark('');
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || "Failed to save stock adjustment");
+    }
+  };
 
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] flex flex-col relative pb-12">
@@ -73,6 +192,8 @@ export function StockAdjustmentForm() {
                <div className="flex-1 flex items-center">
                  <input 
                    type="text" 
+                   value={invoiceNo}
+                   onChange={(e) => setInvoiceNo(e.target.value)}
                    className="w-full min-w-0 border border-gray-300 border-r-0 rounded-l-[3px] px-3 py-1 text-[13px] bg-white text-gray-600 outline-none focus:border-[#4F46E5]"
                  />
                  <button className="bg-[#4F46E5] text-white px-3 py-1 border border-[#4F46E5] rounded-r-[3px]">
@@ -84,14 +205,11 @@ export function StockAdjustmentForm() {
                <label className="text-[13px] font-bold text-gray-800 w-[80px] text-right mr-2">Date :</label>
                <div className="flex-1 flex items-center">
                  <input 
-                   type="text" 
-                   readOnly
-                   value="26-05-2026"
-                   className="w-full min-w-0 border border-gray-300 border-r-0 rounded-l-[3px] px-3 py-1 text-[13px] bg-white text-gray-600 outline-none"
+                   type="date"
+                   value={date}
+                   onChange={(e) => setDate(e.target.value)}
+                   className="w-full min-w-0 border border-gray-300 rounded-[3px] px-3 py-1 text-[13px] bg-white text-gray-600 outline-none"
                  />
-                 <div className="min-w-0 border border-gray-300 border-l-0 px-2 py-1 rounded-r-[3px] bg-white text-gray-500">
-                   <Calendar className="w-4 h-4" />
-                 </div>
                </div>
              </div>
           </div>
@@ -131,40 +249,59 @@ export function StockAdjustmentForm() {
               </div>
             </div>
 
-            {/* Input Row */}
-            <div className="grid grid-cols-[50px_1fr_120px_150px_120px_120px_80px] bg-white border-b border-gray-200">
-              <div className="border-r border-gray-200 flex items-center justify-center p-1 bg-gray-600">
+            {/* Dynamic Input Rows */}
+            {items.map((item, index) => (
+              <div key={index} className="grid grid-cols-[50px_1fr_120px_150px_120px_120px_80px] bg-white border-b border-gray-200">
+                <div className="border-r border-gray-200 flex items-center justify-center p-1 bg-gray-100 text-[12px] font-bold">
+                  {index + 1}
+                </div>
+                <div className="border-r border-gray-200 p-1 flex">
+                  <select 
+                    value={item.productId}
+                    onChange={(e) => handleProductChange(index, e.target.value)}
+                    className="w-full px-2 py-1 text-[13px] outline-none border border-gray-300 rounded-[3px] bg-white"
+                  >
+                    <option value="">Select Product...</option>
+                    {products.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} (Stock: {p.stock})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-700 bg-[#f8f9fa] font-medium">
+                  {item.currentStock}
+                </div>
+                <div className="border-r border-gray-200 p-1 flex">
+                   <input 
+                     type="number" 
+                     value={item.actualQuantity}
+                     onChange={(e) => handleActualQtyChange(index, e.target.value)}
+                     disabled={!item.productId}
+                     className="w-full border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-center disabled:bg-gray-100" 
+                   />
+                </div>
+                <div className="border-r border-gray-200 p-1">
+                  <input 
+                    type="number" 
+                    value={item.price}
+                    onChange={(e) => {
+                      const newItems = [...items];
+                      newItems[index].price = e.target.value;
+                      setItems(newItems);
+                    }}
+                    disabled={!item.productId}
+                    className="w-full h-full border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-right disabled:bg-gray-100" 
+                  />
+                </div>
+                <div className={`border-r border-gray-200 p-1 flex items-center justify-center text-[13px] font-bold ${calculateRowAmount(item) > 0 ? 'text-[#28a745]' : calculateRowAmount(item) < 0 ? 'text-[#dc3545]' : 'text-gray-500'}`}>
+                  {calculateRowAmount(item).toFixed(2)}
+                </div>
+                <div className="bg-[#f8f9fa] flex items-center justify-center gap-2 p-1">
+                  <button onClick={() => removeItem(index)} className="text-[#dc3545] hover:text-red-600 bg-red-50 p-1.5 rounded-[3px]">
+                    <X className="w-4 h-4" strokeWidth={2.5} />
+                  </button>
+                </div>
               </div>
-              <div className="border-r border-gray-200 p-1 flex relative">
-                <input type="text" placeholder="Enter Product Name" className="w-full px-2 py-1 text-[13px] outline-none" />
-                <button className="absolute right-1 top-1.5 bottom-1.5 bg-[#4F46E5] text-white text-[11px] px-2 rounded-sm font-bold flex items-center gap-1">
-                  <FilterIcon className="w-3 h-3" /> Product Name
-                </button>
-              </div>
-              <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-gray-500 bg-[#f8f9fa]">
-                0
-              </div>
-              <div className="border-r border-gray-200 p-1 flex">
-                 <input type="text" className="w-[60%] border border-gray-200 rounded-l-[3px] px-2 text-[13px] outline-none border-r-0" />
-                 <select className="w-[40%] border border-gray-200 rounded-r-[3px] px-1 text-[13px] outline-none bg-white text-gray-500 appearance-none text-center">
-                   <option>Units</option>
-                 </select>
-              </div>
-              <div className="border-r border-gray-200 p-1">
-                <input type="text" className="w-full h-full border border-gray-200 rounded-[3px] px-2 text-[13px] outline-none text-right" />
-              </div>
-              <div className="border-r border-gray-200 p-1 flex items-center justify-center text-[13px] text-[#007bff] font-bold">
-                0
-              </div>
-              <div className="bg-[#343a40] flex items-center justify-center gap-2 p-1">
-                <button className="text-[#28a745] hover:text-green-400">
-                  <PlusSquare className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                </button>
-                <button className="text-white hover:text-gray-300">
-                  <Edit className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                </button>
-              </div>
-            </div>
+            ))}
             
           </div>
         </div>
@@ -175,14 +312,16 @@ export function StockAdjustmentForm() {
           <div className="flex flex-col gap-4">
             
             <div className="flex flex-wrap items-center gap-2 text-[14px] font-bold text-gray-800">
-              Total Items : <span className="text-[#007bff]">0</span>
+              Total Items (Changed) : <span className="text-[#007bff]">{totalItemsCount}</span>
             </div>
 
             <div>
               <label className="block text-[13px] font-bold text-gray-800 mb-1">Remark</label>
               <textarea 
+                value={remark}
+                onChange={(e) => setRemark(e.target.value)}
                 placeholder="Remark..." 
-                className="w-full min-w-0 border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] focus:outline-none focus:border-[#4F46E5] resize-none h-[40px] text-gray-400"
+                className="w-full min-w-0 border border-gray-300 rounded-[3px] px-3 py-1.5 text-[13px] focus:outline-none focus:border-[#4F46E5] resize-none h-[40px] text-gray-800"
               />
             </div>
 
@@ -209,18 +348,18 @@ export function StockAdjustmentForm() {
                 <tbody>
                    <tr className="border-b border-gray-200">
                      <td className="py-2 font-bold text-[#28a745]">Increase</td>
-                     <td className="py-2 text-right font-bold text-gray-800">0</td>
-                     <td className="py-2 text-right font-bold text-gray-800">0</td>
+                     <td className="py-2 text-right font-bold text-gray-800">{summary.increaseQty}</td>
+                     <td className="py-2 text-right font-bold text-gray-800">{summary.increaseAmt.toFixed(2)}</td>
                    </tr>
                    <tr className="border-b border-gray-200">
                      <td className="py-2 font-bold text-[#dc3545]">Decrease</td>
-                     <td className="py-2 text-right font-bold text-gray-800">0</td>
-                     <td className="py-2 text-right font-bold text-gray-800">0</td>
+                     <td className="py-2 text-right font-bold text-gray-800">{summary.decreaseQty}</td>
+                     <td className="py-2 text-right font-bold text-gray-800">{summary.decreaseAmt.toFixed(2)}</td>
                    </tr>
                    <tr>
-                     <td className="py-2 font-bold text-[#28a745] flex items-center gap-1"><span className="w-3 h-[2px] bg-[#28a745]"></span> Net Profit</td>
-                     <td className="py-2 text-right font-bold text-[#28a745]">0</td>
-                     <td className="py-2 text-right font-bold text-[#28a745]">0</td>
+                     <td className="py-2 font-bold text-[#28a745] flex items-center gap-1"><span className="w-3 h-[2px] bg-[#28a745]"></span> Net Profit / Loss</td>
+                     <td className="py-2 text-right font-bold text-[#28a745]"></td>
+                     <td className={`py-2 text-right font-bold ${netProfit >= 0 ? 'text-[#28a745]' : 'text-[#dc3545]'}`}>{netProfit.toFixed(2)}</td>
                    </tr>
                 </tbody>
              </table>
@@ -233,12 +372,12 @@ export function StockAdjustmentForm() {
       {/* Fixed Bottom Action Bar */}
       <div className="fixed bottom-0 left-0 md:left-[220px] right-0 bg-[#343a40] z-40 px-4 py-2 flex items-center justify-between shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
         <div className="flex flex-wrap items-center gap-1 text-[12px] font-bold">
-          <span className="text-white">Last Invoice Total:</span>
-          <span className="text-[#ffc107]">0</span>
+          <span className="text-white">Net Value Change:</span>
+          <span className={netProfit >= 0 ? "text-[#28a745]" : "text-[#dc3545]"}>{netProfit.toFixed(2)}</span>
         </div>
         
         <div className="flex items-center justify-center gap-1.5 flex-1 max-w-[400px] mx-auto">
-          <button className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] transition-colors">
+          <button onClick={handleSave} className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] transition-colors">
             <Check className="w-4 h-4" strokeWidth={3} />
             Save
           </button>

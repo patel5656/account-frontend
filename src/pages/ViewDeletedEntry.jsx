@@ -1,11 +1,82 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '../utils';
+import apiClient from '../api/apiClient';
 
 export function ViewDeletedEntry() {
   const [searchByActive, setSearchByActive] = useState(false);
   const [dateFilter, setDateFilter] = useState('Today');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [deletedEntries, setDeletedEntries] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  useEffect(() => {
+    fetchDeletedEntries();
+  }, []);
+
+  const fetchDeletedEntries = async () => {
+    setLoading(true);
+    try {
+      const res = await apiClient.get('/recycle-bin');
+      if (res.data.success) {
+        setDeletedEntries(res.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching deleted entries:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestore = async (id, type) => {
+    try {
+      const res = await apiClient.post(`/recycle-bin/restore/${type}/${id}`);
+      if (res.data.success) {
+        alert('Entry restored successfully!');
+        fetchDeletedEntries();
+      }
+    } catch (error) {
+      console.error('Error restoring entry:', error);
+      alert('Failed to restore entry.');
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (selectedIds.length === 0) return alert('Select entries to delete permanently.');
+    if (!window.confirm('Are you sure you want to permanently delete selected entries?')) return;
+
+    try {
+      for (const id of selectedIds) {
+        const entry = deletedEntries.find(e => e.id === id);
+        if (entry) {
+          await apiClient.delete(`/recycle-bin/permanent/${entry.type}/${id}`);
+        }
+      }
+      alert('Entries permanently deleted!');
+      setSelectedIds([]);
+      fetchDeletedEntries();
+    } catch (error) {
+      console.error('Error deleting entries:', error);
+      alert('Failed to delete entries.');
+    }
+  };
+
+  const toggleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedIds(deletedEntries.map(e => e.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const toggleSelect = (id) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter(selectedId => selectedId !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
+  };
 
   return (
     <div className="bg-white min-h-[calc(100vh-60px)] flex flex-col p-4">
@@ -49,7 +120,6 @@ export function ViewDeletedEntry() {
             <div className="flex flex-col gap-1.5 w-full sm:w-auto">
               <div className="flex justify-between items-center w-full sm:w-[250px]">
                 <label className="text-[13px] font-bold text-gray-800">Date</label>
-                <span className="text-[12px] font-bold text-[#007bff]">(25-May-2026)</span>
               </div>
               <select
                 value={dateFilter}
@@ -99,7 +169,10 @@ export function ViewDeletedEntry() {
           </div>
 
           {/* Permanently Delete Button */}
-          <button className="bg-[#f06e7b] hover:bg-[#e45a68] text-white px-4 h-[30px] rounded-[3px] text-[13px] font-medium transition-colors">
+          <button 
+            onClick={handlePermanentDelete}
+            className="bg-[#f06e7b] hover:bg-[#e45a68] text-white px-4 h-[30px] rounded-[3px] text-[13px] font-medium transition-colors"
+          >
             Permanently Delete
           </button>
         </div>
@@ -111,7 +184,7 @@ export function ViewDeletedEntry() {
             <thead>
               <tr className="border-b border-gray-300 bg-white">
                 <th className="p-2 border-r border-gray-200 w-8 text-center whitespace-nowrap">
-                  <input type="checkbox" className="w-3.5 h-3.5 cursor-pointer" />
+                  <input type="checkbox" className="w-3.5 h-3.5 cursor-pointer" onChange={toggleSelectAll} checked={deletedEntries.length > 0 && selectedIds.length === deletedEntries.length} />
                 </th>
                 <th className="p-2 border-r border-gray-200 text-left text-[12px] font-bold text-gray-800 w-[100px] whitespace-nowrap">Date</th>
                 <th className="p-2 border-r border-gray-200 text-left text-[12px] font-bold text-gray-800 w-[120px] whitespace-nowrap">Voucher No</th>
@@ -133,29 +206,60 @@ export function ViewDeletedEntry() {
                 <td className="p-2 border-r border-gray-200"></td>
                 <td className="p-2 border-r border-gray-200 text-center text-[12px] font-bold text-gray-800">TOTAL</td>
                 <td className="p-2 border-r border-gray-200"></td>
-                <td className="p-2 border-r border-gray-200 text-center text-[12px] font-bold text-gray-800">0</td>
-                <td className="p-2 border-r border-gray-200 text-center text-[12px] font-bold text-gray-800">0</td>
-                <td className="p-2 border-r border-gray-200 text-center text-[12px] font-bold text-gray-800">0</td>
-                <td className="p-2 border-r border-gray-200 text-center text-[12px] font-bold text-gray-800">0</td>
+                <td className="p-2 border-r border-gray-200 text-center text-[12px] font-bold text-gray-800">
+                  {deletedEntries.reduce((acc, curr) => acc + (curr.debit || 0), 0)}
+                </td>
+                <td className="p-2 border-r border-gray-200 text-center text-[12px] font-bold text-gray-800">
+                  {deletedEntries.reduce((acc, curr) => acc + (curr.paymentIn || 0), 0)}
+                </td>
+                <td className="p-2 border-r border-gray-200 text-center text-[12px] font-bold text-gray-800">
+                  {deletedEntries.reduce((acc, curr) => acc + (curr.paymentOut || 0), 0)}
+                </td>
+                <td className="p-2 border-r border-gray-200 text-center text-[12px] font-bold text-gray-800">
+                  {deletedEntries.reduce((acc, curr) => acc + (curr.discount || 0), 0)}
+                </td>
                 <td className="p-2 border-r border-gray-200"></td>
                 <td className="p-2"></td>
               </tr>
-              {/* Empty Rows to fill space */}
-              {[...Array(5)].map((_, i) => (
-                <tr key={i} className="border-b border-gray-200/50 bg-white h-[35px]">
-                  <td className="border-r border-gray-200/50"></td>
-                  <td className="border-r border-gray-200/50"></td>
-                  <td className="border-r border-gray-200/50"></td>
-                  <td className="border-r border-gray-200/50"></td>
-                  <td className="border-r border-gray-200/50"></td>
-                  <td className="border-r border-gray-200/50"></td>
-                  <td className="border-r border-gray-200/50"></td>
-                  <td className="border-r border-gray-200/50"></td>
-                  <td className="border-r border-gray-200/50"></td>
-                  <td className="border-r border-gray-200/50"></td>
-                  <td></td>
+              {loading ? (
+                <tr>
+                  <td colSpan="11" className="text-center py-4 text-[13px] text-gray-500">Loading deleted entries...</td>
                 </tr>
-              ))}
+              ) : deletedEntries.length === 0 ? (
+                <tr>
+                  <td colSpan="11" className="text-center py-4 text-[13px] text-gray-500">No deleted entries found.</td>
+                </tr>
+              ) : (
+                deletedEntries.map((entry, i) => (
+                  <tr key={`${entry.type}-${entry.id}`} className="border-b border-gray-200/50 bg-white h-[35px] hover:bg-gray-50">
+                    <td className="border-r border-gray-200/50 text-center">
+                      <input 
+                        type="checkbox" 
+                        className="w-3.5 h-3.5 cursor-pointer"
+                        checked={selectedIds.includes(entry.id)}
+                        onChange={() => toggleSelect(entry.id)}
+                      />
+                    </td>
+                    <td className="border-r border-gray-200/50 px-2 text-[12px] whitespace-nowrap">{new Date(entry.date).toLocaleDateString()}</td>
+                    <td className="border-r border-gray-200/50 px-2 text-[12px]">{entry.voucherNo}</td>
+                    <td className="border-r border-gray-200/50 px-2 text-[12px] text-center">{entry.particular}</td>
+                    <td className="border-r border-gray-200/50 px-2 text-[12px] text-center">{entry.voucherType}</td>
+                    <td className="border-r border-gray-200/50 px-2 text-[12px] text-center">{entry.debit}</td>
+                    <td className="border-r border-gray-200/50 px-2 text-[12px] text-center">{entry.paymentIn}</td>
+                    <td className="border-r border-gray-200/50 px-2 text-[12px] text-center">{entry.paymentOut}</td>
+                    <td className="border-r border-gray-200/50 px-2 text-[12px] text-center">{entry.discount}</td>
+                    <td className="border-r border-gray-200/50 px-2 text-[12px] text-center whitespace-nowrap">{new Date(entry.deletedOn).toLocaleDateString()}</td>
+                    <td className="px-2 text-center">
+                      <button 
+                        onClick={() => handleRestore(entry.id, entry.type)}
+                        className="bg-[#28a745] hover:bg-[#218838] text-white text-[11px] font-bold px-2 py-0.5 rounded-[3px] transition-colors"
+                      >
+                        Restore
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
           </div>

@@ -7,7 +7,10 @@ import autoTable from 'jspdf-autotable';
 
 export function SaleSummary() {
   const navigate = useNavigate();
-  const [invoices, setInvoices] = useState([]);
+  const [allInvoices, setAllInvoices] = useState([]);
+  const [period, setPeriod] = useState('Select');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
     fetchInvoices();
@@ -17,30 +20,90 @@ export function SaleSummary() {
     try {
       const res = await apiClient.get('/inventory/sales');
       if (res.data.data) {
-        setInvoices(res.data.data);
+        setAllInvoices(res.data.data);
       } else if (Array.isArray(res.data)) {
-        setInvoices(res.data);
+        setAllInvoices(res.data);
       }
     } catch (error) {
       console.error(error);
     }
   };
 
+  const handlePeriodChange = (e) => {
+    const val = e.target.value;
+    setPeriod(val);
+    const today = new Date();
+    let start = '';
+    let end = '';
+
+    if (val === 'This Month') {
+      start = new Date(today.getFullYear(), today.getMonth(), 1);
+      end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    } else if (val === 'Last Month') {
+      start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      end = new Date(today.getFullYear(), today.getMonth(), 0);
+    } else if (val === 'This Quarter') {
+      const currentQuarter = Math.floor(today.getMonth() / 3);
+      start = new Date(today.getFullYear(), currentQuarter * 3, 1);
+      end = new Date(today.getFullYear(), currentQuarter * 3 + 3, 0);
+    } else if (val === 'Last Quarter') {
+      let currentQuarter = Math.floor(today.getMonth() / 3) - 1;
+      let year = today.getFullYear();
+      if (currentQuarter < 0) {
+        currentQuarter = 3;
+        year -= 1;
+      }
+      start = new Date(year, currentQuarter * 3, 1);
+      end = new Date(year, currentQuarter * 3 + 3, 0);
+    } else if (val === 'Custom Range') {
+      start = '';
+      end = '';
+    }
+
+    if (start && end) {
+      const formatTime = (d) => {
+        const date = new Date(d);
+        const y = date.getFullYear();
+        const m = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+      setStartDate(formatTime(start));
+      setEndDate(formatTime(end));
+    } else {
+      setStartDate('');
+      setEndDate('');
+    }
+  };
+
+  const invoices = allInvoices.filter(inv => {
+    if (!startDate || !endDate) return true;
+    const invDate = new Date(inv.date);
+    invDate.setHours(0,0,0,0);
+    const start = new Date(startDate);
+    start.setHours(0,0,0,0);
+    const end = new Date(endDate);
+    end.setHours(23,59,59,999);
+    return invDate >= start && invDate <= end;
+  });
+
   const totalSale = invoices.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0);
   const totalPaid = invoices.reduce((acc, curr) => acc + (curr.status === 'PAID' ? curr.totalAmount : 0), 0);
   const totalDue = totalSale - totalPaid;
 
-  const getFormattedDate = () => {
-    const date = new Date();
+  const getFormattedDate = (dateString) => {
+    const date = dateString ? new Date(dateString) : new Date();
     const day = date.getDate().toString().padStart(2, '0');
     const month = date.toLocaleString('default', { month: 'short' });
     const year = date.getFullYear();
     return `${day}-${month}-${year}`;
   };
   const currentDate = getFormattedDate();
+  const displayStart = startDate ? getFormattedDate(startDate) : currentDate;
+  const displayEnd = endDate ? getFormattedDate(endDate) : currentDate;
 
   const handleWhatsApp = () => {
-    const msg = encodeURIComponent(`Sales Summary\nFrom ${currentDate} to ${currentDate}\nTotal Sale: ${totalSale}\nSale Return: 0\nTotal Due: ${totalDue}`);
+    const msg = encodeURIComponent(`Sales Summary\nFrom ${displayStart} to ${displayEnd}\nTotal Sale: ${totalSale}\nSale Return: 0\nTotal Due: ${totalDue}`);
     window.open(`https://wa.me/?text=${msg}`, '_blank');
   };
 
@@ -74,7 +137,7 @@ export function SaleSummary() {
     doc.text('Sales Summary', 14, 15);
     
     doc.setFontSize(10);
-    doc.text(`From ${currentDate} to ${currentDate}`, 14, 22);
+    doc.text(`From ${displayStart} to ${displayEnd}`, 14, 22);
 
     const tableColumn = ['#', 'Date', 'Invoice No', 'Party Name', 'Type', 'Total Sale', 'Sale Return', 'Paid Amount', 'Total Due'];
     
@@ -126,10 +189,42 @@ export function SaleSummary() {
             {/* Select Period */}
             <div className="flex flex-col gap-1 w-full sm:max-w-[300px]">
               <label className="text-[13px] font-bold text-gray-800 px-1">Select Period</label>
-              <select className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white">
-                <option>Select</option>
+              <select 
+                value={period}
+                onChange={handlePeriodChange}
+                className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white"
+              >
+                <option value="Select">Select</option>
+                <option value="This Month">This Month</option>
+                <option value="Last Month">Last Month</option>
+                <option value="This Quarter">This Quarter</option>
+                <option value="Last Quarter">Last Quarter</option>
+                <option value="Custom Range">Custom Range</option>
               </select>
             </div>
+            
+            {period === 'Custom Range' && (
+              <>
+                <div className="flex flex-col gap-1 w-full sm:max-w-[150px]">
+                  <label className="text-[13px] font-bold text-gray-800 px-1">From Date</label>
+                  <input 
+                    type="date" 
+                    value={startDate} 
+                    onChange={(e) => setStartDate(e.target.value)} 
+                    className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white" 
+                  />
+                </div>
+                <div className="flex flex-col gap-1 w-full sm:max-w-[150px]">
+                  <label className="text-[13px] font-bold text-gray-800 px-1">To Date</label>
+                  <input 
+                    type="date" 
+                    value={endDate} 
+                    onChange={(e) => setEndDate(e.target.value)} 
+                    className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white" 
+                  />
+                </div>
+              </>
+            )}
 
             {/* Party Name */}
             <div className="flex flex-col gap-1 w-full max-w-[min(92vw,500px)]">
@@ -153,7 +248,7 @@ export function SaleSummary() {
             {/* Title */}
             <div className="text-center mb-1">
               <h3 className="text-[14px] font-normal text-gray-800">Sales Summary</h3>
-              <p className="text-[14px] font-bold text-gray-800">From {currentDate} to {currentDate}</p>
+              <p className="text-[14px] font-bold text-gray-800">From {displayStart} to {displayEnd}</p>
             </div>
 
             {/* Table */}

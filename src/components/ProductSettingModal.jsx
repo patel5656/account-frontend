@@ -217,7 +217,6 @@ export function ProductSettingModal({ isOpen, onClose }) {
                   className="w-full border border-gray-300 rounded-[3px] px-2 py-1.5 text-[13px] outline-none focus:border-[#4F46E5]" 
                 />
               </div>
-              <span className="text-[12px] text-gray-600 mt-5">Example: purchase price 100 with 20% markup encodes as 120.</span>
             </div>
 
             <div className="grid grid-cols-10 gap-2 mt-4">

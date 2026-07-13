@@ -141,7 +141,8 @@ export function CashBankSummary() {
       {/* ======= PRINTABLE REPORT (hidden on screen) ======= */}
       <div id="print-report" style={{ fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#111' }}>
         <div style={{ textAlign: 'center', marginBottom: '12px', borderBottom: '2px solid #333', paddingBottom: '8px' }}>
-          <div style={{ fontSize: '18px', fontWeight: 'bold' }}>Os Books</div>
+          <div style={{ fontSize: '18px', fontWeight: 'bold' }}>Swayam Bill Book</div>
+
           <div style={{ fontSize: '14px', fontWeight: 'bold', marginTop: '4px' }}>
             {isCash ? 'Cash Summary Report' : 'Bank Summary Report'}
           </div>
@@ -206,7 +207,8 @@ export function CashBankSummary() {
         </table>
 
         <div style={{ marginTop: '20px', fontSize: '10px', color: '#888', textAlign: 'center', borderTop: '1px solid #ddd', paddingTop: '8px' }}>
-          This is a system-generated report from Os Books — The Digital Accounting Book
+          This is a system-generated report from Swayam Bill Book — The Digital Accounting Book
+
         </div>
       </div>
 
@@ -387,7 +389,8 @@ export function CashBankSummary() {
             <div className="p-8 bg-white" style={{ fontFamily: 'Arial, sans-serif' }}>
               {/* Company & Title */}
               <div className="text-center border-b-2 border-gray-800 pb-4 mb-5">
-                <div className="text-[20px] font-bold text-gray-900">Os Books</div>
+                <div className="text-[20px] font-bold text-gray-900">Swayam Bill Book</div>
+
                 <div className="text-[15px] font-bold text-gray-700 mt-1">
                   {isCash ? 'Cash Summary Report' : 'Bank Summary Report'}
                 </div>
@@ -451,7 +454,8 @@ export function CashBankSummary() {
               </table>
 
               <div className="mt-6 text-center text-[10px] text-gray-400 border-t border-gray-200 pt-3">
-                System-generated report — Os Books | The Digital Accounting Book
+                System-generated report — Swayam Bill Book | The Digital Accounting Book
+
               </div>
             </div>
 

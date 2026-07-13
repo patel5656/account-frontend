@@ -1,19 +1,80 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { X, Filter, Upload, BarChart2 } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import apiClient from '../api/apiClient';
 
 export function ItemQuantityReport() {
+  const { id } = useParams();
   const navigate = useNavigate();
+  const [reportData, setReportData] = useState({ product: null, transactions: [], openingStock: 0 });
+  const [loading, setLoading] = useState(true);
+  const [searchParty, setSearchParty] = useState('');
+
+  useEffect(() => {
+    if (id && id !== '0') {
+      fetchReport();
+    } else {
+      setLoading(false);
+    }
+  }, [id]);
+
+  const fetchReport = async () => {
+    try {
+      const res = await apiClient.get(`/products/${id}/quantity-report`);
+      if (res.data.success) {
+        setReportData(res.data);
+      }
+    } catch (error) {
+      console.error('Error fetching item quantity report:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleExport = () => {
-    const csvContent = "data:text/csv;charset=utf-8,Party Name,Opening Quantity,Qty In,Qty Out,Profit,Total Qty\n";
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "item_quantity_report.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const doc = new jsPDF();
+    doc.text("Item Quantity Report", 14, 15);
+    
+    if (reportData.product) {
+      doc.text(`Product: ${reportData.product.name}`, 14, 25);
+      doc.text(`Opening Stock: ${reportData.openingStock}`, 14, 32);
+    }
+
+    const tableColumn = ["#", "Party Name", "Date", "Type", "QTY IN", "QTY OUT", "PRICE", "TOTAL", "STOCK"];
+    const tableRows = [];
+
+    let filteredTransactions = reportData.transactions || [];
+    if (searchParty) {
+      filteredTransactions = filteredTransactions.filter(t => t.partyName.toLowerCase().includes(searchParty.toLowerCase()));
+    }
+
+    filteredTransactions.forEach((trx, index) => {
+      const dateStr = new Date(trx.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g, '-');
+      const rowData = [
+        index + 1,
+        trx.partyName,
+        dateStr,
+        trx.type.replace('_', ' '),
+        trx.qtyIn > 0 ? trx.qtyIn : '-',
+        trx.qtyOut > 0 ? trx.qtyOut : '-',
+        trx.price,
+        trx.total,
+        trx.runningStock
+      ];
+      tableRows.push(rowData);
+    });
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: reportData.product ? 40 : 25,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [79, 70, 229] }
+    });
+
+    doc.save(`Item_Quantity_Report_${reportData.product ? reportData.product.name : 'Unknown'}.pdf`);
   };
 
   return (
@@ -51,6 +112,8 @@ export function ItemQuantityReport() {
             <input 
               type="text" 
               placeholder="Search for Party Name" 
+              value={searchParty}
+              onChange={(e) => setSearchParty(e.target.value)}
               className="flex-1 px-3 py-2 text-[13.5px] outline-none text-gray-700 placeholder-gray-400"
             />
           </div>
@@ -60,91 +123,74 @@ export function ItemQuantityReport() {
         <div className="bg-[#343a40] text-white rounded-[4px] p-3 flex justify-between items-center mb-4 shadow-sm">
           <div className="flex items-center gap-2">
             <BarChart2 className="w-4 h-4 text-gray-300" />
-            <span className="text-[14px] font-bold text-gray-200">Opening Quantity</span>
+            <span className="text-[14px] font-bold text-gray-200">Opening Quantity {reportData.product ? `(${reportData.product.name})` : ''}</span>
           </div>
           <div className="bg-[#495057] px-3 py-1 rounded-[12px] text-[13px] font-bold border border-gray-600">
-            0
+            {reportData.openingStock}
           </div>
         </div>
 
-        {/* Transaction 1: Company Purchase */}
-        <div className="bg-white rounded-[4px] shadow-sm border border-gray-200 mb-4 overflow-hidden">
-          <div className="bg-[#198754] text-white px-4 py-2 flex justify-between items-center">
-            <div className="font-bold text-[14px]">New Vendor</div>
-            <div className="flex items-center gap-2">
-              <span className="bg-white text-gray-800 text-[12px] font-bold px-2 py-0.5 rounded-[12px]">08-Jun-26</span>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-center text-[13px]">
-              <thead className="bg-gray-50 border-b border-gray-200 text-gray-700 font-bold">
-                <tr>
-                  <th className="py-2 px-2 border-r border-gray-200 w-[60px]">#</th>
-                  <th className="py-2 px-4 border-r border-gray-200 text-left">Product Name</th>
-                  <th className="py-2 px-4 border-r border-gray-200">QTY IN</th>
-                  <th className="py-2 px-4 border-r border-gray-200">PRICE</th>
-                  <th className="py-2 px-4 border-r border-gray-200">TOTAL</th>
-                  <th className="py-2 px-4">STOCK</th>
-                </tr>
-              </thead>
-              <tbody className="text-gray-600">
-                <tr className="border-b border-gray-200">
-                  <td className="py-2 px-2 border-r border-gray-200">1</td>
-                  <td className="py-2 px-4 border-r border-gray-200 text-left">book</td>
-                  <td className="py-2 px-4 border-r border-gray-200">100 pcs</td>
-                  <td className="py-2 px-4 border-r border-gray-200">22</td>
-                  <td className="py-2 px-4 border-r border-gray-200">2,200</td>
-                  <td className="py-2 px-4">100 pcs</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div className="bg-[#e9ecef] px-4 py-2 flex justify-between items-center">
-            <span className="bg-[#28a745] text-white text-[11px] font-bold px-3 py-1 rounded-[12px]">Company Purchase</span>
-            <button onClick={() => navigate('/admin/create_invoices/company_purchase')} className="bg-[#343a40] hover:bg-[#23272b] text-white text-[12px] font-bold px-4 py-1.5 rounded-[3px] transition-colors">
-              View Invoice
-            </button>
-          </div>
-        </div>
+        {loading ? (
+          <div className="p-4 text-center text-gray-500">Loading report...</div>
+        ) : !id || id === '0' ? (
+          <div className="p-4 text-center text-gray-500">Please select a valid product to view the report.</div>
+        ) : (
+          reportData.transactions
+            .filter(t => t.partyName.toLowerCase().includes(searchParty.toLowerCase()))
+            .map((trx, index) => {
+              const dateStr = new Date(trx.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g, '-');
+              const isPurchase = trx.type === 'PURCHASE' || trx.type === 'PURCHASE_RETURN';
+              const headerColor = isPurchase ? 'bg-[#198754]' : 'bg-[#e06666]';
+              const badgeColor = isPurchase ? 'bg-[#28a745]' : 'bg-[#e06666]';
+              const displayType = trx.type.replace('_', ' ');
 
-        {/* Transaction 2: Customer Sale */}
-        <div className="bg-white rounded-[4px] shadow-sm border border-gray-200 mb-4 overflow-hidden">
-          <div className="bg-[#dc3545] text-white px-4 py-2 flex items-center gap-2">
-            <span className="bg-white text-gray-800 text-[11px] font-bold w-5 h-5 flex items-center justify-center rounded-full">15</span>
-            <span className="bg-white text-gray-800 text-[12px] font-bold px-2 py-0.5 rounded-[12px]">08-Jun-26</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-center text-[13px]">
-              <thead className="bg-gray-50 border-b border-gray-200 text-gray-700 font-bold">
-                <tr>
-                  <th className="py-2 px-2 border-r border-gray-200 w-[60px]">#</th>
-                  <th className="py-2 px-4 border-r border-gray-200 text-left">Product Name</th>
-                  <th className="py-2 px-4 border-r border-gray-200">QTY OUT</th>
-                  <th className="py-2 px-4 border-r border-gray-200">PRICE</th>
-                  <th className="py-2 px-4 border-r border-gray-200">TOTAL</th>
-                  <th className="py-2 px-4">STOCK</th>
-                </tr>
-              </thead>
-              <tbody className="text-gray-600">
-                <tr className="border-b border-gray-200">
-                  <td className="py-2 px-2 border-r border-gray-200">2</td>
-                  <td className="py-2 px-4 border-r border-gray-200 text-left">book</td>
-                  <td className="py-2 px-4 border-r border-gray-200">5 pcs</td>
-                  <td className="py-2 px-4 border-r border-gray-200">28</td>
-                  <td className="py-2 px-4 border-r border-gray-200">140</td>
-                  <td className="py-2 px-4">95 pcs</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div className="bg-[#e9ecef] px-4 py-2 flex justify-between items-center">
-            <span className="bg-[#dc3545] text-white text-[11px] font-bold px-3 py-1 rounded-[12px]">Customer Sale</span>
-            <button onClick={() => navigate('/admin/sales-invoice')} className="bg-[#343a40] hover:bg-[#23272b] text-white text-[12px] font-bold px-4 py-1.5 rounded-[3px] transition-colors">
-              View Invoice
-            </button>
-          </div>
-        </div>
-
+              return (
+                <div key={trx.id} className="bg-white rounded-[4px] shadow-sm border border-gray-200 mb-4 overflow-hidden">
+                  <div className={`${headerColor} text-white px-4 py-2 flex justify-between items-center`}>
+                    <div className="font-bold text-[14px] capitalize">{trx.partyName}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="bg-white text-gray-800 text-[12px] font-bold px-2 py-0.5 rounded-[12px]">{dateStr}</span>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-center text-[13px]">
+                      <thead className="bg-gray-50 border-b border-gray-200 text-gray-700 font-bold">
+                        <tr>
+                          <th className="py-2 px-2 border-r border-gray-200 w-[60px]">#</th>
+                          <th className="py-2 px-4 border-r border-gray-200 text-left">Product Name</th>
+                          <th className="py-2 px-4 border-r border-gray-200">QTY IN</th>
+                          <th className="py-2 px-4 border-r border-gray-200">QTY OUT</th>
+                          <th className="py-2 px-4 border-r border-gray-200">PRICE</th>
+                          <th className="py-2 px-4 border-r border-gray-200">TOTAL</th>
+                          <th className="py-2 px-4">STOCK</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-gray-600">
+                        <tr className="border-b border-gray-200">
+                          <td className="py-2 px-2 border-r border-gray-200">{index + 1}</td>
+                          <td className="py-2 px-4 border-r border-gray-200 text-left">{trx.productName}</td>
+                          <td className="py-2 px-4 border-r border-gray-200">{trx.qtyIn > 0 ? trx.qtyIn : '-'}</td>
+                          <td className="py-2 px-4 border-r border-gray-200">{trx.qtyOut > 0 ? trx.qtyOut : '-'}</td>
+                          <td className="py-2 px-4 border-r border-gray-200">{trx.price}</td>
+                          <td className="py-2 px-4 border-r border-gray-200">{trx.total}</td>
+                          <td className="py-2 px-4">{trx.runningStock}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="bg-[#e9ecef] px-4 py-2 flex justify-between items-center">
+                    <span className={`${badgeColor} text-white text-[11px] font-bold px-3 py-1 rounded-[12px] uppercase`}>{displayType}</span>
+                    <button 
+                      onClick={() => navigate(isPurchase ? `/admin/create_invoices/company_purchase` : `/admin/sales-invoice`)} 
+                      className="bg-[#343a40] hover:bg-[#23272b] text-white text-[12px] font-bold px-4 py-1.5 rounded-[3px] transition-colors"
+                    >
+                      View Invoice
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+        )}
       </div>
     </div>
   );

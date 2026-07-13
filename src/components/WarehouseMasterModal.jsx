@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import apiClient from '../api/apiClient';
 
@@ -6,36 +6,90 @@ export function WarehouseMasterModal({ isOpen, onClose }) {
   const [isActive, setIsActive] = useState(true);
   const [warehouseName, setWarehouseName] = useState('');
   const [warehouseCode, setWarehouseCode] = useState('');
-  const [linkedBranch, setLinkedBranch] = useState('');
+  const [branchId, setBranchId] = useState('');
+  const [locationId, setLocationId] = useState('');
   const [managerName, setManagerName] = useState('');
   const [address, setAddress] = useState('');
 
+  const [branches, setBranches] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      const fetchData = async () => {
+        setLoading(true);
+        try {
+          const [branchesRes, locationsRes] = await Promise.all([
+            apiClient.get('/branches'),
+            apiClient.get('/locations')
+          ]);
+          if (branchesRes.data && branchesRes.data.data) {
+            setBranches(branchesRes.data.data);
+            if (branchesRes.data.data.length > 0) {
+              setBranchId(branchesRes.data.data[0].id.toString());
+            }
+          }
+          if (locationsRes.data && locationsRes.data.data) {
+            setLocations(locationsRes.data.data);
+          }
+        } catch (error) {
+          console.error('Failed to load branches and locations for warehouse modal', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchData();
+    }
+  }, [isOpen]);
+
+  // Filter locations based on selected branch
+  const filteredLocations = locations.filter(
+    (loc) => loc.branchId === parseInt(branchId, 10)
+  );
+
+  // Set default location when branch changes or filtered locations change
+  useEffect(() => {
+    if (filteredLocations.length > 0) {
+      setLocationId(filteredLocations[0].id.toString());
+    } else {
+      setLocationId('');
+    }
+  }, [branchId, locations]);
+
   const handleSubmit = async () => {
-    if (warehouseName.trim() !== '') {
-      try {
-        const payload = {
-          name: warehouseName,
-          location: managerName || address, // using location field in backend
-          isActive: isActive
-        };
-        const res = await apiClient.post('/warehouses', payload);
-        
-        // Notify parent
-        window.dispatchEvent(new CustomEvent('warehouseAdded', { 
-          detail: res.data.data
-        }));
-        
-        // Reset
-        setWarehouseName('');
-        setWarehouseCode('');
-        setLinkedBranch('');
-        setManagerName('');
-        setAddress('');
-        setIsActive(true);
-        onClose();
-      } catch (error) {
-        console.error('Failed to create warehouse', error);
-      }
+    if (warehouseName.trim() === '') {
+      alert('Warehouse Name is required');
+      return;
+    }
+
+    try {
+      const payload = {
+        name: warehouseName,
+        location: managerName || address, // using location field in backend
+        isActive: isActive,
+        branchId: branchId ? parseInt(branchId, 10) : null,
+        locationId: locationId ? parseInt(locationId, 10) : null
+      };
+      const res = await apiClient.post('/warehouses', payload);
+      
+      // Notify parent
+      window.dispatchEvent(new CustomEvent('warehouseAdded', { 
+        detail: res.data.data
+      }));
+      
+      // Reset
+      setWarehouseName('');
+      setWarehouseCode('');
+      setBranchId(branches.length > 0 ? branches[0].id.toString() : '');
+      setLocationId('');
+      setManagerName('');
+      setAddress('');
+      setIsActive(true);
+      onClose();
+    } catch (error) {
+      console.error('Failed to create warehouse', error);
+      alert('Failed to create warehouse');
     }
   };
 
@@ -100,15 +154,40 @@ export function WarehouseMasterModal({ isOpen, onClose }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
                 <label className="text-[14px] font-bold text-gray-800">Link to Branch</label>
-                <input 
-                  type="text"
-                  value={linkedBranch}
-                  onChange={(e) => setLinkedBranch(e.target.value)}
-                  placeholder="e.g. Main Branch"
-                  className="w-full border border-gray-300 rounded-[3px] px-3 py-[6px] text-[14px] outline-none focus:border-[#4F46E5] bg-white"
-                />
+                {loading ? (
+                  <div className="text-[12px] text-gray-500">Loading...</div>
+                ) : (
+                  <select 
+                    value={branchId}
+                    onChange={(e) => setBranchId(e.target.value)}
+                    className="w-full border border-gray-300 rounded-[3px] px-3 py-[6px] text-[14px] outline-none focus:border-[#4F46E5] bg-white text-gray-800"
+                  >
+                    <option value="">Select Branch</option>
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
+              
               <div className="flex flex-col gap-1">
+                <label className="text-[14px] font-bold text-gray-800">Location</label>
+                <select 
+                  value={locationId}
+                  onChange={(e) => setLocationId(e.target.value)}
+                  disabled={!branchId}
+                  className="w-full border border-gray-300 rounded-[3px] px-3 py-[6px] text-[14px] outline-none focus:border-[#4F46E5] bg-white text-gray-800 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                  <option value="">Select Location</option>
+                  {filteredLocations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1 col-span-2">
                 <label className="text-[14px] font-bold text-gray-800">Manager Name</label>
                 <input 
                   type="text" 

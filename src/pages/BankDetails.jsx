@@ -12,6 +12,7 @@ import {
   Trash2,
   ScanBarcode
 } from 'lucide-react';
+import { QRCodeGenerator } from '../components/QRCodeGenerator';
 
 export function BankDetails() {
   const navigate = useNavigate();
@@ -396,8 +397,12 @@ export function BankDetails() {
             <h3 className="text-[#004085] text-[15px] font-bold mb-2">{selectedRow?.name}</h3>
             
             <div className="flex flex-col items-center my-3">
-              <ScanBarcode className="w-48 h-16 text-black" strokeWidth={1} />
-              <span className="text-[#004085] font-bold text-[15px] mt-1">&#123;{selectedRow?.id}&#125;</span>
+              <QRCodeGenerator
+                amount={0}
+                merchantName="Your Firm Name"
+                billId={selectedRow?.id?.toString() || ''}
+                upiId="merchant@upi"
+              />
             </div>
             
             <div className="flex justify-between w-full mt-4">

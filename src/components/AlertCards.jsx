@@ -3,7 +3,7 @@ import { Hourglass, AlertTriangle, ShoppingCart, Bell, Package, ArrowRight, File
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../utils';
 
-export function AlertCards({ alerts }) {
+export function AlertCards({ alerts, isPrivacyOn }) {
   const navigate = useNavigate();
   
   const cards = [
@@ -92,13 +92,13 @@ export function AlertCards({ alerts }) {
                 {card.metrics.map((m, i) => (
                   <div key={i} className="flex justify-between items-center text-[10px]">
                     <span className="text-gray-600 font-medium">{m.label}:</span>
-                    <span className="font-bold text-gray-900">{m.value}</span>
+                    <span className={`font-bold text-gray-900 transition-all duration-300 ${isPrivacyOn ? 'blur-[5px] select-none' : ''}`}>{m.value}</span>
                   </div>
                 ))}
               </div>
             ) : (
               <>
-                <h3 className="text-3xl font-bold text-gray-900 leading-none mb-1">{card.number}</h3>
+                <h3 className={`text-3xl font-bold text-gray-900 leading-none mb-1 transition-all duration-300 ${isPrivacyOn ? 'blur-[6px] select-none' : ''}`}>{card.number}</h3>
                 <p className="text-[11px] text-gray-600 font-medium">{card.subtitle}</p>
               </>
             )}

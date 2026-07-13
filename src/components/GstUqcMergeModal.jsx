@@ -1,9 +1,61 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import apiClient from '../api/apiClient';
 
 export function GstUqcMergeModal({ isOpen, onClose }) {
   const [filterType, setFilterType] = useState('not_mapped');
+  const [units, setUnits] = useState([]);
+  const [selectedUnit, setSelectedUnit] = useState('');
+  const [selectedUqc, setSelectedUqc] = useState('');
+  const [isMerging, setIsMerging] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchUnits();
+    }
+  }, [isOpen]);
+
+  const fetchUnits = async () => {
+    try {
+      const res = await apiClient.get('/units');
+      setUnits(res.data.data || res.data);
+    } catch (error) {
+      console.error('Error fetching units:', error);
+    }
+  };
+
+  const handleMerge = async () => {
+    if (!selectedUnit || !selectedUqc) return alert('Please select a unit and a UQC code');
+    try {
+      setIsMerging(true);
+      const unitObj = units.find(u => u.id.toString() === selectedUnit);
+      if (!unitObj) return;
+
+      await apiClient.put(`/units/${selectedUnit}`, {
+        name: unitObj.name,
+        uqc: selectedUqc,
+        value: unitObj.value,
+        compareTo: unitObj.compareTo
+      });
+
+      alert('GST UQC updated successfully!');
+      fetchUnits();
+      setSelectedUnit('');
+      setSelectedUqc('');
+      onClose();
+    } catch (error) {
+      console.error('Error updating GST UQC:', error);
+      alert('Failed to update GST UQC.');
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
+  const filteredUnits = units.filter(u => {
+    if (filterType === 'not_mapped') return !u.uqc || u.uqc === '';
+    return true;
+  });
 
   if (!isOpen) return null;
 
@@ -48,14 +100,30 @@ export function GstUqcMergeModal({ isOpen, onClose }) {
           <div className="flex gap-4">
             <div className="flex-1 flex flex-col gap-1.5">
               <label className="text-[13px] font-bold text-gray-900">Unit Name</label>
-              <select className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-400 bg-white focus:border-[#4F46E5]">
-                <option>Select Product</option>
+              <select 
+                value={selectedUnit}
+                onChange={(e) => setSelectedUnit(e.target.value)}
+                className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white focus:border-[#4F46E5]"
+              >
+                <option value="">Select Unit</option>
+                {filteredUnits.map(u => (
+                  <option key={u.id} value={u.id}>{u.name} {u.uqc ? `(Mapped: ${u.uqc})` : ''}</option>
+                ))}
               </select>
             </div>
             <div className="flex-1 flex flex-col gap-1.5">
               <label className="text-[13px] font-bold text-gray-900">GST UQC</label>
-              <select className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-400 bg-white focus:border-[#4F46E5]">
-                <option>Select Unit</option>
+              <select 
+                value={selectedUqc}
+                onChange={(e) => setSelectedUqc(e.target.value)}
+                className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white focus:border-[#4F46E5]"
+              >
+                <option value="">Select UQC</option>
+                <option value="PCS-PIECES">PCS-PIECES</option>
+                <option value="KGS-KILOGRAMS">KGS-KILOGRAMS</option>
+                <option value="LTR-LITRES">LTR-LITRES</option>
+                <option value="MTR-METERS">MTR-METERS</option>
+                <option value="NOS-NUMBERS">NOS-NUMBERS</option>
               </select>
             </div>
           </div>
@@ -63,8 +131,12 @@ export function GstUqcMergeModal({ isOpen, onClose }) {
 
         {/* Footer Buttons */}
         <div className="px-4 py-3 bg-[#f8f9fa] border-t border-gray-100 flex justify-end gap-2">
-          <button className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-[5px] rounded-[3px] text-[13px] font-medium transition-colors">
-            Merge
+          <button 
+            onClick={handleMerge}
+            disabled={isMerging}
+            className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-[5px] rounded-[3px] text-[13px] font-medium transition-colors disabled:opacity-70"
+          >
+            {isMerging ? 'Merging...' : 'Merge'}
           </button>
           <button onClick={onClose} className="bg-[#dc3545] hover:bg-[#c82333] text-white px-4 py-[5px] rounded-[3px] text-[13px] font-medium transition-colors">
             Close

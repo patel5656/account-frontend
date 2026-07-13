@@ -1,15 +1,103 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Truck, FileText, Share2, MessageCircle, Upload, Download, ExternalLink } from 'lucide-react';
+import apiClient from '../api/apiClient';
 
 export function GstrSaleSummary() {
   const navigate = useNavigate();
+  const [summaryData, setSummaryData] = useState([]);
+  const [period, setPeriod] = useState('This Month');
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    fetchSummary();
+  }, [period]);
+
+  const fetchSummary = async () => {
+    try {
+      setIsLoading(true);
+      const now = new Date();
+      let startDate, endDate;
+
+      if (period === 'This Month') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      } else if (period === 'Last Month') {
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+      } else if (period === 'This Quarter') {
+        const quarterMonth = Math.floor(now.getMonth() / 3) * 3;
+        startDate = new Date(now.getFullYear(), quarterMonth, 1);
+        endDate = new Date(now.getFullYear(), quarterMonth + 3, 0);
+      } else if (period === 'This Year') {
+        startDate = new Date(now.getFullYear(), 3, 1); // April 1st
+        endDate = new Date(now.getFullYear() + 1, 2, 31);
+        if (now.getMonth() < 3) {
+          startDate = new Date(now.getFullYear() - 1, 3, 1);
+          endDate = new Date(now.getFullYear(), 2, 31);
+        }
+      }
+
+      let url = '/gstr/sale-summary';
+      if (startDate && endDate) {
+        url += `?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`;
+      }
+
+      const res = await apiClient.get(url);
+      if (res.data.success) {
+        setSummaryData(res.data.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch sale summary', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Calculate Totals
+  const totals = summaryData.reduce((acc, row) => {
+    acc.taxableAmount += Number(row.taxableAmount) || 0;
+    acc.igst += Number(row.igst) || 0;
+    acc.cgst += Number(row.cgst) || 0;
+    acc.sgst += Number(row.sgst) || 0;
+    acc.subTotal += Number(row.subTotal) || 0;
+    acc.grandTotal += Number(row.grandTotal) || 0;
+    return acc;
+  }, { taxableAmount: 0, igst: 0, cgst: 0, sgst: 0, subTotal: 0, grandTotal: 0 });
+
+  const formatNumber = (num) => Number(num).toFixed(2);
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const d = new Date(dateString);
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+  };
 
   const handleExportCSV = () => {
-    const csvContent = [
-      ['Date/Invoice No.', 'Party Name', 'GSTIN', 'State', 'Taxable Amount', 'GST %', 'Quantity', 'IGST', 'CGST', 'SGST', 'Sub Total', 'Grand Total'],
-      ['', '', '', 'Total', '0', '', '', '0', '0', '0', '0', '0']
-    ].map(e => e.join(",")).join("\n");
+    const header = ['Date', 'Invoice No.', 'Party Name', 'GSTIN', 'State', 'Taxable Amount', 'GST %', 'Quantity', 'IGST', 'CGST', 'SGST', 'Sub Total', 'Grand Total'];
+    const rows = summaryData.map(row => [
+      formatDate(row.date),
+      row.invoiceNo,
+      row.partyName,
+      row.gstin,
+      row.state,
+      formatNumber(row.taxableAmount),
+      row.gstPercent,
+      row.quantity,
+      formatNumber(row.igst),
+      formatNumber(row.cgst),
+      formatNumber(row.sgst),
+      formatNumber(row.subTotal),
+      formatNumber(row.grandTotal)
+    ]);
+    
+    rows.push([
+      '', '', '', '', 'Total', 
+      formatNumber(totals.taxableAmount), '', '', 
+      formatNumber(totals.igst), formatNumber(totals.cgst), formatNumber(totals.sgst), 
+      formatNumber(totals.subTotal), formatNumber(totals.grandTotal)
+    ]);
+
+    const csvContent = [header, ...rows].map(e => e.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -18,7 +106,7 @@ export function GstrSaleSummary() {
   };
 
   const handleDownload = () => {
-    const data = { message: "GSTR Sale Summary Data" };
+    const data = { message: "GSTR Sale Summary Data", data: summaryData, totals };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -45,8 +133,16 @@ export function GstrSaleSummary() {
       <div className="bg-white p-4 rounded shadow-sm border border-gray-200 mb-4 flex flex-wrap items-center gap-6">
         <div className="flex flex-col gap-1.5 w-full sm:max-w-[250px]">
           <label className="text-[13px] font-bold text-gray-800">Select Period</label>
-          <select className="h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white">
-            <option>Select</option>
+          <select 
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            className="h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white"
+          >
+            <option value="This Month">This Month</option>
+            <option value="Last Month">Last Month</option>
+            <option value="This Quarter">This Quarter</option>
+            <option value="This Year">This Year</option>
+            <option value="All">All</option>
           </select>
         </div>
 
@@ -78,7 +174,7 @@ export function GstrSaleSummary() {
         {/* Header */}
         <div className="text-center py-4 border-b border-gray-200">
           <h2 className="text-[14px] text-gray-700 mb-1">GST Sales Summary</h2>
-          <p className="text-[14px] font-bold text-gray-800">From 30-Apr-2026 To 30-May-2026</p>
+          <p className="text-[14px] font-bold text-gray-800">Period: {period}</p>
         </div>
 
         {/* Table */}
@@ -102,21 +198,50 @@ export function GstrSaleSummary() {
               </tr>
             </thead>
             <tbody>
+              {summaryData.length === 0 ? (
+                <tr>
+                  <td colSpan="12" className="py-4 text-center text-[13px] text-gray-500">
+                    {isLoading ? 'Loading data...' : 'No sales found for the selected period.'}
+                  </td>
+                </tr>
+              ) : (
+                summaryData.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                    <td className="py-2 px-2 border border-black text-[13px]">
+                      {formatDate(row.date)}<br/>
+                      <span className="text-gray-500 font-semibold">{row.invoiceNo}</span>
+                    </td>
+                    <td className="py-2 px-2 border border-black text-[13px]">{row.partyName}</td>
+                    <td className="py-2 px-2 border border-black text-[13px]">{row.gstin}</td>
+                    <td className="py-2 px-2 border border-black text-[13px]">{row.state}</td>
+                    <td className="py-2 px-2 border border-black text-[13px]">{formatNumber(row.taxableAmount)}</td>
+                    <td className="py-2 px-2 border border-black text-[13px]">{row.gstPercent}%</td>
+                    <td className="py-2 px-2 border border-black text-[13px]">{row.quantity}</td>
+                    <td className="py-2 px-2 border border-black text-[13px]">{formatNumber(row.igst)}</td>
+                    <td className="py-2 px-2 border border-black text-[13px]">{formatNumber(row.cgst)}</td>
+                    <td className="py-2 px-2 border border-black text-[13px]">{formatNumber(row.sgst)}</td>
+                    <td className="py-2 px-2 border border-black text-[13px]">{formatNumber(row.subTotal)}</td>
+                    <td className="py-2 px-2 border border-black text-[13px]">{formatNumber(row.grandTotal)}</td>
+                  </tr>
+                ))
+              )}
               {/* Total Row */}
-              <tr>
-                <td className="py-3 px-2 border border-black text-[13px]"></td>
-                <td className="py-3 px-2 border border-black text-[13px]"></td>
-                <td className="py-3 px-2 border border-black text-[13px]"></td>
-                <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800">Total</td>
-                <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800">0</td>
-                <td className="py-3 px-2 border border-black text-[13px]"></td>
-                <td className="py-3 px-2 border border-black text-[13px]"></td>
-                <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800">0</td>
-                <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800">0</td>
-                <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800">0</td>
-                <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800">0</td>
-                <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800">0</td>
-              </tr>
+              {summaryData.length > 0 && (
+                <tr className="bg-gray-100">
+                  <td className="py-3 px-2 border border-black text-[13px]"></td>
+                  <td className="py-3 px-2 border border-black text-[13px]"></td>
+                  <td className="py-3 px-2 border border-black text-[13px]"></td>
+                  <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800">Total</td>
+                  <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800">{formatNumber(totals.taxableAmount)}</td>
+                  <td className="py-3 px-2 border border-black text-[13px]"></td>
+                  <td className="py-3 px-2 border border-black text-[13px]"></td>
+                  <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800">{formatNumber(totals.igst)}</td>
+                  <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800">{formatNumber(totals.cgst)}</td>
+                  <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800">{formatNumber(totals.sgst)}</td>
+                  <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800">{formatNumber(totals.subTotal)}</td>
+                  <td className="py-3 px-2 border border-black text-[13px] font-bold text-gray-800">{formatNumber(totals.grandTotal)}</td>
+                </tr>
+              )}
             </tbody>
           </table>
           </div>

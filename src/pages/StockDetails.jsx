@@ -257,7 +257,8 @@ export function StockDetails() {
       {/* ======= HIDDEN PRINTABLE REPORT ======= */}
       <div id="print-report" style={{ fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#111' }}>
         <div style={{ textAlign: 'center', marginBottom: '15px', borderBottom: '2px solid #333', paddingBottom: '10px' }}>
-          <div style={{ fontSize: '20px', fontWeight: 'bold' }}>Os Books</div>
+          <div style={{ fontSize: '20px', fontWeight: 'bold' }}>Swayam Bill Book</div>
+
           <div style={{ fontSize: '16px', fontWeight: 'bold', marginTop: '4px' }}>
             {viewMode === 'brand' ? 'Brand-wise Inventory Summary' : 'Inventory Stock Report'}
           </div>
@@ -348,7 +349,8 @@ export function StockDetails() {
             </tbody>
           </table>
         )}
-        <div style={{ marginTop: '20px', fontSize: '9px', color: '#888', textAlign: 'center' }}>System-generated report from Os Books</div>
+        <div style={{ marginTop: '20px', fontSize: '9px', color: '#888', textAlign: 'center' }}>System-generated report from Swayam Bill Book</div>
+
       </div>
 
       {/* ======= MAIN UI ======= */}

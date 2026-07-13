@@ -71,6 +71,7 @@ import { StockCorrectionModal } from './StockCorrectionModal';
 import { BalanceCorrectionModal } from './BalanceCorrectionModal';
 import { BranchMasterModal } from './BranchMasterModal';
 import { WarehouseMasterModal } from './WarehouseMasterModal';
+import { LocationMasterModal } from './LocationMasterModal';
 import { useSettings } from '../context/SettingsContext';
 
 const menuItems = [
@@ -92,7 +93,7 @@ const menuItems = [
       { name: 'Item Master', path: '/admin/item_master', hasPlus: true },
       { name: 'Offer Management', path: '/admin/offer_management', hasPlus: true },
       // { name: 'Product Master', path: '/admin/product_master', hasPlus: true },
-      { name: 'Unit Catalog Master', path: '/admin/unit_catalog_master', hasPlus: true },
+      // { name: 'Unit Catalog Master', path: '/admin/unit_catalog_master', hasPlus: true },
       { name: 'BOM Master', path: '/admin/bom_master', hasPlus: false },
       { name: 'Voucher master', path: '/admin/voucher_master', hasPlus: false },
     ]
@@ -107,6 +108,7 @@ const menuItems = [
       { name: 'Purchase Return', icon: CornerUpLeft, path: '/admin/purchase_return', hasPlus: true },
       { name: 'Warehouse Master', icon: Warehouse, path: '/admin/warehouse_master', hasPlus: true },
       { name: 'Branch Master', icon: Building2, path: '/admin/branch_master', hasPlus: true },
+      { name: 'Location Master', icon: Pin, path: '/admin/location_master', hasPlus: true },
       { name: 'Stock Transfer', icon: ArrowRightLeft, path: '/admin/godown_transfer', hasPlus: false },
       { name: 'Sales', subtitle: '(Ctrl+S)', icon: ClipboardList, path: '/admin/sales', hasPlus: true },
       { name: 'Sales Return', icon: RefreshCcw, path: '/admin/sales_return', hasPlus: true },
@@ -262,6 +264,7 @@ export function Sidebar({ isOpen, onClose }) {
   const [isBalanceCorrectionModalOpen, setIsBalanceCorrectionModalOpen] = useState(false);
   const [isBranchMasterModalOpen, setIsBranchMasterModalOpen] = useState(false);
   const [isWarehouseMasterModalOpen, setIsWarehouseMasterModalOpen] = useState(false);
+  const [isLocationMasterModalOpen, setIsLocationMasterModalOpen] = useState(false);
   const { settings } = useSettings();
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -333,11 +336,27 @@ export function Sidebar({ isOpen, onClose }) {
       {/* Logo Area */}
       <div className="flex flex-col items-center justify-center py-4 px-2">
         <h1 className="text-2xl font-normal text-white flex items-center gap-2 w-full px-2">
-          <div className="w-8 h-8 bg-[#4F46E5] rounded flex items-center justify-center text-white font-bold text-lg">
-            <span>G</span>
+          <div className="w-10 h-10 flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+              <mask id="blue-doc-mask-sidebar">
+                <rect x="2" y="3" width="14" height="18" rx="3" fill="white" />
+                <line x1="6" y1="8" x2="11" y2="8" stroke="black" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="6" y1="12" x2="11" y2="12" stroke="black" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="6" y1="16" x2="11" y2="16" stroke="black" strokeWidth="1.5" strokeLinecap="round" />
+              </mask>
+              <rect x="2" y="3" width="14" height="18" rx="3" fill="#3b82f6" mask="url(#blue-doc-mask-sidebar)" />
+              <rect x="10" y="7" width="12" height="14" rx="2" fill="white" stroke="#3b82f6" strokeWidth="1.5" />
+              <line x1="13" y1="11" x2="19" y2="11" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" />
+              <line x1="13" y1="14" x2="19" y2="14" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" />
+              <line x1="13" y1="17" x2="19" y2="17" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
           </div>
-          <div className="flex flex-col -gap-1">
-             <span className="leading-tight tracking-wide font-medium">Os Books</span>
+          <div className="flex flex-col gap-1">
+             <span className="leading-[1.1] tracking-wide font-medium flex flex-col">
+               <span>Swayam</span>
+               <span>Bill <span className="text-[#3b82f6]">Book</span></span>
+             </span>
+
              <span className="text-[10px] text-slate-300 leading-none">The Digital Accounting Book</span>
           </div>
         </h1>
@@ -447,6 +466,8 @@ export function Sidebar({ isOpen, onClose }) {
                                   setIsBranchMasterModalOpen(true);
                                 } else if (subitem.name === 'Warehouse Master') {
                                   setIsWarehouseMasterModalOpen(true);
+                                } else if (subitem.name === 'Location Master') {
+                                  setIsLocationMasterModalOpen(true);
                                 } else if (subitem.name === 'Company Master') {
                                   setIsCompanyMasterModalOpen(true);
                                 } else if (subitem.name === 'Customer Master') {
@@ -594,6 +615,10 @@ export function Sidebar({ isOpen, onClose }) {
     <WarehouseMasterModal
       isOpen={isWarehouseMasterModalOpen}
       onClose={() => setIsWarehouseMasterModalOpen(false)}
+    />
+    <LocationMasterModal
+      isOpen={isLocationMasterModalOpen}
+      onClose={() => setIsLocationMasterModalOpen(false)}
     />
     </>
   );

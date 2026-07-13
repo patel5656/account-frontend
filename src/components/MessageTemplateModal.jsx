@@ -1,13 +1,71 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '../utils';
+import apiClient from '../api/apiClient';
 
 export function MessageTemplateModal({ isOpen, onClose }) {
   const [platform, setPlatform] = useState('whatsapp');
   const [msgFormat, setMsgFormat] = useState('text');
   const [isActive, setIsActive] = useState(true);
   const [template, setTemplate] = useState('');
+  const [msgType, setMsgType] = useState('Welcome Message');
+  const [existingTemplates, setExistingTemplates] = useState([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchTemplates();
+    }
+  }, [isOpen]);
+
+  const fetchTemplates = async () => {
+    try {
+      const res = await apiClient.get('/message-templates');
+      setExistingTemplates(res.data);
+      // Auto-populate for current type and platform
+      populateForm(msgType, platform, res.data);
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+    }
+  };
+
+  const populateForm = (type, plat, templatesData) => {
+    const existing = templatesData.find(t => t.name === type && t.type.toLowerCase() === plat);
+    if (existing) {
+      setTemplate(existing.content);
+      setIsActive(existing.isActive);
+    } else {
+      setTemplate('');
+      setIsActive(true);
+    }
+  };
+
+  useEffect(() => {
+    populateForm(msgType, platform, existingTemplates);
+  }, [msgType, platform, existingTemplates]);
+
+  const handleSave = async () => {
+    try {
+      const payload = {
+        type: platform.toUpperCase(),
+        name: msgType,
+        content: template,
+        isActive
+      };
+      // Check if we need to update or create
+      const existing = existingTemplates.find(t => t.name === msgType && t.type.toLowerCase() === platform);
+      if (existing) {
+        await apiClient.put(`/message-templates/${existing.id}`, payload);
+      } else {
+        await apiClient.post('/message-templates', payload);
+      }
+      alert('Template saved successfully!');
+      fetchTemplates();
+    } catch (error) {
+      console.error('Error saving template:', error);
+      alert('Failed to save template');
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -54,8 +112,15 @@ export function MessageTemplateModal({ isOpen, onClose }) {
 
             <div className="flex flex-col gap-1.5">
               <label className="text-[13px] font-bold text-gray-900">TYPE :</label>
-              <select className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-400 bg-white focus:border-[#17a2b8] focus:ring-[3px] focus:ring-[#17a2b8]/20 transition-all">
-                <option>Select Type</option>
+              <select 
+                value={msgType}
+                onChange={(e) => setMsgType(e.target.value)}
+                className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white focus:border-[#17a2b8] focus:ring-[3px] focus:ring-[#17a2b8]/20 transition-all"
+              >
+                <option value="Welcome Message">Welcome Message</option>
+                <option value="Payment Reminder">Payment Reminder</option>
+                <option value="Service Reminder">Service Reminder</option>
+                <option value="Invoice Copy">Invoice Copy</option>
               </select>
             </div>
 
@@ -122,7 +187,10 @@ export function MessageTemplateModal({ isOpen, onClose }) {
 
         {/* Footer Buttons */}
         <div className="px-4 py-3 bg-[#f8f9fa] border-t border-gray-100 flex justify-end gap-2">
-          <button className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-[5px] rounded-[3px] text-[13px] font-medium transition-colors">
+          <button 
+            onClick={handleSave}
+            className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-[5px] rounded-[3px] text-[13px] font-medium transition-colors"
+          >
             Save
           </button>
           <button onClick={onClose} className="bg-[#dc3545] hover:bg-[#c82333] text-white px-4 py-[5px] rounded-[3px] text-[13px] font-medium transition-colors">

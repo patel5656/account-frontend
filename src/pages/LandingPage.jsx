@@ -226,10 +226,26 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded bg-[#4F46E5] flex items-center justify-center font-bold text-white text-lg shadow-sm">
-                G
+              <div className="w-10 h-10 flex items-center justify-center shrink-0">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                  <mask id="blue-doc-mask-landing1">
+                    <rect x="2" y="3" width="14" height="18" rx="3" fill="white" />
+                    <line x1="6" y1="8" x2="11" y2="8" stroke="black" strokeWidth="1.5" strokeLinecap="round" />
+                    <line x1="6" y1="12" x2="11" y2="12" stroke="black" strokeWidth="1.5" strokeLinecap="round" />
+                    <line x1="6" y1="16" x2="11" y2="16" stroke="black" strokeWidth="1.5" strokeLinecap="round" />
+                  </mask>
+                  <rect x="2" y="3" width="14" height="18" rx="3" fill="#3b82f6" mask="url(#blue-doc-mask-landing1)" />
+                  <rect x="10" y="7" width="12" height="14" rx="2" fill="white" stroke="#3b82f6" strokeWidth="1.5" />
+                  <line x1="13" y1="11" x2="19" y2="11" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" />
+                  <line x1="13" y1="14" x2="19" y2="14" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" />
+                  <line x1="13" y1="17" x2="19" y2="17" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
               </div>
-              <span className="text-lg font-bold text-gray-900">Os Books</span>
+              <span className="text-lg font-bold text-gray-900 flex flex-col leading-[1.1]">
+                <span>Swayam</span>
+                <span>Bill <span className="text-[#3b82f6]">Book</span></span>
+              </span>
+
             </div>
 
             <div className="hidden md:flex items-center gap-8 text-xs font-semibold uppercase tracking-wider text-gray-600">
@@ -694,10 +710,26 @@ export function LandingPage() {
             {/* Brand & Intro */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded bg-[#4F46E5] flex items-center justify-center font-bold text-white text-lg shadow-sm">
-                  G
+                <div className="w-10 h-10 flex items-center justify-center shrink-0">
+                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                    <mask id="blue-doc-mask-landing2">
+                      <rect x="2" y="3" width="14" height="18" rx="3" fill="white" />
+                      <line x1="6" y1="8" x2="11" y2="8" stroke="black" strokeWidth="1.5" strokeLinecap="round" />
+                      <line x1="6" y1="12" x2="11" y2="12" stroke="black" strokeWidth="1.5" strokeLinecap="round" />
+                      <line x1="6" y1="16" x2="11" y2="16" stroke="black" strokeWidth="1.5" strokeLinecap="round" />
+                    </mask>
+                    <rect x="2" y="3" width="14" height="18" rx="3" fill="#3b82f6" mask="url(#blue-doc-mask-landing2)" />
+                    <rect x="10" y="7" width="12" height="14" rx="2" fill="white" stroke="#3b82f6" strokeWidth="1.5" />
+                    <line x1="13" y1="11" x2="19" y2="11" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" />
+                    <line x1="13" y1="14" x2="19" y2="14" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" />
+                    <line x1="13" y1="17" x2="19" y2="17" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
                 </div>
-                <span className="text-xl font-bold text-white tracking-wide">Os Books</span>
+                <span className="text-xl font-bold text-white tracking-wide flex flex-col leading-[1.1]">
+                  <span>Swayam</span>
+                  <span>Bill <span className="text-[#3b82f6]">Book</span></span>
+                </span>
+
               </div>
               <p className="text-slate-400 text-sm leading-relaxed">
                 Empowering businesses with seamless accounting, inventory management, and intelligent {t('POS')} billing solutions. Experience the future of cloud ERP.
@@ -789,7 +821,8 @@ export function LandingPage() {
 
           <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-slate-500 text-sm">
-              © {new Date().getFullYear()} Os Books. All rights reserved.
+              © {new Date().getFullYear()} Swayam Bill Book. All rights reserved.
+
             </p>
             <div className="flex gap-6">
               <a href="#" className="text-slate-500 hover:text-white text-sm transition-colors">Privacy Policy</a>

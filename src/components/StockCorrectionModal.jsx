@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import apiClient from '../api/apiClient';
 
 export function StockCorrectionModal({ isOpen, onClose }) {
+  const [isCorrecting, setIsCorrecting] = useState(false);
   if (!isOpen) return null;
 
   return createPortal(
@@ -25,16 +27,27 @@ export function StockCorrectionModal({ isOpen, onClose }) {
         {/* Buttons */}
         <div className="flex flex-wrap items-center gap-2">
           <button 
-            onClick={() => {
-              // Action logic goes here
-              onClose();
+            onClick={async () => {
+              try {
+                setIsCorrecting(true);
+                await apiClient.post('/products/stock-correction');
+                alert('Stock corrected successfully!');
+                onClose();
+              } catch (error) {
+                console.error('Error correcting stock:', error);
+                alert('Failed to correct stock.');
+              } finally {
+                setIsCorrecting(false);
+              }
             }}
-            className="bg-[#3085d6] hover:bg-[#2b77c0] text-white px-5 py-2.5 rounded-[4px] text-[15px] font-medium transition-colors border-none"
+            disabled={isCorrecting}
+            className="bg-[#3085d6] hover:bg-[#2b77c0] text-white px-5 py-2.5 rounded-[4px] text-[15px] font-medium transition-colors border-none disabled:opacity-70"
           >
-            Yes, do it!
+            {isCorrecting ? 'Updating...' : 'Yes, do it!'}
           </button>
           <button 
             onClick={onClose} 
+            disabled={isCorrecting}
             className="bg-[#d33] hover:bg-[#bd2d2d] text-white px-5 py-2.5 rounded-[4px] text-[15px] font-medium transition-colors border-none"
           >
             Cancel

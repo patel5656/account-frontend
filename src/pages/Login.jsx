@@ -66,11 +66,27 @@ export const Login = () => {
         {/* Logo */}
         <div className="relative z-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#4F46E5] rounded flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/50">
-              G
+            <div className="w-12 h-12 flex items-center justify-center shrink-0">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                <mask id="blue-doc-mask-login1">
+                  <rect x="2" y="3" width="14" height="18" rx="3" fill="white" />
+                  <line x1="6" y1="8" x2="11" y2="8" stroke="black" strokeWidth="1.5" strokeLinecap="round" />
+                  <line x1="6" y1="12" x2="11" y2="12" stroke="black" strokeWidth="1.5" strokeLinecap="round" />
+                  <line x1="6" y1="16" x2="11" y2="16" stroke="black" strokeWidth="1.5" strokeLinecap="round" />
+                </mask>
+                <rect x="2" y="3" width="14" height="18" rx="3" fill="#3b82f6" mask="url(#blue-doc-mask-login1)" />
+                <rect x="10" y="7" width="12" height="14" rx="2" fill="white" stroke="#3b82f6" strokeWidth="1.5" />
+                <line x1="13" y1="11" x2="19" y2="11" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="13" y1="14" x2="19" y2="14" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="13" y1="17" x2="19" y2="17" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
             </div>
-            <div className="flex flex-col -gap-1">
-               <span className="text-white text-2xl font-semibold tracking-wide">Os Books</span>
+            <div className="flex flex-col gap-1">
+               <span className="text-white text-2xl font-semibold tracking-wide flex flex-col leading-tight">
+                 <span>Swayam</span>
+                 <span>Bill <span className="text-[#3b82f6]">Book</span></span>
+               </span>
+
                <span className="text-[11px] text-indigo-200 leading-none">The Digital Accounting Book</span>
             </div>
           </div>
@@ -121,10 +137,26 @@ export const Login = () => {
 
         {/* Mobile Logo (Visible only on small screens) */}
         <div className="absolute top-8 left-8 lg:hidden flex items-center gap-2">
-           <div className="w-9 h-9 bg-[#4F46E5] rounded flex items-center justify-center text-white font-bold text-lg shadow-md">
-             G
+           <div className="w-10 h-10 flex items-center justify-center shrink-0">
+             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                <mask id="blue-doc-mask-login2">
+                  <rect x="2" y="3" width="14" height="18" rx="3" fill="white" />
+                  <line x1="6" y1="8" x2="11" y2="8" stroke="black" strokeWidth="1.5" strokeLinecap="round" />
+                  <line x1="6" y1="12" x2="11" y2="12" stroke="black" strokeWidth="1.5" strokeLinecap="round" />
+                  <line x1="6" y1="16" x2="11" y2="16" stroke="black" strokeWidth="1.5" strokeLinecap="round" />
+                </mask>
+                <rect x="2" y="3" width="14" height="18" rx="3" fill="#3b82f6" mask="url(#blue-doc-mask-login2)" />
+                <rect x="10" y="7" width="12" height="14" rx="2" fill="white" stroke="#3b82f6" strokeWidth="1.5" />
+                <line x1="13" y1="11" x2="19" y2="11" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="13" y1="14" x2="19" y2="14" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="13" y1="17" x2="19" y2="17" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" />
+             </svg>
            </div>
-           <span className="text-gray-900 text-xl font-bold tracking-wide">Os Books</span>
+           <span className="text-gray-900 text-xl font-bold tracking-wide flex flex-col leading-[1.1]">
+             <span>Swayam</span>
+             <span>Bill <span className="text-[#3b82f6]">Book</span></span>
+           </span>
+
         </div>
 
         <div className="w-full max-w-md space-y-8">

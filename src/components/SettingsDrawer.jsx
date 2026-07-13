@@ -56,7 +56,6 @@ export function SettingsDrawer({ isOpen, onClose }) {
           
           <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
             <div className="space-y-[8px] flex flex-col">
-               <ToggleSetting label="Quick Product" checked={settings.quickProduct} onChange={() => toggleSetting('quickProduct')} />
                <ToggleSetting label="Show Shipping Party" checked={settings.showShippingParty} onChange={() => toggleSetting('showShippingParty')} />
                <ToggleSetting label="Show Company" checked={settings.showCompany} onChange={() => toggleSetting('showCompany')} />
                <ToggleSetting label="Show Product Code" checked={settings.showProductCode} onChange={() => toggleSetting('showProductCode')} />
@@ -64,9 +63,9 @@ export function SettingsDrawer({ isOpen, onClose }) {
                <ToggleSetting label="Show GST" checked={settings.showGST} onChange={() => toggleSetting('showGST')} />
                <ToggleSetting label="Show HSN" checked={settings.showHSN} onChange={() => toggleSetting('showHSN')} />
                <ToggleSetting label="Show MRP" checked={settings.showMRP} onChange={() => toggleSetting('showMRP')} />
-               <ToggleSetting label="Show List Price" checked={settings.showListPrice} onChange={() => toggleSetting('showListPrice')} />
                <ToggleSetting label="Show Purchase Price" checked={settings.showPurchasePrice} onChange={() => toggleSetting('showPurchasePrice')} />
-               <ToggleSetting label="Show Discount" checked={settings.showDiscount} onChange={() => toggleSetting('showDiscount')} />
+               <ToggleSetting label="Show Discount 1" checked={settings.showDiscount} onChange={() => toggleSetting('showDiscount')} />
+               <ToggleSetting label="Show Discount 2" checked={settings.showDiscount2} onChange={() => toggleSetting('showDiscount2')} />
                <ToggleSetting label="Hide Total Discount" checked={settings.hideTotalDiscount} onChange={() => toggleSetting('hideTotalDiscount')} />
                <ToggleSetting label="Hide Fright Charge" checked={settings.hideFreightCharge} onChange={() => toggleSetting('hideFreightCharge')} />
                <ToggleSetting label="Show Unit" checked={settings.showUnit} onChange={() => toggleSetting('showUnit')} />
@@ -77,8 +76,6 @@ export function SettingsDrawer({ isOpen, onClose }) {
                <ToggleSetting label="Use Points" checked={settings.usePoints} onChange={() => toggleSetting('usePoints')} />
                <ToggleSetting label="Use Store" checked={settings.useStore} onChange={() => toggleSetting('useStore')} />
                <ToggleSetting label="Manual Qty" checked={settings.manualQty} onChange={() => toggleSetting('manualQty')} />
-               <ToggleSetting label="Sale Price" checked={settings.salePrice} onChange={() => toggleSetting('salePrice')} />
-               <ToggleSetting label="Whole Sale Price" checked={settings.wholeSalePrice} onChange={() => toggleSetting('wholeSalePrice')} />
                <ToggleSetting label="Qty-wise Rate" checked={settings.qtyWiseRate} onChange={() => toggleSetting('qtyWiseRate')} />
                <ToggleSetting label="Category-wise Discount" checked={settings.categoryWiseDiscount} onChange={() => toggleSetting('categoryWiseDiscount')} />
                <ToggleSetting label="Sale by Commission" checked={settings.saleByCommission} onChange={() => toggleSetting('saleByCommission')} />
@@ -86,10 +83,10 @@ export function SettingsDrawer({ isOpen, onClose }) {
                <ToggleSetting label="Single Payment Mode" checked={settings.singlePaymentMode} onChange={() => toggleSetting('singlePaymentMode')} />
                <ToggleSetting label="Set Reminder Date" checked={settings.setReminderDate} onChange={() => toggleSetting('setReminderDate')} />
                <ToggleSetting label="Auto Credit Invoice" checked={settings.autoCreditInvoice} onChange={() => toggleSetting('autoCreditInvoice')} />
-               <ToggleSetting label="Hide Manufacture Date" checked={settings.hideManufactureDate} onChange={() => toggleSetting('hideManufactureDate')} />
-               <ToggleSetting label="Hide Expiry Date" checked={settings.hideExpiryDate} onChange={() => toggleSetting('hideExpiryDate')} />
                <ToggleSetting label="Customer-wise Rate" checked={settings.customerWiseRate} onChange={() => toggleSetting('customerWiseRate')} />
                <ToggleSetting label="Default Cash Payment" checked={settings.defaultCashPayment} onChange={() => toggleSetting('defaultCashPayment')} />
+               <ToggleSetting label="Show IMEI" checked={settings.showIMEI} onChange={() => toggleSetting('showIMEI')} />
+               <ToggleSetting label="Show MFG & EXP Date" checked={settings.showMfgExpDate} onChange={() => toggleSetting('showMfgExpDate')} />
             </div>
             
             {/* Select Inputs at bottom of dropdown */}
@@ -124,13 +121,7 @@ export function SettingsDrawer({ isOpen, onClose }) {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-white text-[11px] font-bold mb-1">Filter Method</label>
-                <select className="w-full bg-white text-gray-800 text-[12px] rounded-[3px] px-2 py-1 outline-none" value={settings.filterMethod || 'Default'} onChange={(e) => updateSetting('filterMethod', e.target.value)}>
-                  <option value="Default">Default</option>
-                  <option value="Advanced">Advance</option>
-                </select>
-              </div>
+
 
               <div>
                 <label className="block text-white text-[11px] font-bold mb-1">Batch Date Input Type</label>
@@ -273,10 +264,10 @@ export function SettingsDrawer({ isOpen, onClose }) {
               <ToggleSetting label="Single Payment Mode" checked={settings.singlePaymentMode} onChange={() => toggleSetting('singlePaymentMode')} />
               <ToggleSetting label="Set Reminder Date" checked={settings.setReminderDate} onChange={() => toggleSetting('setReminderDate')} />
               <ToggleSetting label="Auto Credit Invoice" checked={settings.autoCreditInvoice} onChange={() => toggleSetting('autoCreditInvoice')} />
-              <ToggleSetting label="Hide Manufacture Date" checked={settings.hideManufactureDate} onChange={() => toggleSetting('hideManufactureDate')} />
-              <ToggleSetting label="Hide Expiry Date" checked={settings.hideExpiryDate} onChange={() => toggleSetting('hideExpiryDate')} />
               <ToggleSetting label="Customer-wise Rate" checked={settings.customerWiseRate} onChange={() => toggleSetting('customerWiseRate')} />
               <ToggleSetting label="Default Cash Payment" checked={settings.defaultCashPayment} onChange={() => toggleSetting('defaultCashPayment')} />
+              <ToggleSetting label="Show IMEI" checked={settings.showIMEI} onChange={() => toggleSetting('showIMEI')} />
+              <ToggleSetting label="Show MFG & EXP Date" checked={settings.showMfgExpDate} onChange={() => toggleSetting('showMfgExpDate')} />
             </div>
 
             {/* Select and Input Fields */}
@@ -316,13 +307,7 @@ export function SettingsDrawer({ isOpen, onClose }) {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-white text-[12.5px] font-bold mb-1">Filter Method</label>
-                <select className="w-full bg-white text-gray-800 text-[13px] rounded-[3px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#4F46E5]/50" value={settings.filterMethod || 'Default'} onChange={(e) => updateSetting('filterMethod', e.target.value)}>
-                  <option value="Default">Default</option>
-                  <option value="Advanced">Advanced</option>
-                </select>
-              </div>
+
 
               <div>
                 <label className="block text-white text-[12.5px] font-bold mb-1">Batch Date Input Type</label>

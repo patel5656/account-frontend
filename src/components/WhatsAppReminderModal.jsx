@@ -36,7 +36,8 @@ export function WhatsAppReminderModal({ isOpen, onClose, customer }) {
     amount: customer.dueAmount || '0',
     dueDate: customer.dueDate || 'N/A',
     balance: customer.balance || '0',
-    companyName: 'Os Books',
+    companyName: 'Swayam Bill Book',
+
     contact: '+91-XXXXXXXXXX',
   };
 

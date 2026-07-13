@@ -84,7 +84,9 @@ export function EmployeeMaster() {
           commission: e.detail.commission,
           specialCommission: e.detail.specialCommission,
           totalSaleCommission: e.detail.totalSaleCommission,
-          commissionOnManufacturing: e.detail.commissionOnManufacturing === 'YES' ? 1 : 0
+          commissionOnManufacturing: e.detail.commissionOnManufacturing === 'YES' ? 1 : 0,
+          openingBalance: e.detail.openingBalance,
+          openingBalanceType: e.detail.openingBalanceType
         });
         if (res.data.success) {
           fetchEmployees();
@@ -275,7 +277,6 @@ export function EmployeeMaster() {
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.totalSaleCommission || '0'}</div>
                 <div className="py-2.5 px-3 text-[13px] text-gray-700 flex items-center">{row.commissionOnManufacturing || '-'}</div>
                 <div className="py-2.5 px-3 flex flex-wrap items-center gap-1">
-                  <ActionButton type="menu" />
                   <ActionButton type="edit" onClick={() => {
                     setEditingRow(row);
                     setCreateModalOpen(true);

@@ -150,13 +150,13 @@ export function TopNavbar({ toggleSidebar, isOpen }) {
 
   return (
     <>
-      <header className={`bg-white border-b border-gray-200 h-[45px] fixed top-0 right-0 z-30 transition-all duration-300 ease-in-out flex items-center justify-between px-2 sm:px-3 ${isOpen ? 'left-0 md:left-[220px]' : 'left-0'}`}>
+      <header className={`bg-white border-b border-gray-200 h-[45px] fixed top-0 right-0 z-30 transition-all duration-300 ease-in-out flex items-center justify-between px-2 sm:px-3 ${isOpen ? 'left-0 md:left-[220px]' : 'left-0 md:left-[56px]'}`}>
       
       {/* Left side */}
       <div className="flex flex-wrap items-center gap-2">
         <button 
           onClick={toggleSidebar}
-          className="p-1.5 rounded-sm hover:bg-gray-100 text-gray-500 transition-colors focus:outline-none"
+          className="p-1.5 rounded-sm hover:bg-indigo-50 text-[#4F46E5] transition-colors focus:outline-none"
         >
           <Menu className="w-[18px] h-[18px]" strokeWidth={2.5} />
         </button>

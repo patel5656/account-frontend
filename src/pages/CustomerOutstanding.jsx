@@ -117,7 +117,8 @@ export function CustomerOutstanding() {
     if (validCustomers.length === 0) { alert('No customers with valid mobile numbers.'); return; }
     alert(`Opening WhatsApp for ${validCustomers.length} customers. Allow popups!`);
     validCustomers.forEach((c, i) => {
-      const msg = `Dear ${c.name},\n\nYour payment of ${formatAmount(c.balance)} against Invoice #${c.invoiceNo} is pending.\n\nKindly make the payment at the earliest.\n\nThank You,\nOs Books`;
+      const msg = `Dear ${c.name},\n\nYour payment of ${formatAmount(c.balance)} against Invoice #${c.invoiceNo} is pending.\n\nKindly make the payment at the earliest.\n\nThank You,\nSwayam Bill Book`;
+
       setTimeout(() => window.open(`https://wa.me/91${c.mobile.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank'), i * 600);
     });
   };
@@ -134,7 +135,7 @@ export function CustomerOutstanding() {
               className="flex items-center gap-1 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors">
               <Plus className="w-4 h-4" strokeWidth={3} /> Create New
             </button>
-            <button className="flex items-center gap-1.5 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors shadow-sm">
+            <button onClick={() => navigate('/admin/service_reminder')} className="flex items-center gap-1.5 bg-[#28a745] hover:bg-[#218838] text-white px-3 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors shadow-sm">
               <Calendar className="w-4 h-4" /> View Reminders
             </button>
             <button onClick={() => setBulkConfirm(true)}

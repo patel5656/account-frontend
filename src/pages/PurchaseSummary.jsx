@@ -7,6 +7,10 @@ export function PurchaseSummary() {
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState([]);
 
+  const [selectedPeriod, setSelectedPeriod] = useState('Select');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+
   useEffect(() => {
     fetchInvoices();
   }, []);
@@ -22,8 +26,65 @@ export function PurchaseSummary() {
     }
   };
 
-  const totalPurchase = invoices.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0);
-  const totalPaid = invoices.reduce((acc, curr) => acc + (curr.status === 'PAID' ? curr.totalAmount : 0), 0);
+  const getFilteredInvoices = () => {
+    let filtered = invoices;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    filtered = filtered.filter(item => {
+      if (!item.date) return true;
+      const itemDate = new Date(item.date);
+      itemDate.setHours(0, 0, 0, 0);
+
+      switch (selectedPeriod) {
+        case 'This Month': {
+          return itemDate.getMonth() === today.getMonth() && itemDate.getFullYear() === today.getFullYear();
+        }
+        case 'Last Month': {
+          let lastMonth = today.getMonth() - 1;
+          let year = today.getFullYear();
+          if (lastMonth < 0) {
+            lastMonth = 11;
+            year--;
+          }
+          return itemDate.getMonth() === lastMonth && itemDate.getFullYear() === year;
+        }
+        case 'This Quarter': {
+          const currentQuarter = Math.floor(today.getMonth() / 3);
+          const itemQuarter = Math.floor(itemDate.getMonth() / 3);
+          return currentQuarter === itemQuarter && today.getFullYear() === itemDate.getFullYear();
+        }
+        case 'Last Quarter': {
+          let lastQuarter = Math.floor(today.getMonth() / 3) - 1;
+          let year = today.getFullYear();
+          if (lastQuarter < 0) {
+            lastQuarter = 3;
+            year--;
+          }
+          const itemQuarter = Math.floor(itemDate.getMonth() / 3);
+          return lastQuarter === itemQuarter && year === itemDate.getFullYear();
+        }
+        case 'Custom Range': {
+          if (fromDate && toDate) {
+            const start = new Date(fromDate);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(toDate);
+            end.setHours(23, 59, 59, 999);
+            return itemDate >= start && itemDate <= end;
+          }
+          return true;
+        }
+        default:
+          return true;
+      }
+    });
+
+    return filtered;
+  };
+
+  const filteredInvoices = getFilteredInvoices();
+  const totalPurchase = filteredInvoices.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0);
+  const totalPaid = filteredInvoices.reduce((acc, curr) => acc + (curr.status === 'PAID' ? curr.totalAmount : 0), 0);
   const totalDue = totalPurchase - totalPaid;
 
 
@@ -35,6 +96,20 @@ export function PurchaseSummary() {
     return `${day}-${month}-${year}`;
   };
   const currentDate = getFormattedDate();
+
+  const getDisplayDateRange = () => {
+    if (selectedPeriod === 'Custom Range' && fromDate && toDate) {
+      const formatDate = (dStr) => {
+        const d = new Date(dStr);
+        const day = d.getDate().toString().padStart(2, '0');
+        const month = d.toLocaleString('default', { month: 'short' });
+        const year = d.getFullYear();
+        return `${day}-${month}-${year}`;
+      };
+      return `From ${formatDate(fromDate)} to ${formatDate(toDate)}`;
+    }
+    return `From ${currentDate} to ${currentDate}`;
+  };
 
   const handleWhatsApp = () => {
     const msg = encodeURIComponent(`Purchase Summary\nFrom ${currentDate} to ${currentDate}\nTotal Purchase: 0\nPurchase Return: 0\nTotal Due: 0`);
@@ -76,10 +151,42 @@ export function PurchaseSummary() {
             {/* Select Period */}
             <div className="flex flex-col gap-1 w-full sm:max-w-[300px]">
               <label className="text-[13px] font-bold text-gray-800 px-1">Select Period</label>
-              <select className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white">
-                <option>Select</option>
+              <select 
+                value={selectedPeriod}
+                onChange={(e) => setSelectedPeriod(e.target.value)}
+                className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white"
+              >
+                <option value="Select">Select</option>
+                <option value="This Month">This Month</option>
+                <option value="Last Month">Last Month</option>
+                <option value="This Quarter">This Quarter</option>
+                <option value="Last Quarter">Last Quarter</option>
+                <option value="Custom Range">Custom Range</option>
               </select>
             </div>
+
+            {selectedPeriod === 'Custom Range' && (
+              <div className="flex items-end gap-2">
+                <div className="flex flex-col gap-1 w-full sm:max-w-[150px]">
+                  <label className="text-[13px] font-bold text-gray-800 px-1">From</label>
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white"
+                  />
+                </div>
+                <div className="flex flex-col gap-1 w-full sm:max-w-[150px]">
+                  <label className="text-[13px] font-bold text-gray-800 px-1">To</label>
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Party Name */}
             <div className="flex flex-col gap-1 w-full max-w-[min(92vw,500px)]">
@@ -103,7 +210,7 @@ export function PurchaseSummary() {
             {/* Title */}
             <div className="text-center mb-1">
               <h3 className="text-[14px] font-normal text-gray-800">Purchase Summary</h3>
-              <p className="text-[14px] font-bold text-gray-800">From {currentDate} to {currentDate}</p>
+              <p className="text-[14px] font-bold text-gray-800">{getDisplayDateRange()}</p>
             </div>
 
             {/* Table */}
@@ -123,7 +230,7 @@ export function PurchaseSummary() {
                 </tr>
               </thead>
               <tbody>
-                {invoices.map((inv, idx) => (
+                {filteredInvoices.map((inv, idx) => (
                   <tr key={inv.id}>
                     <td className="border border-gray-800 py-1 px-2 text-center text-[13px]">{idx + 1}</td>
                     <td className="border border-gray-800 py-1 px-2 text-center text-[13px]">{new Date(inv.date).toLocaleDateString()}</td>

@@ -97,7 +97,7 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className={`p-4 space-y-4 transition-all duration-300 ${isPrivacyOn ? 'blur-[8px] pointer-events-none select-none' : ''}`}>
+      <div className="p-4 space-y-4">
         {/* Top Stat Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard 
@@ -105,6 +105,7 @@ export function Dashboard() {
             amount={metrics.todaysSale ? parseFloat(metrics.todaysSale).toFixed(2) : "0"} 
             color="teal" 
             showEye={true}
+            isPrivacyOn={isPrivacyOn}
             onPlusClick={() => navigate('/admin/sales-invoice')}
             onEyeClick={() => setIsModalOpen(true)}
             onMoreInfoClick={() => navigate('/admin/sales')}
@@ -114,6 +115,7 @@ export function Dashboard() {
             amount={metrics.todayPurchase ? parseFloat(metrics.todayPurchase).toFixed(2) : "0"} 
             color="yellow" 
             showEye={false}
+            isPrivacyOn={isPrivacyOn}
             onPlusClick={() => navigate('/admin/create_invoices/company_purchase')}
             onMoreInfoClick={() => navigate('/admin/purchase')}
           />
@@ -122,6 +124,7 @@ export function Dashboard() {
             amount={metrics.currentStockStatus ? parseFloat(metrics.currentStockStatus).toFixed(0) : "0"} 
             color="yellow" 
             showEye={false}
+            isPrivacyOn={isPrivacyOn}
             onPlusClick={() => navigate('/admin/create_invoices/company_purchase')}
             onMoreInfoClick={() => navigate('/admin/stock-details')}
           />
@@ -130,6 +133,7 @@ export function Dashboard() {
             amount={metrics.todaysExpenses ? parseFloat(metrics.todaysExpenses).toFixed(2) : "0"} 
             color="red" 
             showEye={false}
+            isPrivacyOn={isPrivacyOn}
             onPlusClick={() => navigate('/admin/expenses-ledger/expense_ledger')}
             onMoreInfoClick={() => navigate('/admin/expenses_report/expense_ledger')}
           />
@@ -141,7 +145,8 @@ export function Dashboard() {
             title={t('dashboard_page.customer_outstanding')}
             amount={metrics.customerOutstanding ? parseFloat(metrics.customerOutstanding).toFixed(2) : "0"} 
             color="green" 
-            icon={Contact} 
+            icon={Contact}
+            isPrivacyOn={isPrivacyOn}
             onPlusClick={() => navigate('/admin/party-ledger/customer_payment')}
             onMoreInfoClick={() => navigate('/admin/party_outstanding/customer_outstanding')}
           />
@@ -149,7 +154,8 @@ export function Dashboard() {
             title={t('dashboard_page.company_outstanding')}
             amount={metrics.companyOutstanding ? parseFloat(metrics.companyOutstanding).toFixed(2) : "0"} 
             color="blue" 
-            icon={PenTool} 
+            icon={PenTool}
+            isPrivacyOn={isPrivacyOn}
             onPlusClick={() => navigate('/admin/party-ledger/company_payment')}
             onMoreInfoClick={() => navigate('/admin/party_outstanding/company_outstanding')}
           />
@@ -157,7 +163,8 @@ export function Dashboard() {
             title="All Accounts Balance" 
             amount={metrics.allAccountsBalance ? parseFloat(metrics.allAccountsBalance).toFixed(2) : "0"} 
             color="purple" 
-            icon={Contact} 
+            icon={Contact}
+            isPrivacyOn={isPrivacyOn}
             onPlusClick={() => navigate('/admin/bank-ledger')}
             onMoreInfoClick={() => navigate('/admin/allbookbalance')}
           />
@@ -165,7 +172,8 @@ export function Dashboard() {
             title={t('dashboard_page.recycle_bin')}
             amount="0"
             color="red" 
-            icon={Trash2} 
+            icon={Trash2}
+            isPrivacyOn={isPrivacyOn}
             onMoreInfoClick={() => navigate('/admin/view_deleted_entry')}
           />
         </div>
@@ -175,7 +183,7 @@ export function Dashboard() {
           <ChartSection chartData={metrics.chartData} />
         </div>
 
-        <AlertCards alerts={metrics.alerts} />
+        <AlertCards alerts={metrics.alerts} isPrivacyOn={isPrivacyOn} />
       </div>
 
       <CollectionReportModal 

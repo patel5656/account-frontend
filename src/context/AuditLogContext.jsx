@@ -1,82 +1,56 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-
-const STORAGE_KEY = 'os_books_audit_logs';
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-/** Load all logs from localStorage */
-function loadLogs() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-/** Persist logs to localStorage */
-function saveLogs(logs) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
-  } catch {
-    // storage quota exceeded – silently ignore
-  }
-}
-
-/** Build a single audit-log entry */
-function buildEntry({
-  userName = 'Unknown User',
-  userRole = 'User',
-  actionType,          // 'Create' | 'Edit' | 'Delete'
-  billNumber = '',
-  moduleName = '',
-  previousData = null,
-  updatedData = null,
-  ipAddress = '',
-}) {
-  return {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    userName,
-    userRole,
-    actionType,
-    billNumber: String(billNumber),
-    moduleName,
-    previousData,
-    updatedData,
-    ipAddress,
-    timestamp: new Date().toISOString(),
-  };
-}
-
-// ─── Context ─────────────────────────────────────────────────────────────────
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import apiClient from '../api/apiClient';
 
 const AuditLogContext = createContext(null);
 
 export function AuditLogProvider({ children }) {
-  const [logs, setLogs] = useState(() => loadLogs());
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchLogs = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await apiClient.get('/audit-logs');
+      if (res.data && res.data.success) {
+        setLogs(res.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch audit logs', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
 
   /**
    * Add a new audit-log entry.
-   * @param {object} params - Same shape as buildEntry params.
+   * @param {object} params
    */
-  const addLog = useCallback((params) => {
-    const entry = buildEntry(params);
-    setLogs((prev) => {
-      const updated = [entry, ...prev];
-      saveLogs(updated);
-      return updated;
-    });
-    return entry;
+  const addLog = useCallback(async (params) => {
+    try {
+      const res = await apiClient.post('/audit-logs', params);
+      if (res.data && res.data.success) {
+        setLogs((prev) => [res.data.data, ...prev]);
+        return res.data.data;
+      }
+    } catch (error) {
+      console.error('Failed to add audit log', error);
+    }
+    return null;
   }, []);
 
   /** Clear all logs (admin action) */
   const clearLogs = useCallback(() => {
-    setLogs([]);
-    localStorage.removeItem(STORAGE_KEY);
+    // For now, no clear logs API is implemented on the backend as audit logs should generally be immutable
+    // We can just clear local state if really needed, or do nothing.
+    console.warn('Clear logs not supported for DB-backed audit logs');
   }, []);
 
   return (
-    <AuditLogContext.Provider value={{ logs, addLog, clearLogs }}>
+    <AuditLogContext.Provider value={{ logs, loading, addLog, clearLogs, fetchLogs }}>
       {children}
     </AuditLogContext.Provider>
   );
@@ -94,23 +68,17 @@ export function useAuditLog() {
 // ─── Standalone helper (for use outside React components) ────────────────────
 
 /**
- * Log an audit event directly to localStorage (no React context needed).
+ * Log an audit event directly to the API (no React context needed).
  * Call this from any page after a Create / Edit / Delete operation.
- *
- * @example
- * logAuditEvent({
- *   userName: 'Admin',
- *   userRole: 'Admin',
- *   actionType: 'Create',
- *   billNumber: 'INV-001',
- *   moduleName: 'Sales Invoice',
- *   previousData: null,
- *   updatedData: { total: 5000 },
- * });
  */
-export function logAuditEvent(params) {
-  const entry = buildEntry(params);
-  const existing = loadLogs();
-  saveLogs([entry, ...existing]);
-  return entry;
+export async function logAuditEvent(params) {
+  try {
+    const res = await apiClient.post('/audit-logs', params);
+    if (res.data && res.data.success) {
+      return res.data.data;
+    }
+  } catch (error) {
+    console.error('Failed to standalone log audit event', error);
+  }
+  return null;
 }

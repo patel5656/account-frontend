@@ -9,7 +9,9 @@ import apiClient from '../api/apiClient';
 export function CategorywisePurchaseSummary() {
   const navigate = useNavigate();
 
-  const [period, setPeriod] = useState('Today');
+  const [period, setPeriod] = useState('Select');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [suppliers, setSuppliers] = useState([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState('all');
   const [reportData, setReportData] = useState([]);
@@ -27,51 +29,91 @@ export function CategorywisePurchaseSummary() {
   }, []);
 
   useEffect(() => {
+    if (period === 'Custom Range' && (!startDate || !endDate)) {
+      return;
+    }
     fetchReport();
-  }, [period, selectedSupplierId]);
+  }, [period, startDate, endDate, selectedSupplierId]);
+
+  const handlePeriodChange = (e) => {
+    const val = e.target.value;
+    setPeriod(val);
+    const today = new Date();
+    let start = '';
+    let end = '';
+
+    if (val === 'This Month') {
+      start = new Date(today.getFullYear(), today.getMonth(), 1);
+      end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    } else if (val === 'Last Month') {
+      start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      end = new Date(today.getFullYear(), today.getMonth(), 0);
+    } else if (val === 'This Quarter') {
+      const currentQuarter = Math.floor(today.getMonth() / 3);
+      start = new Date(today.getFullYear(), currentQuarter * 3, 1);
+      end = new Date(today.getFullYear(), currentQuarter * 3 + 3, 0);
+    } else if (val === 'Last Quarter') {
+      let currentQuarter = Math.floor(today.getMonth() / 3) - 1;
+      let year = today.getFullYear();
+      if (currentQuarter < 0) {
+        currentQuarter = 3;
+        year -= 1;
+      }
+      start = new Date(year, currentQuarter * 3, 1);
+      end = new Date(year, currentQuarter * 3 + 3, 0);
+    } else if (val === 'Custom Range') {
+      start = '';
+      end = '';
+    }
+
+    if (start && end) {
+      const formatTime = (d) => {
+        const date = new Date(d);
+        const y = date.getFullYear();
+        const m = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+      setStartDate(formatTime(start));
+      setEndDate(formatTime(end));
+    } else {
+      setStartDate('');
+      setEndDate('');
+    }
+  };
 
   const fetchReport = async () => {
     setLoading(true);
     try {
-      const today = new Date();
-      let start = new Date(today);
-      let end = new Date(today);
+      let fetchStart = startDate;
+      let fetchEnd = endDate;
 
-      switch (period) {
-        case 'Today':
-          break;
-        case 'This Week':
-          start.setDate(today.getDate() - today.getDay());
-          break;
-        case 'This Month':
-          start = new Date(today.getFullYear(), today.getMonth(), 1);
-          break;
-        case 'This Year':
-          start = new Date(today.getFullYear(), 0, 1);
-          break;
-        case 'All Time':
-          start = new Date(2000, 0, 1);
-          break;
-        default:
-          break;
+      if (!fetchStart || !fetchEnd) {
+        const today = new Date();
+        const formatTime = (d) => {
+          const y = d.getFullYear();
+          const m = (d.getMonth() + 1).toString().padStart(2, '0');
+          const day = d.getDate().toString().padStart(2, '0');
+          return `${y}-${m}-${day}`;
+        };
+        fetchStart = formatTime(today);
+        fetchEnd = formatTime(today);
       }
 
-      // Format for API
-      const startDateStr = start.toISOString().split('T')[0];
-      const endDateStr = end.toISOString().split('T')[0];
-      
-      // Update display dates
-      if (period === 'All Time') {
-        setDisplayStartDate('All Time');
-        setDisplayEndDate('All Time');
-      } else {
-        setDisplayStartDate(start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-'));
-        setDisplayEndDate(end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-'));
-      }
+      const getFormattedDate = (dateString) => {
+        const date = new Date(dateString);
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = date.toLocaleString('default', { month: 'short' });
+        const year = date.getFullYear();
+        return `${day}-${month}-${year}`;
+      };
+
+      setDisplayStartDate(getFormattedDate(fetchStart));
+      setDisplayEndDate(getFormattedDate(fetchEnd));
 
       const res = await getCategorywisePurchase(
-        period === 'All Time' ? null : startDateStr,
-        period === 'All Time' ? null : endDateStr,
+        fetchStart,
+        fetchEnd,
         selectedSupplierId
       );
 
@@ -97,7 +139,7 @@ export function CategorywisePurchaseSummary() {
     
     doc.setFontSize(11);
     doc.setTextColor(100);
-    const dateText = period === 'All Time' ? 'All Time' : `From ${displayStartDate} to ${displayEndDate}`;
+    const dateText = `From ${displayStartDate} to ${displayEndDate}`;
     doc.text(`Period: ${dateText}`, 14, 30);
     
     // Prepare table data
@@ -164,16 +206,40 @@ export function CategorywisePurchaseSummary() {
                 <label className="text-[13px] font-bold text-gray-800 px-1">Select Period</label>
                 <select 
                   value={period}
-                  onChange={(e) => setPeriod(e.target.value)}
+                  onChange={handlePeriodChange}
                   className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white"
                 >
-                  <option value="Today">Today</option>
-                  <option value="This Week">This Week</option>
+                  <option value="Select">Select</option>
                   <option value="This Month">This Month</option>
-                  <option value="This Year">This Year</option>
-                  <option value="All Time">All Time</option>
+                  <option value="Last Month">Last Month</option>
+                  <option value="This Quarter">This Quarter</option>
+                  <option value="Last Quarter">Last Quarter</option>
+                  <option value="Custom Range">Custom Range</option>
                 </select>
               </div>
+
+              {period === 'Custom Range' && (
+                <>
+                  <div className="flex flex-col gap-1 w-full sm:max-w-[150px]">
+                    <label className="text-[13px] font-bold text-gray-800 px-1">From Date</label>
+                    <input 
+                      type="date" 
+                      value={startDate} 
+                      onChange={(e) => setStartDate(e.target.value)} 
+                      className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white" 
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1 w-full sm:max-w-[150px]">
+                    <label className="text-[13px] font-bold text-gray-800 px-1">To Date</label>
+                    <input 
+                      type="date" 
+                      value={endDate} 
+                      onChange={(e) => setEndDate(e.target.value)} 
+                      className="w-full h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white" 
+                    />
+                  </div>
+                </>
+              )}
 
               {/* Party Name */}
               <div className="flex flex-col gap-1 w-full sm:max-w-[400px]">
@@ -214,7 +280,7 @@ export function CategorywisePurchaseSummary() {
             <div className="text-center mb-1">
               <h3 className="text-[14px] font-normal text-gray-600">Categorywise Purchase Summary</h3>
               <p className="text-[14px] font-bold text-gray-800">
-                {period === 'All Time' ? 'All Time' : `From ${displayStartDate} to ${displayEndDate}`}
+                From {displayStartDate} to {displayEndDate}
               </p>
             </div>
 

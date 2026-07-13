@@ -1,25 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Plus, Upload, Printer, FileDown, Eye, Search, Edit2, Trash2, Calendar, FileText } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useSettings } from '../context/SettingsContext';
-
-// Sample daily cash book data (Rojmel)
-const INITIAL_ROWS = [
-  { id: 1, date: '29-May-2026', voucherNo: 'VCH-1001', type: 'Income', particular: 'Cash Sales - Invoice #1045', accountName: 'Cash A/c', paymentType: 'Cash', cashIn: 15000, cashOut: 0 },
-  { id: 2, date: '29-May-2026', voucherNo: 'VCH-1002', type: 'Expense', particular: 'Office Stationery', accountName: 'Stationery Exp', paymentType: 'Cash', cashIn: 0, cashOut: 1200 },
-  { id: 3, date: '29-May-2026', voucherNo: 'VCH-1003', type: 'Expense', particular: 'Tea & Snacks', accountName: 'Office Exp', paymentType: 'Cash', cashIn: 0, cashOut: 350 },
-  { id: 4, date: '29-May-2026', voucherNo: 'VCH-1004', type: 'Income', particular: 'Advance from Rahul Traders', accountName: 'Rahul Traders', paymentType: 'Cash', cashIn: 5000, cashOut: 0 },
-  { id: 5, date: '29-May-2026', voucherNo: 'VCH-1005', type: 'Expense', particular: 'Courier Charges', accountName: 'Postage Exp', paymentType: 'Cash', cashIn: 0, cashOut: 200 },
-];
+import apiClient from '../api/apiClient';
 
 export function DailyCashBook() {
   const navigate = useNavigate();
   const { formatAmount, currentCurrency } = useSettings();
-  const [rows, setRows] = useState(INITIAL_ROWS);
+  const [rows, setRows] = useState([]);
+  const [openingBalance, setOpeningBalance] = useState(0);
   const [search, setSearch] = useState('');
-  const [dateFilter, setDateFilter] = useState('Today');
+  const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -28,10 +21,24 @@ export function DailyCashBook() {
 
   // Form State for Add Entry
   const [formData, setFormData] = useState({
-    date: '29-May-2026', type: 'Income', voucherNo: '', particular: '', accountName: '', paymentType: 'Cash', amount: ''
+    date: new Date().toISOString().split('T')[0], type: 'Income', voucherNo: '', particular: '', accountName: '', paymentType: 'Cash', amount: ''
   });
 
-  const openingBalance = 25000; // Simulated opening balance
+  const fetchRojmel = async () => {
+    try {
+      const res = await apiClient.get(`/financial/rojmel?date=${dateFilter}`);
+      if (res.data.success) {
+        setRows(res.data.data);
+        setOpeningBalance(res.data.openingBalance);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchRojmel();
+  }, [dateFilter]);
 
   // Filtering
   const filteredRows = rows.filter(r => 
@@ -54,31 +61,36 @@ export function DailyCashBook() {
   const now = new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
 
   // Handle Add Entry
-  const handleSaveEntry = () => {
+  const handleSaveEntry = async () => {
     if (!formData.particular || !formData.accountName || !formData.amount) {
       alert("Please fill all mandatory fields.");
       return;
     }
-    const newEntry = {
-      id: Date.now(),
-      date: formData.date,
-      voucherNo: formData.voucherNo || `VCH-${Math.floor(1000 + Math.random() * 9000)}`,
-      type: formData.type,
-      particular: formData.particular,
-      accountName: formData.accountName,
-      paymentType: formData.paymentType,
-      cashIn: formData.type === 'Income' ? Number(formData.amount) : 0,
-      cashOut: formData.type === 'Expense' ? Number(formData.amount) : 0,
-    };
-    setRows([...rows, newEntry]);
-    setShowAddModal(false);
-    setFormData({ date: '29-May-2026', type: 'Income', voucherNo: '', particular: '', accountName: '', paymentType: 'Cash', amount: '' });
+    
+    try {
+      const res = await apiClient.post('/financial/rojmel', formData);
+      if (res.data.success) {
+        fetchRojmel();
+        setShowAddModal(false);
+        setFormData({ date: new Date().toISOString().split('T')[0], type: 'Income', voucherNo: '', particular: '', accountName: '', paymentType: 'Cash', amount: '' });
+      }
+    } catch (err) {
+      console.error("Failed to add entry", err);
+      alert("Failed to add entry");
+    }
   };
 
   // Handle Delete
-  const confirmDelete = () => {
-    setRows(rows.filter(r => r.id !== deleteTargetId));
-    setShowDeleteConfirm(false);
+  const confirmDelete = async () => {
+    if (!deleteTargetId) return;
+    try {
+      await apiClient.delete(`/financial/rojmel/${deleteTargetId}`);
+      fetchRojmel();
+      setShowDeleteConfirm(false);
+    } catch (err) {
+      console.error("Failed to delete entry", err);
+      alert("Failed to delete entry");
+    }
   };
 
   // Printing & Exporting
@@ -163,7 +175,8 @@ export function DailyCashBook() {
       {/* ======= HIDDEN PRINTABLE REPORT ======= */}
       <div id="print-report" style={{ fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#111' }}>
         <div style={{ textAlign: 'center', marginBottom: '15px', borderBottom: '2px solid #333', paddingBottom: '10px' }}>
-          <div style={{ fontSize: '20px', fontWeight: 'bold' }}>Os Books</div>
+          <div style={{ fontSize: '20px', fontWeight: 'bold' }}>Swayam Bill Book</div>
+
           <div style={{ fontSize: '16px', fontWeight: 'bold', marginTop: '4px' }}>Daily Cash Book (Rojmel)</div>
           <div style={{ fontSize: '11px', color: '#555', marginTop: '4px' }}>Period: {dateFilter} | Generated on: {now}</div>
         </div>
@@ -225,7 +238,8 @@ export function DailyCashBook() {
             </tr>
           </tbody>
         </table>
-        <div style={{ marginTop: '20px', fontSize: '9px', color: '#888', textAlign: 'center' }}>System-generated report from Os Books</div>
+        <div style={{ marginTop: '20px', fontSize: '9px', color: '#888', textAlign: 'center' }}>System-generated report from Swayam Bill Book</div>
+
       </div>
 
       {/* ======= MAIN UI ======= */}
@@ -269,16 +283,7 @@ export function DailyCashBook() {
               </div>
               <div className="flex flex-col gap-1 w-full sm:w-[200px]">
                 <div className="relative">
-                  <select value={dateFilter} onChange={e => setDateFilter(e.target.value)} className="w-full bg-white border border-gray-300 text-gray-700 rounded-[3px] pl-3 pr-8 py-1.5 text-[13px] outline-none appearance-none cursor-pointer">
-                    <option>Today</option>
-                    <option>Yesterday</option>
-                    <option>Last 7 Days</option>
-                    <option>This Month</option>
-                    <option>Custom Range</option>
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500">
-                    <Calendar className="w-3.5 h-3.5" />
-                  </div>
+                  <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} className="w-full bg-white border border-gray-300 text-gray-700 rounded-[3px] px-3 py-1.5 text-[13px] outline-none cursor-pointer" />
                 </div>
               </div>
             </div>
@@ -342,7 +347,11 @@ export function DailyCashBook() {
                     <td className="py-2 px-3 text-right font-bold text-red-600">{r.cashOut > 0 ? formatAmount(r.cashOut) : <span className="text-gray-300">-</span>}</td>
                     <td className="py-2 px-3 text-right font-bold text-gray-800 bg-gray-50/50 border-l border-gray-100">{formatAmount(r.balance)}</td>
                     <td className="py-2 px-3 text-center">
-                      <button onClick={() => { setDeleteTargetId(r.id); setShowDeleteConfirm(true); }} className="text-red-500 hover:text-red-700 p-1 bg-red-50 hover:bg-red-100 rounded transition-colors"><Trash2 className="w-4 h-4" /></button>
+                      {r.isManual && (
+                        <button onClick={() => { setDeleteTargetId(r.id); setShowDeleteConfirm(true); }} className="text-red-500 hover:text-red-700 transition-colors bg-red-50 p-1.5 rounded" title="Delete">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -426,7 +435,8 @@ export function DailyCashBook() {
             </div>
             <div className="p-8 bg-white" style={{ fontFamily: 'Arial, sans-serif' }}>
               <div className="text-center border-b-2 border-gray-800 pb-4 mb-5">
-                <div className="text-[20px] font-bold text-gray-900">Os Books</div>
+                <div className="text-[20px] font-bold text-gray-900">Swayam Bill Book</div>
+
                 <div className="text-[16px] font-bold text-gray-700 mt-1">Daily Cash Book (Rojmel)</div>
                 <div className="text-[12px] text-gray-500 mt-1">Period: <strong>{dateFilter}</strong> | Generated on: {now}</div>
               </div>

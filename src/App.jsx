@@ -88,6 +88,7 @@ import { AuditLogs } from './pages/AuditLogs';
 import { PosBilling } from './pages/PosBilling';
 import { BranchMaster } from './pages/BranchMaster';
 import { WarehouseMaster } from './pages/WarehouseMaster';
+import { LocationMaster } from './pages/LocationMaster';
 import { GodownTransfer } from './pages/GodownTransfer';
 import { BillBook } from './pages/BillBook';
 import { Login } from './pages/Login';
@@ -196,6 +197,7 @@ function App() {
             <Route path="/admin/pos" element={<PosBilling />} />
             <Route path="/admin/branch_master" element={<BranchMaster />} />
             <Route path="/admin/warehouse_master" element={<WarehouseMaster />} />
+            <Route path="/admin/location_master" element={<LocationMaster />} />
             <Route path="/admin/sales" element={<SalesInvoiceSummary />} />
             <Route path="/admin/sales_return" element={<SalesReturnSummary />} />
             <Route path="/admin/quotation" element={<Quotation />} />

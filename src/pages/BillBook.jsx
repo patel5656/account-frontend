@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/apiClient';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { 
   Search,
   ArrowDownAZ,
@@ -56,6 +58,158 @@ export function BillBook() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadPDF = async (invoice) => {
+    try {
+      // Full invoice data DB se fetch karo with items
+      const res = await apiClient.get(`/invoices?type=SALES`);
+      const allInvoices = res.data.data || [];
+      const fullInvoice = allInvoices.find(inv => inv.id === invoice.id);
+
+      if (!fullInvoice) {
+        alert('Invoice data not found!');
+        return;
+      }
+
+      // Company settings fetch karo
+      const settingsRes = await apiClient.get('/settings');
+      const settings = settingsRes.data.data || {};
+
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageW = doc.internal.pageSize.getWidth();
+
+      // ── Header Background ──
+      doc.setFillColor(79, 70, 229); // indigo
+      doc.rect(0, 0, pageW, 30, 'F');
+
+      // ── Company Name ──
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text(settings.printHeader || 'SWAYAM BILL BOOK', pageW / 2, 13, { align: 'center' });
+
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(settings.printFooter || 'Tax Invoice', pageW / 2, 21, { align: 'center' });
+
+      // ── Invoice Info Box ──
+      doc.setTextColor(40, 40, 40);
+      doc.setDrawColor(200, 200, 200);
+      doc.setFillColor(248, 249, 250);
+      doc.roundedRect(10, 35, pageW - 20, 30, 2, 2, 'FD');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      // Left column
+      doc.text('Bill No:', 14, 43);
+      doc.text('Invoice No:', 14, 50);
+      doc.text('Date:', 14, 57);
+      doc.text('Payment Mode:', 14, 63);
+
+      doc.setFont('helvetica', 'normal');
+      doc.text(invoice.billNo || '-', 40, 43);
+      doc.text(invoice.invoiceNo || '-', 40, 50);
+      doc.text(invoice.date || '-', 40, 57);
+      doc.text(fullInvoice.paymentMode || 'Cash', 45, 63);
+
+      // Right column — Customer Info
+      const cx = pageW / 2 + 5;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Customer:', cx, 43);
+      doc.text('Status:', cx, 50);
+      doc.text('Due Amount:', cx, 57);
+      doc.text('Total Amount:', cx, 63);
+
+      doc.setFont('helvetica', 'normal');
+      doc.text(invoice.customerName || 'Walk-in Customer', cx + 28, 43);
+
+      const status = invoice.paymentStatus || 'PAID';
+      if (status === 'PAID') doc.setTextColor(40, 167, 69);
+      else if (status === 'UNPAID') doc.setTextColor(220, 53, 69);
+      else doc.setTextColor(255, 193, 7);
+      doc.text(status, cx + 28, 50);
+      doc.setTextColor(40, 40, 40);
+
+      doc.text(`Rs. ${parseFloat(invoice.dueAmount).toFixed(2)}`, cx + 28, 57);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Rs. ${parseFloat(invoice.totalAmount).toFixed(2)}`, cx + 28, 63);
+
+      // ── Items Table ──
+      const items = fullInvoice.items || [];
+      const tableBody = items.map((item, i) => [
+        i + 1,
+        item.product ? item.product.name : '-',
+        item.quantity || 0,
+        item.freeQty || 0,
+        `Rs. ${parseFloat(item.price || 0).toFixed(2)}`,
+        `${item.discount1 || 0}%`,
+        `Rs. ${parseFloat(item.amount || 0).toFixed(2)}`,
+      ]);
+
+      autoTable(doc, {
+        startY: 70,
+        head: [['#', 'Product Name', 'Qty', 'Free', 'Price', 'Disc%', 'Amount']],
+        body: tableBody,
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 249, 255] },
+        columnStyles: {
+          0: { cellWidth: 8, halign: 'center' },
+          1: { cellWidth: 70 },
+          2: { cellWidth: 12, halign: 'center' },
+          3: { cellWidth: 12, halign: 'center' },
+          4: { cellWidth: 25, halign: 'right' },
+          5: { cellWidth: 15, halign: 'center' },
+          6: { cellWidth: 28, halign: 'right' },
+        },
+        margin: { left: 10, right: 10 },
+      });
+
+      // ── Totals ──
+      const finalY = doc.lastAutoTable.finalY + 5;
+      const rightX = pageW - 10;
+
+      doc.setFillColor(248, 249, 250);
+      doc.setDrawColor(200, 200, 200);
+      doc.roundedRect(pageW / 2, finalY, pageW / 2 - 10, 30, 2, 2, 'FD');
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(80, 80, 80);
+      doc.text('Sub Total:', pageW / 2 + 5, finalY + 8);
+      doc.text('Discount:', pageW / 2 + 5, finalY + 15);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(40, 40, 40);
+      doc.text('GRAND TOTAL:', pageW / 2 + 5, finalY + 25);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text(`Rs. ${parseFloat(fullInvoice.subTotal || fullInvoice.totalAmount || 0).toFixed(2)}`, rightX, finalY + 8, { align: 'right' });
+      doc.text(`Rs. ${parseFloat(fullInvoice.totalDiscount || 0).toFixed(2)}`, rightX, finalY + 15, { align: 'right' });
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(79, 70, 229);
+      doc.text(`Rs. ${parseFloat(invoice.totalAmount).toFixed(2)}`, rightX, finalY + 25, { align: 'right' });
+
+      // ── Footer ──
+      doc.setTextColor(150, 150, 150);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text('Thank you for your business!', pageW / 2, finalY + 38, { align: 'center' });
+      doc.text('Generated by Swayam Bill Book', pageW / 2, finalY + 43, { align: 'center' });
+
+
+      // ── Save ──
+      doc.save(`${invoice.billNo}-${invoice.customerName}.pdf`);
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      alert('PDF generate karne mein error aaya. Please try again.');
+    }
   };
 
   const filteredInvoices = invoices.filter(inv => {
@@ -302,7 +456,7 @@ export function BillBook() {
                           <Printer className="w-4 h-4" />
                         </button>
                         <button 
-                          onClick={handlePrint}
+                          onClick={() => handleDownloadPDF(inv)}
                           title="Download PDF" 
                           className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded transition-colors"
                         >

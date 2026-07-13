@@ -113,7 +113,8 @@ export function CompanyOutstanding() {
     if (validCompanies.length === 0) { alert('No companies with valid mobile numbers.'); return; }
     alert(`Opening WhatsApp for ${validCompanies.length} companies. Allow popups!`);
     validCompanies.forEach((c, i) => {
-      const msg = `Dear ${c.name},\n\nYour payment of ${formatAmount(c.balance)} against Invoice #${c.invoiceNo} is pending.\n\nKindly make the payment at the earliest.\n\nThank You,\nOs Books`;
+      const msg = `Dear ${c.name},\n\nYour payment of ${formatAmount(c.balance)} against Invoice #${c.invoiceNo} is pending.\n\nKindly make the payment at the earliest.\n\nThank You,\nSwayam Bill Book`;
+
       setTimeout(() => window.open(`https://wa.me/91${c.mobile.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank'), i * 600);
     });
   };

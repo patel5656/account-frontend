@@ -11,7 +11,7 @@ import { useAuditLog } from '../context/AuditLogContext';
 
 export function AuditLogs() {
   const navigate = useNavigate();
-  const { logs } = useAuditLog();
+  const { logs, loading } = useAuditLog();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterUser, setFilterUser] = useState('');
@@ -35,14 +35,14 @@ export function AuditLogs() {
       const matchUser = filterUser ? log.userName === filterUser : true;
       const matchModule = filterModule ? log.moduleName === filterModule : true;
       const matchAction = filterAction ? log.actionType === filterAction : true;
-      const matchDate = filterDate ? log.timestamp.startsWith(filterDate) : true;
+      const matchDate = filterDate ? log.timestamp?.startsWith(filterDate) : true;
 
       return matchSearch && matchUser && matchModule && matchAction && matchDate;
     });
   }, [logs, searchTerm, filterUser, filterModule, filterAction, filterDate]);
 
-  const uniqueUsers = [...new Set(logs.map(l => l.userName))];
-  const uniqueModules = [...new Set(logs.map(l => l.moduleName))];
+  const uniqueUsers = [...new Set(logs.map(l => l.userName).filter(Boolean))];
+  const uniqueModules = [...new Set(logs.map(l => l.moduleName).filter(Boolean))];
   
   const openViewModal = (log) => {
     setSelectedLog(log);
@@ -160,7 +160,16 @@ export function AuditLogs() {
               </tr>
             </thead>
             <tbody>
-              {filteredLogs.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="8" className="text-center py-8 text-gray-500 text-[14px]">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="w-6 h-6 border-2 border-[#4F46E5] border-t-transparent rounded-full animate-spin"></div>
+                      <span>Loading audit logs...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredLogs.length === 0 ? (
                 <tr>
                   <td colSpan="8" className="text-center py-8 text-gray-500 text-[14px]">
                     No audit logs found matching the selected criteria.

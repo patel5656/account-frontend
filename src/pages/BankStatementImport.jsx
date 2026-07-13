@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   X, 
@@ -9,6 +9,7 @@ import {
   CloudUpload, 
   Save 
 } from 'lucide-react';
+import apiClient from '../api/apiClient';
 
 export function BankStatementImport() {
   const navigate = useNavigate();
@@ -23,6 +24,48 @@ export function BankStatementImport() {
   };
   const [invertColumns, setInvertColumns] = useState(false);
   const [matchNarration, setMatchNarration] = useState(false);
+
+  // Integration States
+  const [banks, setBanks] = useState([]);
+  const [selectedBank, setSelectedBank] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+
+  useEffect(() => {
+    fetchBanks();
+  }, []);
+
+  const fetchBanks = async () => {
+    try {
+      const res = await apiClient.get('/banks');
+      setBanks(res.data?.data || res.data?.banks || (Array.isArray(res.data) ? res.data : []));
+    } catch (error) {
+      console.error('Error fetching banks:', error);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedBank) return alert('Please select a bank book first.');
+    if (!selectedFile) return alert('Please choose a statement file.');
+
+    const formData = new FormData();
+    formData.append('statementFile', selectedFile);
+    formData.append('bankName', banks.find(b => b.id.toString() === selectedBank)?.bankName || '');
+    formData.append('accountNumber', banks.find(b => b.id.toString() === selectedBank)?.accountNo || '');
+    
+    setIsUploading(true);
+    try {
+      await apiClient.post('/bank-statements', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      alert('Bank statement imported successfully!');
+      setSelectedFile(null);
+    } catch (error) {
+      console.error('Error importing statement:', error);
+      alert('Failed to import bank statement.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] flex flex-col relative">
@@ -65,8 +108,15 @@ export function BankStatementImport() {
                 </div>
                 <div className="p-4">
                   <label className="block text-[13px] font-bold text-gray-800 mb-1.5">Bank book <span className="text-red-500">*</span></label>
-                  <select className="w-full max-w-[400px] border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] bg-white text-gray-400">
+                  <select 
+                    value={selectedBank}
+                    onChange={(e) => setSelectedBank(e.target.value)}
+                    className="w-full max-w-[400px] border border-gray-300 rounded-[3px] px-3 py-2 text-[13px] outline-none focus:border-[#4F46E5] bg-white text-gray-700"
+                  >
                     <option value="">Select cash / bank account</option>
+                    {banks.map(b => (
+                      <option key={b.id} value={b.id}>{b.bankName} - {b.accountNo}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -130,6 +180,17 @@ export function BankStatementImport() {
                       </>
                     )}
                   </div>
+                  {selectedFile && (
+                    <div className="mt-4 flex justify-end">
+                      <button 
+                        onClick={handleUpload}
+                        disabled={isUploading}
+                        className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-2 rounded-[3px] text-[13px] font-medium transition-colors disabled:opacity-70"
+                      >
+                        {isUploading ? 'Importing...' : 'Upload & Import'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 

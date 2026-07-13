@@ -69,6 +69,12 @@ export function InvoicesReport() {
                 <option>Purchase</option>
                 <option>Purchase Return</option>
                 <option>Quotation</option>
+                <option>Store Stock Transfer</option>
+                <option>Branch Stock IN/OUT</option>
+                <option>Challan Sale</option>
+                <option>Challan Invoice</option>
+                <option>Purchase Order</option>
+                <option>Sale Order</option>
               </select>
             </div>
 

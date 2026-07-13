@@ -3,7 +3,7 @@ import { Search, Bell, ChevronRight, QrCode, X } from 'lucide-react';
 import { cn } from '../utils';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-
+import apiClient from '../api/apiClient';
 export function PrintSetting() {
   const [pageSize, setPageSize] = useState('2inch');
   const [transactionType, setTransactionType] = useState('General Template');
@@ -96,6 +96,108 @@ export function PrintSetting() {
   const updateCustomization = (key, value) => {
     setCustomization(prev => ({ ...prev, [key]: value }));
   };
+  
+  const [allPrintSettings, setAllPrintSettings] = useState({});
+  const [previewInvoice, setPreviewInvoice] = useState(null);
+  const [companyProfile, setCompanyProfile] = useState(null);
+
+  useEffect(() => {
+    // Fetch print settings on mount
+    apiClient.get('/settings')
+      .then(res => {
+        if (res.data.success && res.data.data) {
+           const settings = res.data.data;
+           if (settings.printSettings) {
+              setAllPrintSettings(settings.printSettings);
+              const currentTypeSettings = settings.printSettings[transactionType];
+              if (currentTypeSettings) {
+                if (currentTypeSettings.pageSize) setPageSize(currentTypeSettings.pageSize);
+                if (currentTypeSettings.pdfFormat) setPdfFormat(currentTypeSettings.pdfFormat);
+                if (currentTypeSettings.footerSettings) setFooterSettings(prev => ({...prev, ...currentTypeSettings.footerSettings}));
+                if (currentTypeSettings.tableSettings) setTableSettings(prev => ({...prev, ...currentTypeSettings.tableSettings}));
+                if (currentTypeSettings.headerSettings) setHeaderSettings(prev => ({...prev, ...currentTypeSettings.headerSettings}));
+                if (currentTypeSettings.customization) setCustomization(prev => ({...prev, ...currentTypeSettings.customization}));
+              }
+           }
+        }
+      })
+      .catch(err => console.error('Failed to load print settings:', err));
+  }, []); // Only run once on mount
+
+  useEffect(() => {
+    // Map the selected transaction type to the backend Invoice Type enum
+    let typeParam = '';
+    const t = transactionType2 ? transactionType2.toUpperCase() : '';
+    if (t.includes('INCOME TRANSACTION') || t.includes('SALE INVOICE')) typeParam = 'SALES';
+    else if (t.includes('EXPENSE TRANSACTION') || t.includes('PURCHASE INVOICE')) typeParam = 'PURCHASE';
+    else if (t.includes('ESTIMATE') || t.includes('QUOTE') || t.includes('SALE ORDER')) typeParam = 'QUOTATION';
+    else if (t.includes('CHALLAN')) typeParam = 'CHALLAN';
+    else if (t.includes('PURCHASE ORDER')) typeParam = 'PURCHASE_ORDER';
+    else if (t.includes('RECEIPT')) typeParam = 'SALES';
+    
+    const url = typeParam ? `/invoices?type=${typeParam}&limit=1` : '/invoices?limit=1';
+
+    apiClient.get(url)
+      .then(res => {
+        if (res.data.success && res.data.data && res.data.data.length > 0) {
+           setPreviewInvoice(res.data.data[0]);
+        } else {
+           setPreviewInvoice(null);
+        }
+      })
+      .catch(err => console.error('Failed to load invoice:', err));
+  }, [transactionType2]);
+
+  const handleTransactionTypeChange = (newType) => {
+    const currentConfig = {
+      pageSize, transactionType, pdfFormat, footerSettings,
+      tableSettings, headerSettings, customization
+    };
+    
+    setAllPrintSettings(prev => {
+      const updatedAllSettings = {
+        ...prev,
+        [transactionType2]: currentConfig
+      };
+      
+      const newConfig = updatedAllSettings[newType];
+      if (newConfig) {
+        if (newConfig.pageSize) setPageSize(newConfig.pageSize);
+        if (newConfig.transactionType) setTransactionType(newConfig.transactionType);
+        if (newConfig.pdfFormat) setPdfFormat(newConfig.pdfFormat);
+        if (newConfig.footerSettings) setFooterSettings(p => ({...p, ...newConfig.footerSettings}));
+        if (newConfig.tableSettings) setTableSettings(p => ({...p, ...newConfig.tableSettings}));
+        if (newConfig.headerSettings) setHeaderSettings(p => ({...p, ...newConfig.headerSettings}));
+        if (newConfig.customization) setCustomization(p => ({...p, ...newConfig.customization}));
+      }
+      return updatedAllSettings;
+    });
+    
+    setTransactionType2(newType);
+  };
+
+  const savePrintSettings = async () => {
+    try {
+      const currentConfig = {
+        pageSize, transactionType, pdfFormat, footerSettings,
+        tableSettings, headerSettings, customization
+      };
+      const finalSettings = {
+        ...allPrintSettings,
+        [transactionType2]: currentConfig
+      };
+      setAllPrintSettings(finalSettings);
+      
+      await apiClient.put('/settings', { printSettings: finalSettings });
+      alert('Settings saved to database successfully!');
+      return true;
+    } catch (err) {
+      console.error('Failed to save print settings:', err);
+      alert('Failed to save settings to database.');
+      return false;
+    }
+  };
+
   const invoiceRef = useRef(null);
   const previewRef = useRef(null);
 
@@ -131,6 +233,35 @@ export function PrintSetting() {
   // Find the Save button inside the modal (lines ~1275) and modify its onClick
 
 
+  // Calculate parsed items and totals
+  const dummyItems = [
+    { name: 'Adrian Bell', qty: 1, rate: 1000, discount: 120, taxableValue: 880, totalAmount: 1006.40 },
+    { name: 'Saree', qty: 1, rate: 1500, discount: 20, taxableValue: 1200, totalAmount: 1416.00 },
+    { name: 'Blue Saree', qty: 5, rate: 781, discount: 0, taxableValue: 3905, totalAmount: 4999.68, desc: tableSettings.showThHsnSac ? '( HSN/SAC: 1006, GST: 28% )' : '' },
+    { name: 'Cricket Bat', qty: 3, rate: 100, discount: 0, taxableValue: 300, totalAmount: 384.00, desc: tableSettings.showThGst ? '(GST: 28%)' : '' }
+  ];
+
+  const parsedItems = previewInvoice?.items?.length > 0 
+    ? previewInvoice.items.map(i => ({
+        name: i.product?.name || i.name || 'Unknown',
+        qty: i.quantity || 1,
+        rate: i.price || 0,
+        discount: i.discount1 || 0,
+        taxableValue: i.amount || 0,
+        totalAmount: i.amount || 0,
+        desc: ''
+      }))
+    : dummyItems;
+
+  let totalQty = 0;
+  let totalTaxable = 0;
+  let totalFinal = 0;
+  parsedItems.forEach(i => {
+    totalQty += Number(i.qty);
+    totalTaxable += Number(i.taxableValue);
+    totalFinal += Number(i.totalAmount);
+  });
+
   return (
     <div className="flex flex-col h-[calc(100vh-45px)] bg-[#ffffff] overflow-hidden relative">
       
@@ -143,7 +274,7 @@ export function PrintSetting() {
           {/* Dropdowns */}
           <div className="flex flex-col gap-5">
             <CustomSelect 
-              label="Transaction Type" 
+              label="Template Type" 
               value={transactionType} 
               onChange={setTransactionType} 
               options={['General Template', 'Glass Template']} 
@@ -152,7 +283,7 @@ export function PrintSetting() {
             <CustomSelect 
               label="Transaction Type" 
               value={transactionType2} 
-              onChange={setTransactionType2} 
+              onChange={handleTransactionTypeChange} 
               options={[
                 'Income Transaction', 
                 'Estimate / Quote', 
@@ -229,17 +360,14 @@ export function PrintSetting() {
              >
                {/* 1. Header Section */}
                <div className="w-full flex flex-col border-b border-black">
-                 <div className="text-center font-bold py-1 border-b border-black">TAX INVOICE ( Original )</div>
+                 <div className="text-center font-bold py-1 border-b border-black">{transactionType2.toUpperCase()} {transactionType2 === 'Income Transaction' ? '( Original )' : ''}</div>
                  <div className="flex w-full p-2 h-[120px]">
                    {/* Logo */}
                    <div className="w-[120px] flex items-center justify-center">
-                     <div className="w-[80px] h-[80px] flex items-center justify-center">
-                       <img src="https://via.placeholder.com/80" alt="Logo" className="max-w-full max-h-full object-contain" />
-                     </div>
                    </div>
                    {/* Company Info */}
                    <div className="flex-1 text-center flex flex-col items-center justify-center px-2">
-                     <h2 className="text-[20px] font-bold">Os Books</h2>
+                     <h2 className="text-[20px] font-bold">Swayam Bill Book</h2>
                      <p className="text-[12px] text-gray-500 font-medium">The Digital Accounting Book</p>
                      <p>NO, , OPP GRAM PANCHAYAT, SH 31, BELAGAVI, KARNATAKA, INDIA, 591220</p>
                      <p>Tel : 9845972853 | swayamsoftwaretarget@gmail.com</p>
@@ -248,71 +376,71 @@ export function PrintSetting() {
                    </div>
                    {/* QR Code */}
                    <div className="w-[120px] flex items-center justify-center">
-                     <div className="w-[80px] h-[80px] bg-gray-100 flex items-center justify-center">
-                       <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=Example" alt="QR" className="w-full h-full" />
-                     </div>
+                      <div className="w-[80px] h-[80px] bg-gray-100 flex items-center justify-center">
+                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=9000000000@axisbank&pn=Swayam&am=${previewInvoice?.totalAmount ? Number(previewInvoice.totalAmount).toFixed(2) : totalFinal.toFixed(2)}`)}`} alt="QR Code" className="w-full h-full" />
+                      </div>
+                    </div>
                    </div>
                  </div>
-               </div>
 
                {/* 2. Parties & Invoice Info */}
                <div className="w-full flex border-b border-black">
                  {/* Bill To */}
                  <div className="flex-1 border-r border-black p-2 flex flex-col">
                    <div className="text-[#4F46E5] mb-1 font-bold">Bill to:</div>
-                   <div className="font-bold uppercase">NISHIT</div>
-                   <div className="uppercase">A-406, 4TH FLOOR, MONARCH GAURAVPATH ROAD, PALIIIII, BAMBOO FLAT, ANDAMAN AND NICOBAR ISLANDS, INDIA</div>
-                   <div className="uppercase">Contact No: 9XXXXXX321 | 9XXXXXX321</div>
-                   <div>Email: exa****@gmail.com</div>
-                   <div className="uppercase">GSTIN: 24AADCD6XXXXXXX</div>
-                   <div className="uppercase">PAN: EDBARXXXXX</div>
+                   <div className="font-bold uppercase">{previewInvoice?.customer?.name || 'NISHIT'}</div>
+                   <div className="uppercase">{previewInvoice?.customer?.address || 'A-406, 4TH FLOOR, MONARCH GAURAVPATH ROAD, PALIIIII, BAMBOO FLAT, ANDAMAN AND NICOBAR ISLANDS, INDIA'}</div>
+                   <div className="uppercase">Contact No: {previewInvoice?.customer?.phone || '9XXXXXX321 | 9XXXXXX321'}</div>
+                   <div>Email: {previewInvoice?.customer?.email || 'exa****@gmail.com'}</div>
+                   <div className="uppercase">GSTIN: {previewInvoice?.customer?.gstin || '24AADCD6XXXXXXX'}</div>
+                   <div className="uppercase">PAN: {previewInvoice?.customer?.pan || 'EDBARXXXXX'}</div>
                  </div>
                  {/* Ship To */}
                  <div className="flex-[0.8] border-r border-black p-2 flex flex-col">
                    <div className="text-[#4F46E5] mb-1 font-bold">Ship to:</div>
-                   <div className="font-bold uppercase">NISHIT</div>
-                   <div className="uppercase">A-406, 4TH FLOOR, MONARCH GAURAVPATH ROAD, PAL, BAMBOO FLAT, ANDAMAN AND NICOBAR ISLANDS, INDIA</div>
-                   <div className="uppercase">Contact No: 9XXXXXX321</div>
-                   <div className="uppercase">GSTIN: 24AADCD6XXXXXXX</div>
-                   <div className="uppercase">PAN: EDBARXXXXX</div>
+                   <div className="font-bold uppercase">{previewInvoice?.customer?.name || 'NISHIT'}</div>
+                   <div className="uppercase">{previewInvoice?.customer?.address || 'A-406, 4TH FLOOR, MONARCH GAURAVPATH ROAD, PAL, BAMBOO FLAT, ANDAMAN AND NICOBAR ISLANDS, INDIA'}</div>
+                   <div className="uppercase">Contact No: {previewInvoice?.customer?.phone || '9XXXXXX321'}</div>
+                   <div className="uppercase">GSTIN: {previewInvoice?.customer?.gstin || '24AADCD6XXXXXXX'}</div>
+                   <div className="uppercase">PAN: {previewInvoice?.customer?.pan || 'EDBARXXXXX'}</div>
                  </div>
                  {/* Invoice Details */}
                  <div className="flex-[0.8] p-2 flex flex-col">
                    <div className="text-[#4F46E5] mb-1 font-bold">Invoice Details:</div>
-                   <div className="flex justify-between"><span className="uppercase">Invoice No:</span> <span className="font-bold uppercase">MA22/2348</span></div>
-                   <div className="flex justify-between"><span className="uppercase">Invoice Date:</span> <span className="font-bold uppercase">24-08-2023</span></div>
+                   <div className="flex justify-between"><span className="uppercase">Invoice No:</span> <span className="font-bold uppercase">{previewInvoice?.invoiceNo || 'MA22/2348'}</span></div>
+                   <div className="flex justify-between"><span className="uppercase">Invoice Date:</span> <span className="font-bold uppercase">{previewInvoice?.date ? new Date(previewInvoice.date).toLocaleDateString('en-GB') : '24-08-2023'}</span></div>
                  </div>
                </div>
 
                {/* 3. Transport Details */}
                <div className="w-full flex border-b border-black">
                  <div className="flex-[1.8] border-r border-black p-2 flex flex-col gap-1">
-                   <div className="flex"><span className="w-32">Transport Name:</span> <span className="uppercase">Maharaj</span></div>
-                   <div className="flex"><span className="w-32">Document No:</span> <span className="uppercase">11</span></div>
-                   <div className="flex"><span className="w-32">Document Date:</span> <span className="uppercase">24-08-2023</span></div>
+                   <div className="flex"><span className="w-32">Transport Name:</span> <span className="uppercase">{previewInvoice?.transportName || ''}</span></div>
+                   <div className="flex"><span className="w-32">Document No:</span> <span className="uppercase">{previewInvoice?.documentNo || ''}</span></div>
+                   <div className="flex"><span className="w-32">Document Date:</span> <span className="uppercase">{previewInvoice?.documentDate ? new Date(previewInvoice.documentDate).toLocaleDateString('en-GB') : ''}</span></div>
                  </div>
                  <div className="flex-1 p-2 flex flex-col gap-1">
-                   <div className="flex justify-between"><span className="w-32">Ack No:</span> <span className="uppercase">162314701183939</span></div>
-                   <div className="flex justify-between"><span className="w-32">Ack Date:</span> <span className="uppercase">18-08-2023</span></div>
-                   <div className="flex justify-between"><span className="w-32">IRN:</span> <span className="uppercase">3183488b0385a8206fbe</span></div>
+                   <div className="flex justify-between"><span className="w-32">Ack No:</span> <span className="uppercase">{previewInvoice?.ackNo || ''}</span></div>
+                   <div className="flex justify-between"><span className="w-32">Ack Date:</span> <span className="uppercase">{previewInvoice?.ackDate ? new Date(previewInvoice.ackDate).toLocaleDateString('en-GB') : ''}</span></div>
+                   <div className="flex justify-between"><span className="w-32">IRN:</span> <span className="uppercase">{previewInvoice?.irn || ''}</span></div>
                  </div>
                </div>
 
                {/* 4. PO / E-way Details */}
                <div className="w-full flex border-b border-black">
                  <div className="flex-1 border-r border-black p-2 flex flex-col gap-1">
-                   <div className="flex justify-between"><span>PO No:</span> <span className="uppercase">9985</span></div>
-                   <div className="flex justify-between"><span>PO Date:</span> <span className="uppercase">24-08-2023</span></div>
+                   <div className="flex justify-between"><span>PO No:</span> <span className="uppercase">{previewInvoice?.poNo || ''}</span></div>
+                   <div className="flex justify-between"><span>PO Date:</span> <span className="uppercase">{previewInvoice?.poDate ? new Date(previewInvoice.poDate).toLocaleDateString('en-GB') : ''}</span></div>
                  </div>
                  <div className="flex-1 border-r border-black p-2 flex flex-col gap-1">
-                   <div className="flex justify-between"><span>E-way Bill No:</span> <span className="uppercase">162314701183939</span></div>
-                   <div className="flex justify-between"><span>E-way Bill Date:</span> <span className="uppercase">18-08-2023</span></div>
-                   <div className="flex justify-between"><span>Vehicle No:</span> <span className="uppercase">GJ05ABXXXX</span></div>
+                   <div className="flex justify-between"><span>E-way Bill No:</span> <span className="uppercase">{previewInvoice?.ewayBillNo || ''}</span></div>
+                   <div className="flex justify-between"><span>E-way Bill Date:</span> <span className="uppercase">{previewInvoice?.ewayBillDate ? new Date(previewInvoice.ewayBillDate).toLocaleDateString('en-GB') : ''}</span></div>
+                   <div className="flex justify-between"><span>Vehicle No:</span> <span className="uppercase">{previewInvoice?.vehicleNo || ''}</span></div>
                  </div>
                  <div className="flex-1 p-2 flex flex-col gap-1">
-                   <div className="flex justify-between"><span>Custom field 1:</span> <span className="uppercase text-gray-500">xxxxxxxxx</span></div>
-                   <div className="flex justify-between"><span>Custom field 2:</span> <span className="uppercase text-gray-500">xxxxxxxxx</span></div>
-                   <div className="flex justify-between"><span>Custom field 3:</span> <span className="uppercase text-gray-500">xxxxxxxxx</span></div>
+                   <div className="flex justify-between"><span>Custom field 1:</span> <span className="uppercase text-gray-500"></span></div>
+                   <div className="flex justify-between"><span>Custom field 2:</span> <span className="uppercase text-gray-500"></span></div>
+                   <div className="flex justify-between"><span>Custom field 3:</span> <span className="uppercase text-gray-500"></span></div>
                  </div>
                </div>
 
@@ -341,29 +469,30 @@ export function PrintSetting() {
                      </tr>
                    </thead>
                    <tbody className="align-top">
-                     <tr>
-                       <td className="border-r border-black p-1 pt-2">1</td>
-                       <td className="border-r border-black p-1 pt-2 text-left h-[180px]">
-                         Glass 4MM<br/><br/>
-                         Holes: 20 x 50<br/>
-                         Cut outs: 10 x 40
-                       </td>
-                       <td className="border-r border-black p-1 pt-2">-</td>
-                       <td className="border-r border-black p-1 pt-2">1</td>
-                       <td className="border-r border-black p-1 pt-2">12 * 12<br/>mm</td>
-                       <td className="border-r border-black p-1 pt-2">12 * 12<br/>mm</td>
-                       <td className="border-r border-black p-1 pt-2">1.25<br/>sq.ft</td>
-                       <td className="border-r border-black p-1 pt-2">4.5<br/>run.ft</td>
-                       <td className="border-r border-black p-1 pt-2">100<br/>sq.ft</td>
-                       <td className="border-r border-black p-1 pt-2">20<br/>sq.ft</td>
-                       <td className="border-r border-black p-1 pt-2">30<br/>run.ft</td>
-                       <td className="border-r border-black p-1 pt-2">30<br/>sq.ft</td>
-                       <td className="border-r border-black p-1 pt-2">-</td>
-                       <td className="border-r border-black p-1 pt-2">-</td>
-                       <td className="border-r border-black p-1 pt-2">-</td>
-                       <td className="border-r border-black p-1 pt-2">0</td>
-                       <td className="p-1 pt-2 text-right">₹2,722.50</td>
-                     </tr>
+                     {parsedItems.map((item, idx) => (
+                       <tr key={idx}>
+                         <td className="border-r border-black p-1 pt-2">{idx + 1}</td>
+                         <td className="border-r border-black p-1 pt-2 text-left h-[50px]">
+                           {item.name}
+                           {item.desc && <><br/><span className="text-[9px]">{item.desc}</span></>}
+                         </td>
+                         <td className="border-r border-black p-1 pt-2">-</td>
+                         <td className="border-r border-black p-1 pt-2">{item.qty}</td>
+                         <td className="border-r border-black p-1 pt-2">-</td>
+                         <td className="border-r border-black p-1 pt-2">{item.qty}</td>
+                         <td className="border-r border-black p-1 pt-2">-</td>
+                         <td className="border-r border-black p-1 pt-2">{item.rate}</td>
+                         <td className="border-r border-black p-1 pt-2">-</td>
+                         <td className="border-r border-black p-1 pt-2">-</td>
+                         <td className="border-r border-black p-1 pt-2">-</td>
+                         <td className="border-r border-black p-1 pt-2">-</td>
+                         <td className="border-r border-black p-1 pt-2">{item.discount > 0 ? item.discount : '-'}</td>
+                         <td className="border-r border-black p-1 pt-2">-</td>
+                         <td className="border-r border-black p-1 pt-2">{item.discount > 0 ? item.discount : '-'}</td>
+                         <td className="border-r border-black p-1 pt-2">0</td>
+                         <td className="p-1 pt-2 text-right">₹{item.taxableValue}</td>
+                       </tr>
+                     ))}
                    </tbody>
                  </table>
                </div>
@@ -381,7 +510,7 @@ export function PrintSetting() {
                   <div className="flex-[0.5] border-r border-black p-1"></div>
                   <div className="flex-[0.5] border-r border-black p-1"></div>
                   <div className="flex-[0.5] border-r border-black p-1"></div>
-                  <div className="flex-1 p-1 text-right font-bold">₹2,722.50</div>
+                   <div className="flex-1 p-1 text-right font-bold">₹{totalTaxable.toFixed(2)}</div>
                </div>
 
                {/* 6. Footer Layout */}
@@ -390,25 +519,25 @@ export function PrintSetting() {
                  <div className="flex-[1.8] border-r border-black flex flex-col">
                    <div className="p-2 border-b border-black text-[10px]">
                      <div className="font-bold mb-1">Terms and Conditions:</div>
-                     <div className="mb-1">Payment Terms:</div>
-                     <p className="mb-2 text-gray-700">Clearly state the payment due date, which is the date by which the client must pay the invoice amount. Specify the accepted payment methods (e.g., credit card bank transfer, PayPal) and any associated fees for certain payment methods. Outline any late payment penalties or interest charges that will apply if the client fails to make payment on time.</p>
+                     <div className="mb-1">{footerSettings.labelTermsAndConditions || "Terms and Conditions"}</div>
+                     <p className="mb-2 text-gray-700">{previewInvoice?.terms || ''}</p>
                      
                      <div className="font-bold mb-1">Notes:</div>
-                     <p className="text-gray-700">Narration simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book.</p>
+                     <p className="text-gray-700">{previewInvoice?.notes || footerSettings.labelThankYouNote || ''}</p>
                    </div>
                    <div className="p-2 flex flex-col justify-end flex-1">
-                     <div className="flex gap-2"><span>In Words:</span> <span>Nine Thousand Two Hundred and Seventy Rupees Only</span></div>
-                     <div className="flex gap-2"><span>Payment Details:</span> <span>02-09-2025 - 310 - Default Bank</span></div>
+                     <div className="flex gap-2"><span>In Words:</span> <span>{previewInvoice?.amountInWords || ''}</span></div>
+                     <div className="flex gap-2"><span>Payment Details:</span> <span>{previewInvoice?.paymentMode || 'Cash / Bank Transfer'}</span></div>
                    </div>
                  </div>
 
                  {/* Right side summary */}
                  <div className="flex-1 flex flex-col">
                    <div className="p-2 border-b border-black flex flex-col gap-1 flex-1">
-                     <div className="flex justify-between"><span>Credit Period:</span> <span>30 Days</span></div>
-                     <div className="flex justify-between"><span>Due Date:</span> <span>23-09-2023</span></div>
-                     <div className="flex justify-between mt-2"><span>Broker:</span> <span>Ankit</span></div>
-                     <div className="flex justify-between"><span>GSTIN:</span> <span>24AADCD6XXXXXXX</span></div>
+                     <div className="flex justify-between"><span>Credit Period:</span> <span>{previewInvoice?.creditPeriod ? `${previewInvoice.creditPeriod} Days` : ''}</span></div>
+                     <div className="flex justify-between"><span>Due Date:</span> <span>{previewInvoice?.dueDate ? new Date(previewInvoice.dueDate).toLocaleDateString('en-GB') : ''}</span></div>
+                     <div className="flex justify-between mt-2"><span>Broker:</span> <span>{previewInvoice?.brokerName || ''}</span></div>
+                     <div className="flex justify-between"><span>GSTIN:</span> <span>{previewInvoice?.customer?.gstin || ''}</span></div>
                    </div>
                    
                    <div className="p-2 border-b border-black flex flex-col gap-1">
@@ -420,7 +549,7 @@ export function PrintSetting() {
                    </div>
 
                    <div className="p-2 flex justify-between font-bold text-[12px] h-full items-end">
-                     <span>Total:</span> <span>₹9,270.00</span>
+                     <span>Total:</span> <span>₹{previewInvoice?.totalAmount ? Number(previewInvoice.totalAmount).toFixed(2) : totalFinal.toFixed(2)}</span>
                    </div>
                  </div>
                </div>
@@ -442,17 +571,17 @@ export function PrintSetting() {
                      <tr>
                        <td className="border-r border-black p-1">1</td>
                        <td className="border-r border-black p-1">-</td>
-                       <td className="border-r border-black p-1">₹1,342.00</td>
-                       <td className="border-r border-black p-1">5</td>
-                       <td className="border-r border-black p-1">₹40.00</td>
-                       <td className="p-1">₹80.00</td>
+                       <td className="border-r border-black p-1">₹{totalTaxable.toFixed(2)}</td>
+                       <td className="border-r border-black p-1">0</td>
+                       <td className="border-r border-black p-1">₹0.00</td>
+                       <td className="p-1">₹0.00</td>
                      </tr>
                      <tr className="border-t border-black font-bold">
                        <td colSpan="2" className="border-r border-black p-1">Total</td>
-                       <td className="border-r border-black p-1">₹8,672.00</td>
+                       <td className="border-r border-black p-1">₹{totalTaxable.toFixed(2)}</td>
                        <td className="border-r border-black p-1"></td>
-                       <td className="border-r border-black p-1">₹272.00</td>
-                       <td className="p-1">₹544.00</td>
+                       <td className="border-r border-black p-1">₹{previewInvoice?.totalIgst ? Number(previewInvoice.totalIgst).toFixed(2) : '0.00'}</td>
+                       <td className="p-1">₹{previewInvoice?.totalGstAmount ? Number(previewInvoice.totalGstAmount).toFixed(2) : '0.00'}</td>
                      </tr>
                    </tbody>
                  </table>
@@ -461,12 +590,12 @@ export function PrintSetting() {
                {/* 8. Bottom Footer */}
                <div className="w-full flex flex-1">
                  <div className="flex-[1.8] border-r border-black p-2 flex flex-col gap-1 justify-start">
-                   <div className="flex"><span className="w-24">Bank:</span> <span>Axis Bank</span></div>
-                   <div className="flex"><span className="w-24">IFSC Code:</span> <span>UTIB0002996</span></div>
-                   <div className="flex"><span className="w-24">A/C Number:</span> <span>9674563210258</span></div>
-                   <div className="flex"><span className="w-24">Bank Branch:</span> <span>ALTHAN</span></div>
-                   <div className="flex"><span className="w-24">A/C Name:</span> <span>Nishit</span></div>
-                   <div className="flex"><span className="w-24">UPI ID:</span> <span>9000000000@axisbank</span></div>
+                   <div className="flex"><span className="w-24">Bank:</span> <span>{previewInvoice?.bankName || ''}</span></div>
+                   <div className="flex"><span className="w-24">IFSC Code:</span> <span>{previewInvoice?.bankIfsc || ''}</span></div>
+                   <div className="flex"><span className="w-24">A/C Number:</span> <span>{previewInvoice?.bankAccountNo || ''}</span></div>
+                   <div className="flex"><span className="w-24">Bank Branch:</span> <span>{previewInvoice?.bankBranch || ''}</span></div>
+                   <div className="flex"><span className="w-24">A/C Name:</span> <span>{previewInvoice?.bankAccountName || ''}</span></div>
+                   <div className="flex"><span className="w-24">UPI ID:</span> <span>{previewInvoice?.upiId || ''}</span></div>
                  </div>
                  <div className="flex-1 p-2 flex flex-col justify-between items-end text-right h-full pb-4">
                    <div>For, SWAYAM BILLING<br/>SOFTWARE</div>
@@ -478,7 +607,7 @@ export function PrintSetting() {
           ) : (
           <div 
             ref={previewRef} 
-            className="bg-[#ffffff] shadow-sm w-full max-w-[420px] p-2 flex flex-col items-center shrink-0"
+            className={`bg-[#ffffff] shadow-sm p-2 flex flex-col items-center shrink-0 mx-auto ${pageSize === '2inch' ? 'w-[58mm]' : 'w-[80mm]'}`}
             style={{
               paddingRight: customization.thermalMarginRight ? `calc(20px + ${customization.thermalMarginRight}mm)` : undefined,
               fontWeight: customization.thermalFontWeight
@@ -493,7 +622,9 @@ export function PrintSetting() {
                   <div className="w-14 h-14 bg-gray-200 border border-gray-300 flex items-center justify-center text-[10px] text-gray-500 rounded-full">Logo</div>
                 </div>
               )}
-              <h3 className="text-[#4F46E5] font-bold mb-1" style={{ fontSize: `${customization.headerLabelsFontSize}px` }}>TAX INVOICE</h3>
+              <h3 className="text-[#4F46E5] font-bold mb-1" style={{ fontSize: `${customization.headerLabelsFontSize}px` }}>
+                {transactionType2.toUpperCase() === 'INCOME TRANSACTION' ? 'TAX INVOICE' : transactionType2.toUpperCase()}
+              </h3>
               <h2 
                 className="text-[#111827] tracking-wide mb-1"
                 style={{ 
@@ -501,7 +632,7 @@ export function PrintSetting() {
                   fontWeight: customization.headerCompanyNameB ? 'bold' : 'normal',
                   textDecoration: customization.headerCompanyNameU ? 'underline' : 'none'
                 }}
-              >Os Books</h2>
+              >Swayam Bill Book</h2>
               <p className="text-gray-500 mb-1" style={{ fontSize: `max(10px, calc(${customization.headerCompanyNameFontSize}px * 0.55))` }}>The Digital Accounting Book</p>
               <p className="text-[#374151] leading-tight" style={{ fontSize: `${customization.headerCompanyAddressFontSize}px` }}>NO, , OPP GRAM PANCHAYAT, SH 31, BELAGAVI, KARNATA</p>
               <p className="text-[#374151] leading-tight" style={{ fontSize: `${customization.headerCompanyAddressFontSize}px` }}>KA, INDIA, 591220</p>
@@ -510,7 +641,7 @@ export function PrintSetting() {
                 {headerSettings.showMobileNumber && headerSettings.showEmail && <span> | </span>}
                 {headerSettings.showEmail && <span>swayamsoftwaretarget@gmail.com</span>}
               </p>
-              <p className="text-[#374151] leading-tight" style={{ fontSize: `${customization.headerContentsFontSize}px` }}>GSTIN: 29DCDPP7499L2ZH</p>
+              <p className="text-[#374151] leading-tight" style={{ fontSize: `${customization.headerContentsFontSize}px` }}>{headerSettings.labelGstin || 'GSTIN'}: 29DCDPP7499L2ZH</p>
               
               {headerSettings.customFields.map((field, index) => (
                 field.name && (
@@ -524,21 +655,21 @@ export function PrintSetting() {
             {/* Invoice Details */}
             <div className="w-full text-[#1f2937] leading-[1.4] mb-3" style={{ fontSize: `${customization.headerContentsFontSize}px` }}>
               <div className="flex justify-between">
-                <span className="font-bold" style={{ fontSize: `${customization.headerLabelsFontSize}px` }}>{headerSettings.labelInvoiceNumber || 'Invoice Number'}: <span className="font-normal" style={{ fontSize: `${customization.headerContentsFontSize}px` }}>MA22/2348</span></span>
-                <span className="font-bold" style={{ fontSize: `${customization.headerLabelsFontSize}px` }}>{headerSettings.labelDate || 'Date'}: <span className="font-normal" style={{ fontSize: `${customization.headerContentsFontSize}px` }}>28-05-2026</span></span>
+                <span className="font-bold" style={{ fontSize: `${customization.headerLabelsFontSize}px` }}>{headerSettings.labelInvoiceNumber || 'Invoice Number'}: <span className="font-normal" style={{ fontSize: `${customization.headerContentsFontSize}px` }}>{previewInvoice?.invoiceNo || 'MA22/2348'}</span></span>
+                <span className="font-bold" style={{ fontSize: `${customization.headerLabelsFontSize}px` }}>{headerSettings.labelDate || 'Date'}: <span className="font-normal" style={{ fontSize: `${customization.headerContentsFontSize}px` }}>{previewInvoice?.date ? new Date(previewInvoice.date).toLocaleDateString('en-GB') : '28-05-2026'}</span></span>
               </div>
-              <div className="font-bold" style={{ fontSize: `${customization.headerLabelsFontSize}px` }}>{headerSettings.labelCustomer || 'Customer'}: <span className="font-normal" style={{ fontSize: `${customization.headerContentsFontSize}px` }}>0s booking</span></div>
-              <div className="font-bold" style={{ fontSize: `${customization.headerLabelsFontSize}px` }}>{headerSettings.labelAddress || 'Address'}: <span className="font-normal" style={{ fontSize: `${customization.headerContentsFontSize}px` }}>dummy</span></div>
-              <div>BAMBOO FLAT, ANDAMAN AND NICOBAR ISLANDS, INDIA</div>
+              <div className="font-bold" style={{ fontSize: `${customization.headerLabelsFontSize}px` }}>{headerSettings.labelCustomer || 'Customer'}: <span className="font-normal" style={{ fontSize: `${customization.headerContentsFontSize}px` }}>{previewInvoice?.customer?.name || 'Walk-in Customer'}</span></div>
+              <div className="font-bold" style={{ fontSize: `${customization.headerLabelsFontSize}px` }}>{headerSettings.labelAddress || 'Address'}: <span className="font-normal" style={{ fontSize: `${customization.headerContentsFontSize}px` }}>{previewInvoice?.customer?.address || 'Local'}</span></div>
+              <div>{previewInvoice?.customer?.city ? `${previewInvoice.customer.city}, ${previewInvoice.customer.state || ''}` : ''}</div>
               
               {headerSettings.partyGstin && (
-                <div className="font-bold" style={{ fontSize: `${customization.headerLabelsFontSize}px` }}>{headerSettings.labelPartyGstin || 'GSTIN'}: <span className="font-normal" style={{ fontSize: `${customization.headerContentsFontSize}px` }}>24AADCD6XXXXXXX</span></div>
+                <div className="font-bold" style={{ fontSize: `${customization.headerLabelsFontSize}px` }}>{headerSettings.labelPartyGstin || 'GSTIN'}: <span className="font-normal" style={{ fontSize: `${customization.headerContentsFontSize}px` }}>{previewInvoice?.customer?.gstin || '24AADCD6XXXXXXX'}</span></div>
               )}
               {headerSettings.partyContactNumber && (
-                <div className="font-bold" style={{ fontSize: `${customization.headerLabelsFontSize}px` }}>{headerSettings.labelPartyContact || 'Contact No'}: <span className="font-normal" style={{ fontSize: `${customization.headerContentsFontSize}px` }}>1234567891</span></div>
+                <div className="font-bold" style={{ fontSize: `${customization.headerLabelsFontSize}px` }}>{headerSettings.labelPartyContact || 'Contact No'}: <span className="font-normal" style={{ fontSize: `${customization.headerContentsFontSize}px` }}>{previewInvoice?.customer?.phone || '1234567891'}</span></div>
               )}
               {headerSettings.partyPanNumber && (
-                <div className="font-bold" style={{ fontSize: `${customization.headerLabelsFontSize}px` }}>{headerSettings.labelPartyPan || 'PAN'}: <span className="font-normal" style={{ fontSize: `${customization.headerContentsFontSize}px` }}>EDqARXXXXX</span></div>
+                <div className="font-bold" style={{ fontSize: `${customization.headerLabelsFontSize}px` }}>{headerSettings.labelPartyPan || 'PAN'}: <span className="font-normal" style={{ fontSize: `${customization.headerContentsFontSize}px` }}>{previewInvoice?.customer?.pan || 'EDqARXXXXX'}</span></div>
               )}
             </div>
 
@@ -556,80 +687,97 @@ export function PrintSetting() {
               <PrintDashedLine />
               
               <div className="flex flex-col w-full align-top" style={{ fontSize: `${customization.tableContentsFontSize}px` }}>
-                <div className="flex w-full py-1">
-                  <div className="flex-1 pr-2">Adrian Bell</div>
-                  {tableSettings.showThQty && <div className="w-[35px] text-right">1</div>}
-                  {tableSettings.showThRate && <div className="w-[45px] text-right">1000.00</div>}
-                  {tableSettings.showThDiscount && <div className="w-[30px] text-right">120</div>}
-                  {tableSettings.showThTaxableValue && <div className="w-[55px] text-right">880.00</div>}
-                  {tableSettings.showThTotalAmount && <div className="w-[60px] text-right">1,006.40</div>}
-                </div>
-                
-                <div className="flex w-full py-0.5">
-                  <div className="flex-1 pr-2">Saree</div>
-                  {tableSettings.showThQty && <div className="w-[35px] text-right">1</div>}
-                  {tableSettings.showThRate && <div className="w-[45px] text-right">1500.00</div>}
-                  {tableSettings.showThDiscount && <div className="w-[30px] text-right">20</div>}
-                  {tableSettings.showThTaxableValue && <div className="w-[55px] text-right">1,200.00</div>}
-                  {tableSettings.showThTotalAmount && <div className="w-[60px] text-right">1,416.00</div>}
-                </div>
-                
-                <div className="w-full pb-1" style={{ fontSize: `${customization.tableDescriptionFontSize}px` }}>Blue Saree {tableSettings.showThHsnSac && '( HSN/SAC: 1006, GST: 28% )'}</div>
-                
-                <div className="flex w-full py-0.5">
-                  <div className="flex-1 pr-2"></div>
-                  {tableSettings.showThQty && <div className="w-[35px] text-right">5</div>}
-                  {tableSettings.showThRate && <div className="w-[45px] text-right">781.00</div>}
-                  {tableSettings.showThDiscount && <div className="w-[30px] text-right">0.00</div>}
-                  {tableSettings.showThTaxableValue && <div className="w-[55px] text-right">3,905.00</div>}
-                  {tableSettings.showThTotalAmount && <div className="w-[60px] text-right">4,999.68</div>}
-                </div>
-                
-                <div className="flex w-full py-1 pb-2">
-                  <div className="flex-1 leading-tight pr-2">
-                    Cricket Bat 
-                    {tableSettings.showThGst && <span className="block" style={{ fontSize: `${customization.tableDescriptionFontSize}px` }}>(GST: 28%)</span>}
+                {(previewInvoice?.items?.length > 0 
+                  ? previewInvoice.items.map(i => ({
+                      name: i.product?.name || i.name || 'Unknown',
+                      qty: i.quantity || 1,
+                      rate: i.price || 0,
+                      discount: i.discount1 || 0,
+                      taxableValue: i.amount || 0,
+                      totalAmount: i.amount || 0,
+                      desc: ''
+                    }))
+                  : [
+                      { name: 'Adrian Bell', qty: 1, rate: 1000, discount: 120, taxableValue: 880, totalAmount: 1006.40 },
+                      { name: 'Saree', qty: 1, rate: 1500, discount: 20, taxableValue: 1200, totalAmount: 1416.00 },
+                      { name: 'Blue Saree', qty: 5, rate: 781, discount: 0, taxableValue: 3905, totalAmount: 4999.68, desc: tableSettings.showThHsnSac ? '( HSN/SAC: 1006, GST: 28% )' : '' },
+                      { name: 'Cricket Bat', qty: 3, rate: 100, discount: 0, taxableValue: 300, totalAmount: 384.00, desc: tableSettings.showThGst ? '(GST: 28%)' : '' }
+                    ]
+                ).map((item, idx) => (
+                  <div key={idx} className="flex flex-col w-full py-0.5">
+                    {item.name === 'Blue Saree' ? (
+                      <>
+                        <div className="w-full pb-1" style={{ fontSize: `${customization.tableDescriptionFontSize}px` }}>{item.name} {item.desc}</div>
+                        <div className="flex w-full py-0.5">
+                          <div className="flex-1 pr-2"></div>
+                          {tableSettings.showThQty && <div className="w-[35px] text-right">{item.qty}</div>}
+                          {tableSettings.showThRate && <div className="w-[45px] text-right">{item.rate}</div>}
+                          {tableSettings.showThDiscount && <div className="w-[30px] text-right">{item.discount}</div>}
+                          {tableSettings.showThTaxableValue && <div className="w-[55px] text-right">{item.taxableValue}</div>}
+                          {tableSettings.showThTotalAmount && <div className="w-[60px] text-right">{item.totalAmount}</div>}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex w-full py-0.5">
+                        <div className="flex-1 pr-2 leading-tight">
+                          {item.name}
+                          {item.desc && <span className="block" style={{ fontSize: `${customization.tableDescriptionFontSize}px` }}>{item.desc}</span>}
+                        </div>
+                        {tableSettings.showThQty && <div className="w-[35px] text-right">{item.qty}</div>}
+                        {tableSettings.showThRate && <div className="w-[45px] text-right">{item.rate}</div>}
+                        {tableSettings.showThDiscount && <div className="w-[30px] text-right">{item.discount}</div>}
+                        {tableSettings.showThTaxableValue && <div className="w-[55px] text-right">{item.taxableValue}</div>}
+                        {tableSettings.showThTotalAmount && <div className="w-[60px] text-right">{item.totalAmount}</div>}
+                      </div>
+                    )}
                   </div>
-                  {tableSettings.showThQty && <div className="w-[35px] text-right">3</div>}
-                  {tableSettings.showThRate && <div className="w-[45px] text-right">100.00</div>}
-                  {tableSettings.showThDiscount && <div className="w-[30px] text-right">0.00</div>}
-                  {tableSettings.showThTaxableValue && <div className="w-[55px] text-right">300.00</div>}
-                  {tableSettings.showThTotalAmount && <div className="w-[60px] text-right">384.00</div>}
-                </div>
+                ))}
               </div>
 
               {/* Totals border */}
               <PrintDashedLine />
-              <div className="flex w-full py-1 font-bold" style={{ fontSize: `${customization.tableTotalFontSize}px` }}>
-            <div className="flex-1 pr-2">Total</div>
-                <div className="w-[35px] text-right">10.00</div>
-                <div className="w-[45px] text-right"></div>
-                <div className="w-[30px] text-right"></div>
-                <div className="w-[55px] text-right">6,285.00</div>
-                <div className="w-[60px] text-right">7,806.08</div>
-              </div>
-              <PrintDashedLine />
-            </div>
+              {(() => {
+                const items = previewInvoice?.items?.length > 0 
+                  ? previewInvoice.items.map(i => ({ qty: i.quantity || 1, taxableValue: i.amount || 0, totalAmount: i.amount || 0 }))
+                  : [{ qty: 10, taxableValue: 6285, totalAmount: 7806.08 }];
+                const totalQty = items.reduce((acc, i) => acc + Number(i.qty), 0);
+                const totalTaxable = items.reduce((acc, i) => acc + Number(i.taxableValue), 0);
+                const totalFinal = items.reduce((acc, i) => acc + Number(i.totalAmount), 0);
+                return (
+                  <>
+                    <div className="flex w-full py-1 font-bold" style={{ fontSize: `${customization.tableTotalFontSize}px` }}>
+                      <div className="flex-1 pr-2">Total</div>
+                      <div className="w-[35px] text-right">{totalQty.toFixed(2)}</div>
+                      <div className="w-[45px] text-right"></div>
+                      <div className="w-[30px] text-right"></div>
+                      <div className="w-[55px] text-right">{totalTaxable.toFixed(2)}</div>
+                      <div className="w-[60px] text-right">{totalFinal.toFixed(2)}</div>
+                    </div>
+                    <PrintDashedLine />
 
-            {/* Totals */}
-            <div className="w-full text-[11px] mb-3">
-              <div className="flex justify-between w-full font-bold">
-                <span>Total</span>
-                <span>10.00</span>
-                <span>4,365.00</span>
-              </div>
+                    {/* Totals */}
+                    <div className="w-full text-[11px] mb-3">
+                      <div className="flex justify-between w-full font-bold">
+                        <span>Total</span>
+                        <span>{totalQty.toFixed(2)}</span>
+                        <span>{totalFinal.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
               
-              {tableSettings.showTlCgst && <div className="flex justify-between w-full"><span>{tableSettings.tlCgst || 'CGST'}:</span><span></span></div>}
-              {tableSettings.showTlSgst && <div className="flex justify-between w-full"><span>{tableSettings.tlSgst || 'SGST'}:</span><span></span></div>}
-              {tableSettings.showTlIgst && <div className="flex justify-between w-full"><span>{tableSettings.tlIgst || 'IGST'}:</span><span></span></div>}
-              {tableSettings.showTlTcs && <div className="flex justify-between w-full"><span>{tableSettings.tlTcs || 'TCS'}:</span><span></span></div>}
-              {tableSettings.showTlCess && <div className="flex justify-between w-full"><span>{tableSettings.tlCess || 'Cess'}:</span><span></span></div>}
-              {tableSettings.showTlRoundOff && <div className="flex justify-between w-full"><span>{tableSettings.tlRoundOff || 'Round off'}:</span><span></span></div>}
+              {tableSettings.showTlCgst && <div className="flex justify-between w-full"><span>{tableSettings.tlCgst || 'CGST'}:</span><span>{previewInvoice?.totalCgst ? Number(previewInvoice.totalCgst).toFixed(2) : ''}</span></div>}
+              {tableSettings.showTlSgst && <div className="flex justify-between w-full"><span>{tableSettings.tlSgst || 'SGST'}:</span><span>{previewInvoice?.totalSgst ? Number(previewInvoice.totalSgst).toFixed(2) : ''}</span></div>}
+              {tableSettings.showTlIgst && <div className="flex justify-between w-full"><span>{tableSettings.tlIgst || 'IGST'}:</span><span>{previewInvoice?.totalIgst ? Number(previewInvoice.totalIgst).toFixed(2) : ''}</span></div>}
+              {tableSettings.showTlTcs && <div className="flex justify-between w-full"><span>{tableSettings.tlTcs || 'TCS'}:</span><span>{previewInvoice?.tcsAmount ? Number(previewInvoice.tcsAmount).toFixed(2) : ''}</span></div>}
+              {tableSettings.showTlCess && <div className="flex justify-between w-full"><span>{tableSettings.tlCess || 'Cess'}:</span><span>{previewInvoice?.totalCess ? Number(previewInvoice.totalCess).toFixed(2) : ''}</span></div>}
+              {tableSettings.showTlRoundOff && <div className="flex justify-between w-full"><span>{tableSettings.tlRoundOff || 'Round off'}:</span><span>{previewInvoice?.roundOff ? Number(previewInvoice.roundOff).toFixed(2) : ''}</span></div>}
               
               <div className="mt-1 w-full"><PrintDashedLine /></div>
               <div className="flex justify-between w-full font-bold text-[13px] my-1">
                 <span>Total Payable Amount:</span>
-                <span>4,365.00</span>
+                <span>{previewInvoice?.totalAmount ? Number(previewInvoice.totalAmount).toFixed(2) : '4,365.00'}</span>
               </div>
               <div className="mb-1 w-full"><PrintDashedLine /></div>
               
@@ -643,7 +791,7 @@ export function PrintSetting() {
             {footerSettings.showPaymentDetails && (
               <div className="w-full text-[#1f2937] leading-tight mb-4 mt-2" style={{ fontSize: `${customization.footerContentsFontSize}px` }}>
                 <div className="font-bold mb-3" style={{ fontSize: `${customization.footerHeadingsFontSize}px` }}>
-                  Payment Details: <span className="font-normal" style={{ fontSize: `${customization.footerContentsFontSize}px` }}>02-09-2025 - 310 - Default Bank</span>
+                  Payment Details: <span className="font-normal" style={{ fontSize: `${customization.footerContentsFontSize}px` }}>{previewInvoice?.paymentMode || 'Cash / Bank Transfer'}</span>
                 </div>
                 <div className="font-bold mb-1" style={{ fontSize: `${customization.footerTermsFontSize}px` }}>{footerSettings.labelTermsAndConditions || "Terms and conditions"}:</div>
                 <div className="mb-1" style={{ fontSize: `${customization.footerTermsFontSize}px` }}>Payment Terms:</div>
@@ -654,16 +802,8 @@ export function PrintSetting() {
             <div className="w-full flex flex-col items-center gap-4 mt-auto">
               {footerSettings.showQrCode && (
                 <div className="w-16 h-16 opacity-80">
-                {/* Simulated QR Code SVG */}
-                <svg viewBox="0 0 100 100" className="w-full h-full text-[#000000]" fill="currentColor">
-                  <path d="M10,10 h20 v20 h-20 z M15,15 h10 v10 h-10 z M60,10 h20 v20 h-20 z M65,15 h10 v10 h-10 z M10,60 h20 v20 h-20 z M15,65 h10 v10 h-10 z M40,10 h10 v10 h-10 z M45,25 h15 v10 h-15 z M15,40 h15 v15 h-15 z M45,45 h10 v10 h-10 z M65,45 h20 v10 h-20 z M60,60 h10 v15 h-10 z M80,65 h10 v20 h-10 z M40,70 h15 v10 h-15 z M35,85 h25 v10 h-25 z M75,85 h10 v10 h-10 z"/>
-                  <rect x="30" y="30" width="5" height="5"/>
-                  <rect x="80" y="30" width="5" height="10"/>
-                  <rect x="25" y="80" width="5" height="5"/>
-                  <rect x="55" y="70" width="5" height="5"/>
-                  <rect x="65" y="75" width="5" height="5"/>
-                </svg>
-              </div> 
+                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=9000000000@axisbank&pn=Swayam&am=${previewInvoice?.totalAmount ? Number(previewInvoice.totalAmount).toFixed(2) : totalFinal.toFixed(2)}`)}`} alt="QR Code" className="w-full h-full" />
+                </div> 
               )}
               <div className="text-[#1f2937] text-center" style={{ fontSize: `${customization.footerNoteFontSize}px` }}>
                 {footerSettings.labelThankYouNote || "Thank you for choosing us, visit again."}
@@ -1105,26 +1245,28 @@ export function PrintSetting() {
                 {/* Receipt Content */}
                 <div className="p-8 flex-1 flex flex-col">
                   {/* Receipt Header */}
-                  <div className="text-center w-full mb-4">
-                    <h3 className="text-[#4F46E5] font-bold text-[18px] mb-4">TAX INVOICE</h3>
-                    <h2 className="text-[#111827] font-bold text-[20px] mb-4">Test Enterprise</h2>
-                    <p className="text-[13px] text-[#1f2937] font-bold leading-tight uppercase">OFFICE NO. 211, EMPIRE STATE BUILDING, RING ROAD, Surat,</p>
-                    <p className="text-[13px] text-[#1f2937] font-bold leading-tight">Gujarat, India, 395002</p>
-                    <p className="text-[13px] text-[#1f2937] font-bold leading-tight mt-2">Tel : 95874XXXXX | abc@gmail.com</p>
-                    <p className="text-[13px] text-[#1f2937] font-bold leading-tight">GSTIN: 24AAOXXXXXXX</p>
+                  <div className="w-full flex justify-between items-start border-b border-gray-300 pb-4 mb-4">
+                    <div>
+                      <h3 className="text-[#4F46E5] font-bold text-[18px] mb-4">
+                        {transactionType2.toUpperCase() === 'INCOME TRANSACTION' ? 'TAX INVOICE' : transactionType2.toUpperCase()}
+                      </h3>
+                      <h2 className="text-[#111827] font-bold text-[20px] mb-4">Swayam Bill Book</h2>
+                      <p className="text-[13px] text-[#1f2937] font-bold leading-tight uppercase">OFFICE NO. 211, EMPIRE STATE BUILDING, RING ROAD, Surat,</p>
+                      <p className="text-[13px] text-[#1f2937] font-bold leading-tight">Gujarat, India, 395002</p>
+                      <p className="text-[13px] text-[#1f2937] font-bold leading-tight mt-2">Tel : 95874XXXXX | abc@gmail.com</p>
+                      <p className="text-[13px] text-[#1f2937] font-bold leading-tight">GSTIN: 24AAOXXXXXXX</p>
+                    </div>
                   </div>
 
                   {/* Customer Details */}
                   <div className="w-full text-[13px] text-[#1f2937] font-bold leading-tight mb-4 border-b border-dashed border-[#9ca3af] pb-3">
                     <div className="flex justify-between mb-4">
-                      <span>Invoice no: ABC1172023-24</span>
-                      <span>Date: 24-01-2024</span>
+                      <span>Invoice no: {previewInvoice?.invoiceNo || 'ABC1172023-24'}</span>
+                      <span>Date: {previewInvoice?.date ? new Date(previewInvoice.date).toLocaleDateString('en-GB') : '24-01-2024'}</span>
                     </div>
-                    <div>Customer:</div>
-                    <div className="uppercase">Address: OFFICE NO. 211, EMPIRE STATE BUILDING RING ROAD,</div>
-                    <div className="uppercase">ANDORRA LA VELLA, SOUTHERN NATIONS, NATIONALITIES, & PEOPLES'</div>
-                    <div className="uppercase">REGION, AFGHANISTAN, 1</div>
-                    <div>GSTIN: 18AABXXXXXXX</div>
+                    <div>Customer: {previewInvoice?.customer?.name || 'NISHIT'}</div>
+                    <div className="uppercase">Address: {previewInvoice?.customer?.address || 'OFFICE NO. 211, EMPIRE STATE BUILDING RING ROAD'}</div>
+                    <div>GSTIN: {previewInvoice?.customer?.gstin || '18AABXXXXXXX'}</div>
                   </div>
 
                   {/* Main Table */}
@@ -1139,30 +1281,17 @@ export function PrintSetting() {
                         </tr>
                       </thead>
                       <tbody className="align-top">
-                        <tr>
-                          <td className="py-2 leading-tight">Alienware Service<br/>Center<br/><span className="font-normal">(GST :28%)</span></td>
-                          <td className="py-2 text-center">10</td>
-                          <td className="py-2 text-right">10000</td>
-                          <td className="py-2 text-right">100000</td>
-                        </tr>
-                        <tr>
-                          <td className="py-2 leading-tight">Apple Service Center<br/><span className="font-normal">(GST :18%)</span></td>
-                          <td className="py-2 text-center">10</td>
-                          <td className="py-2 text-right">10000</td>
-                          <td className="py-2 text-right">100000</td>
-                        </tr>
-                        <tr>
-                          <td className="py-2 leading-tight">Dell Service Center<br/><span className="font-normal">(GST :12%)</span></td>
-                          <td className="py-2 text-center">10</td>
-                          <td className="py-2 text-right">10000</td>
-                          <td className="py-2 text-right">100000</td>
-                        </tr>
-                        <tr>
-                          <td className="py-2 leading-tight">All results are<br/>immediately shown and<br/>it is ridiculously easy to<br/>use and of course, the<br/>service is c<br/><span className="font-normal">(GST :7.5%)</span></td>
-                          <td className="py-2 text-center">10</td>
-                          <td className="py-2 text-right">10000</td>
-                          <td className="py-2 text-right">100000</td>
-                        </tr>
+                        {parsedItems.map((item, idx) => (
+                          <tr key={idx}>
+                            <td className="py-2 leading-tight">
+                              {item.name}
+                              {item.desc && <><br/><span className="font-normal text-[10px]">{item.desc}</span></>}
+                            </td>
+                            <td className="py-2 text-center">{item.qty}</td>
+                            <td className="py-2 text-right">{item.rate}</td>
+                            <td className="py-2 text-right">{item.taxableValue}</td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>
@@ -1171,19 +1300,19 @@ export function PrintSetting() {
                   <div className="w-full text-[13px] font-bold mb-4">
                     <div className="flex justify-between border-b border-dashed border-[#9ca3af] pb-3 mb-4">
                       <span>Total</span>
-                      <span>40</span>
-                      <span>4,00,000.00</span>
+                      <span>{totalQty.toFixed(2)}</span>
+                      <span>{totalTaxable.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between"><span>CGST:</span><span>33,200.00</span></div>
-                    <div className="flex justify-between"><span>SGST:</span><span>33,200.00</span></div>
-                    <div className="flex justify-between"><span>IGST:</span><span>0.00</span></div>
-                    <div className="flex justify-between"><span>TCS:</span><span>0.00</span></div>
-                    <div className="flex justify-between"><span>Cess:</span><span>0.00</span></div>
-                    <div className="flex justify-between"><span>Round off:</span><span>0.24</span></div>
+                    <div className="flex justify-between"><span>CGST:</span><span>{previewInvoice?.totalCgst ? Number(previewInvoice.totalCgst).toFixed(2) : '0.00'}</span></div>
+                    <div className="flex justify-between"><span>SGST:</span><span>{previewInvoice?.totalSgst ? Number(previewInvoice.totalSgst).toFixed(2) : '0.00'}</span></div>
+                    <div className="flex justify-between"><span>IGST:</span><span>{previewInvoice?.totalIgst ? Number(previewInvoice.totalIgst).toFixed(2) : '0.00'}</span></div>
+                    <div className="flex justify-between"><span>TCS:</span><span>{previewInvoice?.tcsAmount ? Number(previewInvoice.tcsAmount).toFixed(2) : '0.00'}</span></div>
+                    <div className="flex justify-between"><span>Cess:</span><span>{previewInvoice?.totalCess ? Number(previewInvoice.totalCess).toFixed(2) : '0.00'}</span></div>
+                    <div className="flex justify-between"><span>Round off:</span><span>{previewInvoice?.roundOff ? Number(previewInvoice.roundOff).toFixed(2) : '0.00'}</span></div>
                     
                     <div className="flex justify-between text-[15px] mt-2">
                       <span>Total Payable Amount:</span>
-                      <span>4,66,319.00</span>
+                      <span>{previewInvoice?.totalAmount ? Number(previewInvoice.totalAmount).toFixed(2) : totalFinal.toFixed(2)}</span>
                     </div>
                   </div>
 
@@ -1203,59 +1332,19 @@ export function PrintSetting() {
                       <tbody>
                         <tr>
                           <td className="py-2.5">-</td>
-                          <td className="py-2.5 text-right">1,00,000.00</td>
-                          <td className="py-2.5 text-right">28</td>
-                          <td className="py-2.5 text-right">14,000.00</td>
-                          <td className="py-2.5 text-right">14,000.00</td>
-                          <td className="py-2.5 text-right">28,000.00</td>
-                        </tr>
-                        <tr>
-                          <td className="py-2.5">-</td>
-                          <td className="py-2.5 text-right">1,00,000.00</td>
-                          <td className="py-2.5 text-right">18</td>
-                          <td className="py-2.5 text-right">9,000.00</td>
-                          <td className="py-2.5 text-right">9,000.00</td>
-                          <td className="py-2.5 text-right">18,000.00</td>
-                        </tr>
-                        <tr>
-                          <td className="py-2.5">996812</td>
-                          <td className="py-2.5 text-right">2,500.00</td>
-                          <td className="py-2.5 text-right">18</td>
-                          <td className="py-2.5 text-right">225.00</td>
-                          <td className="py-2.5 text-right">225.00</td>
-                          <td className="py-2.5 text-right">450.00</td>
-                        </tr>
-                        <tr>
-                          <td className="py-2.5">998541</td>
-                          <td className="py-2.5 text-right">2,500.00</td>
-                          <td className="py-2.5 text-right">18</td>
-                          <td className="py-2.5 text-right">225.00</td>
-                          <td className="py-2.5 text-right">225.00</td>
-                          <td className="py-2.5 text-right">450.00</td>
-                        </tr>
-                        <tr>
-                          <td className="py-2.5">-</td>
-                          <td className="py-2.5 text-right">1,00,000.00</td>
-                          <td className="py-2.5 text-right">12</td>
-                          <td className="py-2.5 text-right">6,000.00</td>
-                          <td className="py-2.5 text-right">6,000.00</td>
-                          <td className="py-2.5 text-right">12,000.00</td>
-                        </tr>
-                        <tr>
-                          <td className="py-2.5">-</td>
-                          <td className="py-2.5 text-right">1,00,000.00</td>
-                          <td className="py-2.5 text-right">7.5</td>
-                          <td className="py-2.5 text-right">3,750.00</td>
-                          <td className="py-2.5 text-right">3,750.00</td>
-                          <td className="py-2.5 text-right">7,500.00</td>
+                          <td className="py-2.5 text-right">{totalTaxable.toFixed(2)}</td>
+                          <td className="py-2.5 text-right">0</td>
+                          <td className="py-2.5 text-right">0.00</td>
+                          <td className="py-2.5 text-right">0.00</td>
+                          <td className="py-2.5 text-right">0.00</td>
                         </tr>
                         <tr className="border-t border-dashed border-[#9ca3af]">
                           <td className="py-2.5">Total</td>
-                          <td className="py-2.5 text-right">4,05,000.00</td>
+                          <td className="py-2.5 text-right">{totalTaxable.toFixed(2)}</td>
                           <td className="py-2.5 text-right"></td>
-                          <td className="py-2.5 text-right">33,200.00</td>
-                          <td className="py-2.5 text-right">33,200.00</td>
-                          <td className="py-2.5 text-right">66,400.00</td>
+                          <td className="py-2.5 text-right">{previewInvoice?.totalCgst ? Number(previewInvoice.totalCgst).toFixed(2) : '0.00'}</td>
+                          <td className="py-2.5 text-right">{previewInvoice?.totalSgst ? Number(previewInvoice.totalSgst).toFixed(2) : '0.00'}</td>
+                          <td className="py-2.5 text-right">{previewInvoice?.totalGstAmount ? Number(previewInvoice.totalGstAmount).toFixed(2) : '0.00'}</td>
                         </tr>
                       </tbody>
                     </table>

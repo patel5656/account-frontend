@@ -82,7 +82,6 @@ export function StockAdjustment() {
              <div className="flex flex-col">
                 <div className="flex justify-between items-center mb-1">
                    <span className="text-[13px] font-bold text-gray-800 invisible">Date</span>
-                   <span className="text-[11px] font-bold text-[#4F46E5]">(23-May-2026)</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                    <span className="text-[13px] font-bold text-gray-800">Date</span>

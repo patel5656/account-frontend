@@ -47,7 +47,8 @@ export const Register = () => {
           <h1 className="text-4xl lg:text-5xl font-bold leading-tight">
             Start your journey <br/>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-blue-200">
-              with OS Books.
+              with Swayam Bill Book.
+
             </span>
           </h1>
           <p className="text-indigo-100/80 text-lg leading-relaxed font-light">

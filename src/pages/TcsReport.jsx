@@ -1,20 +1,168 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import apiClient from '../api/apiClient';
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
+};
+
+const formatYMD = (date) => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
 
 export function TcsReport() {
   const navigate = useNavigate();
+  const [reportData, setReportData] = useState([]);
+  const [parties, setParties] = useState([]);
+  
+  const [period, setPeriod] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  
+  const [partyEnabled, setPartyEnabled] = useState(false);
+  const [selectedParty, setSelectedParty] = useState('');
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    fetchParties();
+  }, []);
+
+  useEffect(() => {
+    // Only fetch if period is not Custom, or if it is Custom and both dates are selected
+    if (period === 'Custom' && (!fromDate || !toDate)) return;
+    
+    // Auto fetch when filters change
+    fetchReport();
+  }, [period, fromDate, toDate, partyEnabled, selectedParty]);
+
+  const fetchParties = async () => {
+    try {
+      const response = await apiClient.get('/customers');
+      if (response.data.success) {
+        setParties(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching parties:", error);
+    }
+  };
+
+  const fetchReport = async () => {
+    setIsLoading(true);
+    try {
+      let url = '/financial/tcs-report?';
+      if (partyEnabled && selectedParty) url += `customerId=${selectedParty}&`;
+      if (fromDate) url += `fromDate=${fromDate}&`;
+      if (toDate) url += `toDate=${toDate}&`;
+      
+      const response = await apiClient.get(url);
+      if (response.data.success) {
+        setReportData(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching TCS report:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePeriodChange = (e) => {
+    const val = e.target.value;
+    setPeriod(val);
+    if (val === 'Custom') return;
+    
+    // Simplified period logic (can be expanded)
+    const today = new Date();
+    if (val === 'Today') {
+      setFromDate(formatYMD(today));
+      setToDate(formatYMD(today));
+    } else if (val === 'This Month') {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      setFromDate(formatYMD(firstDay));
+      setToDate(formatYMD(today));
+    } else {
+      setFromDate('');
+      setToDate('');
+    }
+  };
+
+  const handleSearch = () => {
+    // Left for backwards compatibility if needed, but handled by useEffect now
+    fetchReport();
+  };
+
+  const totalInvoiceValue = reportData.reduce((sum, item) => sum + (Number(item.invoiceValue) || 0), 0);
+  const totalTcsCollected = reportData.reduce((sum, item) => sum + (Number(item.tcsCollected) || 0), 0);
+  const totalTcsPaid = reportData.reduce((sum, item) => sum + (Number(item.tcsPaid) || 0), 0);
 
   const handleExport = () => {
-    const csvContent = [
-      ['Date/Invoice No.', 'Party Name', 'Voucher Type', 'Invoice Value', 'TCS Collected', 'TCS Paid'],
-      ['', '', 'Total', '0', '0', '0']
-    ].map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "tcs_report.csv";
-    link.click();
+    const doc = new jsPDF();
+
+    // Add Title
+    doc.setFontSize(18);
+    doc.text("TCS Report", 14, 22);
+    
+    // Add Subtitle/Period Information
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    const dateText = (fromDate && toDate) ? `Period: ${fromDate} to ${toDate}` : `Period: All Time`;
+    doc.text(dateText, 14, 30);
+
+    // Prepare Table Data
+    const tableColumn = ["Date/Invoice No.", "Party Name", "Voucher Type", "Invoice Value", "TCS Collected", "TCS Paid"];
+    const tableRows = [];
+
+    reportData.forEach(row => {
+      const rowData = [
+        `${formatDate(row.date)}\n${row.invoiceNo}`,
+        row.partyName,
+        row.voucherType.replace(/_/g, ' '),
+        row.invoiceValue.toFixed(2),
+        row.tcsCollected.toFixed(2),
+        row.tcsPaid.toFixed(2)
+      ];
+      tableRows.push(rowData);
+    });
+
+    // Add Totals Row
+    tableRows.push([
+      "", 
+      "", 
+      "TOTAL", 
+      totalInvoiceValue.toFixed(2), 
+      totalTcsCollected.toFixed(2), 
+      totalTcsPaid.toFixed(2)
+    ]);
+
+    // Generate Table
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 35,
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 3 },
+      headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' },
+      footStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold' },
+      willDrawCell: function(data) {
+        // Make the total row bold
+        if (data.row.index === tableRows.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [240, 240, 240];
+        }
+      },
+      columnStyles: {
+        3: { halign: 'right' },
+        4: { halign: 'right' },
+        5: { halign: 'right' }
+      }
+    });
+
+    doc.save("TCS_Report.pdf");
   };
 
   return (
@@ -31,28 +179,58 @@ export function TcsReport() {
           <div className="flex flex-wrap items-end gap-4 mb-6">
             <div className="flex flex-col gap-1.5 w-full sm:max-w-[250px]">
               <label className="text-[13px] font-bold text-gray-800">Select Period</label>
-              <select className="h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white">
-                <option>Select</option>
+              <select 
+                value={period}
+                onChange={handlePeriodChange}
+                className="h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white"
+              >
+                <option value="">Select</option>
+                <option value="Today">Today</option>
+                <option value="This Month">This Month</option>
+                <option value="Custom">Custom</option>
               </select>
             </div>
+
+            {period === 'Custom' && (
+              <>
+                <div className="flex flex-col gap-1.5 w-full sm:max-w-[150px]">
+                  <label className="text-[13px] font-bold text-gray-800">From Date</label>
+                  <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none" />
+                </div>
+                <div className="flex flex-col gap-1.5 w-full sm:max-w-[150px]">
+                  <label className="text-[13px] font-bold text-gray-800">To Date</label>
+                  <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none" />
+                </div>
+              </>
+            )}
 
             <div className="flex flex-col gap-1.5 w-full sm:max-w-[300px]">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" />
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer" 
+                    checked={partyEnabled}
+                    onChange={() => setPartyEnabled(!partyEnabled)}
+                  />
                   <div className="w-8 h-4 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#007bff]"></div>
                 </div>
                 <label className="text-[13px] font-bold text-gray-800">Party Name</label>
               </div>
-              <select className="h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-400 bg-white" disabled>
-                <option>Select Name</option>
+              <select 
+                disabled={!partyEnabled}
+                value={selectedParty}
+                onChange={(e) => setSelectedParty(e.target.value)}
+                className="h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white disabled:text-gray-400 disabled:bg-gray-100"
+              >
+                <option value="">Select Name</option>
+                {parties.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
               </select>
             </div>
 
-            <button className="h-[32px] px-5 bg-[#007bff] hover:bg-[#0069d9] text-white text-[13px] font-medium rounded-[3px] transition-colors shadow-sm mb-px">
-              Search
-            </button>
-          </div>
+            </div>
 
           {/* Table */}
           <div className="w-full">
@@ -69,13 +247,31 @@ export function TcsReport() {
                 </tr>
               </thead>
               <tbody>
+                {reportData.map(row => (
+                  <tr key={row.id}>
+                    <td className="py-2.5 px-3 border border-black text-[13px]">
+                      {formatDate(row.date)}<br/>
+                      <span className="text-gray-500">{row.invoiceNo}</span>
+                    </td>
+                    <td className="py-2.5 px-3 border border-black text-[13px]">{row.partyName}</td>
+                    <td className="py-2.5 px-3 border border-black text-[13px]">{row.voucherType.replace(/_/g, ' ')}</td>
+                    <td className="py-2.5 px-3 border border-black text-[13px] text-right">{row.invoiceValue.toFixed(2)}</td>
+                    <td className="py-2.5 px-3 border border-black text-[13px] text-right">{row.tcsCollected.toFixed(2)}</td>
+                    <td className="py-2.5 px-3 border border-black text-[13px] text-right">{row.tcsPaid.toFixed(2)}</td>
+                  </tr>
+                ))}
+                {reportData.length === 0 && !isLoading && (
+                  <tr>
+                    <td colSpan="6" className="py-4 px-3 border border-black text-[13px] text-center text-gray-500">No records found</td>
+                  </tr>
+                )}
                 <tr>
                   <td className="py-2.5 px-3 border border-black text-[13px]"></td>
                   <td className="py-2.5 px-3 border border-black text-[13px]"></td>
                   <td className="py-2.5 px-3 border border-black text-[13px] font-bold text-gray-800 text-center">Total</td>
-                  <td className="py-2.5 px-3 border border-black text-[13px] font-bold text-gray-800 text-center">0</td>
-                  <td className="py-2.5 px-3 border border-black text-[13px] font-bold text-gray-800 text-center">0</td>
-                  <td className="py-2.5 px-3 border border-black text-[13px] font-bold text-gray-800 text-center">0</td>
+                  <td className="py-2.5 px-3 border border-black text-[13px] font-bold text-gray-800 text-right">{totalInvoiceValue.toFixed(2)}</td>
+                  <td className="py-2.5 px-3 border border-black text-[13px] font-bold text-gray-800 text-right">{totalTcsCollected.toFixed(2)}</td>
+                  <td className="py-2.5 px-3 border border-black text-[13px] font-bold text-gray-800 text-right">{totalTcsPaid.toFixed(2)}</td>
                 </tr>
               </tbody>
             </table>
@@ -109,3 +305,4 @@ export function TcsReport() {
     </div>
   );
 }
+

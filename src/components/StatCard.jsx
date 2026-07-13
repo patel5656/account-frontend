@@ -7,6 +7,7 @@ export function StatCard({
   amount, 
   color, 
   showEye, 
+  isPrivacyOn,
   onPlusClick, 
   onEyeClick, 
   onMoreInfoClick 
@@ -56,7 +57,7 @@ export function StatCard({
             {/* Title & Amount */}
             <div className="flex flex-col">
               <p className="text-[14px] font-medium text-gray-500 tracking-wide mb-0.5">{title}</p>
-              <h3 className="text-[24px] font-bold text-gray-800 leading-none">{amount}</h3>
+              <h3 className={`text-[24px] font-bold text-gray-800 leading-none transition-all duration-300 ${isPrivacyOn ? 'blur-[6px] select-none' : ''}`}>{amount}</h3>
             </div>
           </div>
           

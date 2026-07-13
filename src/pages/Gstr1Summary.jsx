@@ -1,13 +1,61 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download, ExternalLink, Share2, MessageCircle } from 'lucide-react';
+import apiClient from '../api/apiClient';
 
 export function Gstr1Summary() {
   const navigate = useNavigate();
+  const [period, setPeriod] = useState('This Month');
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [dateRangeStr, setDateRangeStr] = useState('');
+
+  const fetchSummary = async (selectedPeriod) => {
+    setLoading(true);
+    try {
+      const now = new Date();
+      let startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      let endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+      if (selectedPeriod === 'Last Month') {
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+      } else if (selectedPeriod === 'This Quarter') {
+        const quarterMonth = Math.floor(now.getMonth() / 3) * 3;
+        startDate = new Date(now.getFullYear(), quarterMonth, 1);
+        endDate = new Date(now.getFullYear(), quarterMonth + 3, 0);
+      } else if (selectedPeriod === 'Last Quarter') {
+        const quarterMonth = Math.floor(now.getMonth() / 3) * 3 - 3;
+        startDate = new Date(now.getFullYear(), quarterMonth, 1);
+        endDate = new Date(now.getFullYear(), quarterMonth + 3, 0);
+      }
+
+      const startStr = startDate.toISOString().split('T')[0];
+      const endStr = endDate.toISOString().split('T')[0];
+      
+      const options = { day: '2-digit', month: 'short', year: 'numeric' };
+      setDateRangeStr(`From ${startDate.toLocaleDateString('en-GB', options).replace(/ /g, '-')} To ${endDate.toLocaleDateString('en-GB', options).replace(/ /g, '-')}`);
+
+      const res = await apiClient.get(`/gstr/gstr-1?startDate=${startStr}&endDate=${endStr}`);
+      if (res.data.success) {
+        setData(res.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching GSTR-1 summary:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if(period && period !== 'Custom Range' && period !== 'Select') {
+        fetchSummary(period);
+    }
+  }, [period]);
 
   const handleExportJSON = () => {
-    const data = { message: "GSTR1 Summary Data" };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const exportData = data || { message: "GSTR1 Summary Data" };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = "gstr1_summary.json";
@@ -17,7 +65,7 @@ export function Gstr1Summary() {
   const handleExportCSV = () => {
     const csvContent = [
       ['Particular', 'No. of Vouchers', 'Taxable Values', 'IGST', 'CGST', 'SGST', 'Cess', 'Tax Amount', 'Invoice Amount'],
-      ['Total', '0', '0', '0', '0', '0', '0', '0', '0']
+      ['Total', data?.total?.count||0, data?.total?.taxable||0, data?.total?.igst||0, data?.total?.cgst||0, data?.total?.sgst||0, data?.total?.cess||0, data?.total?.taxAmt||0, data?.total?.invoiceAmt||0]
     ].map(e => e.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
@@ -38,14 +86,54 @@ export function Gstr1Summary() {
     }
   };
 
+  const renderRow = (title, key, rowClass = "text-gray-600", valClass = "font-bold text-gray-700", indent = true) => {
+    const rowData = data && data[key] ? data[key] : { count: 0, taxable: 0, igst: 0, cgst: 0, sgst: 0, cess: 0, taxAmt: 0, invoiceAmt: 0 };
+    return (
+      <tr className="hover:bg-blue-50 transition-colors cursor-pointer">
+        <td className={`py-2 ${indent ? 'px-6' : 'px-3'} border border-black text-[13px] ${rowClass}`}>{title}</td>
+        <td className={`py-2 px-2 border border-black text-center text-[13px] ${valClass}`}>{rowData.count || 0}</td>
+        <td className="py-2 px-2 border border-black text-center text-[13px]">{rowData.taxable ? rowData.taxable.toFixed(2) : ''}</td>
+        <td className="py-2 px-2 border border-black text-center text-[13px]">{rowData.igst ? rowData.igst.toFixed(2) : ''}</td>
+        <td className="py-2 px-2 border border-black text-center text-[13px]">{rowData.cgst ? rowData.cgst.toFixed(2) : ''}</td>
+        <td className="py-2 px-2 border border-black text-center text-[13px]">{rowData.sgst ? rowData.sgst.toFixed(2) : ''}</td>
+        <td className="py-2 px-2 border border-black text-center text-[13px]">{rowData.cess ? rowData.cess.toFixed(2) : ''}</td>
+        <td className="py-2 px-2 border border-black text-center text-[13px]">{rowData.taxAmt ? rowData.taxAmt.toFixed(2) : ''}</td>
+        <td className="py-2 px-2 border border-black text-center text-[13px]">{rowData.invoiceAmt ? rowData.invoiceAmt.toFixed(2) : ''}</td>
+      </tr>
+    );
+  };
+
+  const renderEmptyHeaderRow = (title) => (
+    <tr className="hover:bg-blue-50 transition-colors cursor-pointer">
+        <td className="py-2 px-3 border border-black text-[13px] font-bold text-gray-800">{title}</td>
+        <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
+        <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
+        <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
+        <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
+        <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
+        <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
+        <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
+        <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
+    </tr>
+  );
+
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] p-4 flex flex-col relative pb-[80px]">
       
       {/* Top Control */}
       <div className="mb-4 flex flex-col gap-1.5 w-full sm:max-w-[250px]">
         <label className="text-[13px] font-bold text-gray-800">Select Period</label>
-        <select className="h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white">
-          <option>Select</option>
+        <select 
+          value={period}
+          onChange={(e) => setPeriod(e.target.value)}
+          className="h-[32px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-700 bg-white"
+        >
+          <option value="">Select</option>
+          <option value="This Month">This Month</option>
+          <option value="Last Month">Last Month</option>
+          <option value="This Quarter">This Quarter</option>
+          <option value="Last Quarter">Last Quarter</option>
+          <option value="Custom Range">Custom Range</option>
         </select>
       </div>
 
@@ -55,7 +143,7 @@ export function Gstr1Summary() {
         {/* Header */}
         <div className="text-center py-4">
           <h2 className="text-[14px] text-gray-700 mb-1">GSTR1 Summary</h2>
-          <p className="text-[14px] font-bold text-gray-800">From 30-Apr-2026 To 30-May-2026</p>
+          <p className="text-[14px] font-bold text-gray-800">{dateRangeStr}</p>
         </div>
 
         {/* Table */}
@@ -76,229 +164,29 @@ export function Gstr1Summary() {
               </tr>
             </thead>
             <tbody>
-              {/* B2B Invoices */}
-              <tr>
-                <td className="py-2 px-3 border border-black text-[13px] font-bold text-gray-800">B2B Invoices - 4A, 4B, 4C, 6B, 6C</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-              </tr>
-              <tr>
-                <td className="py-2 px-6 border border-black text-[13px] text-gray-600">Taxable Sales</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px] font-bold text-gray-700">0</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-              </tr>
-              <tr>
-                <td className="py-2 px-6 border border-black text-[13px] text-gray-600">Reverse charge supplies</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px] font-bold text-gray-700">0</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-              </tr>
+              {renderEmptyHeaderRow("B2B Invoices - 4A, 4B, 4C, 6B, 6C")}
+              {renderRow("Taxable Sales", "b2b")}
+              {renderRow("Reverse charge supplies", "reverseCharge")}
               
-              {/* B2C Large */}
-              <tr>
-                <td className="py-2 px-3 border border-black text-[13px] font-bold text-gray-800">B2C(Large) Invoices - 5A, 5B</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px] font-bold text-gray-700">0</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-              </tr>
+              {renderRow("B2C(Large) Invoices - 5A, 5B", "b2cLarge", "font-bold text-gray-800", "font-bold text-gray-700", false)}
+              {renderRow("B2C(Small) Invoices - 7", "b2cSmall", "font-bold text-gray-800", "font-bold text-gray-700", false)}
+              {renderRow("Credit/Debit Notes(Registered) - 9B", "cdnr", "font-bold text-gray-800", "font-bold text-gray-700", false)}
+              {renderRow("Credit/Debit Notes(Unregistered) - 9B", "cdnur", "font-bold text-gray-800", "font-bold text-gray-700", false)}
+              {renderRow("Exports Invoices -6A", "exports", "font-bold text-gray-800", "font-bold text-gray-700", false)}
               
-              {/* B2C Small */}
-              <tr>
-                <td className="py-2 px-3 border border-black text-[13px] font-bold text-gray-800">B2C(Small) Invoices - 7</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px] font-bold text-gray-700">0</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-              </tr>
-
-              {/* Credit/Debit Registered */}
-              <tr>
-                <td className="py-2 px-3 border border-black text-[13px] font-bold text-gray-800">Credit/Debit Notes(Registered) - 9B</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px] font-bold text-gray-700">0</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-              </tr>
-
-              {/* Credit/Debit Unregistered */}
-              <tr>
-                <td className="py-2 px-3 border border-black text-[13px] font-bold text-gray-800">Credit/Debit Notes(Unregistered) - 9B</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px] font-bold text-gray-700">0</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-              </tr>
-
-              {/* Exports Invoices */}
-              <tr>
-                <td className="py-2 px-3 border border-black text-[13px] font-bold text-gray-800">Exports Invoices -6A</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-              </tr>
-
-              {/* Tax Liability */}
-              <tr>
-                <td className="py-2 px-3 border border-black text-[13px] font-bold text-gray-800">Tax Liability(Advances received) - 11A(1),11A(2)</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-              </tr>
-
-              {/* Adjustment of Advances */}
-              <tr>
-                <td className="py-2 px-3 border border-black text-[13px] font-bold text-gray-800">Adjustment of Advances - I I B(I), II B(2)</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-              </tr>
-
-              {/* Nil Rated Invoices */}
-              <tr>
-                <td className="py-2 px-3 border border-black text-[13px] font-bold text-gray-800">Nil Rated Invoices - 8A, 8B, 8C, 8D</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-              </tr>
-              <tr>
-                <td className="py-2 px-6 border border-black text-[13px] text-gray-600">Nil Rated Supplies</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px] font-bold text-gray-700">0</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-              </tr>
-              <tr>
-                <td className="py-2 px-6 border border-black text-[13px] text-gray-600">Exempted Supplies</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px] font-bold text-gray-700">0</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-              </tr>
-              <tr>
-                <td className="py-2 px-6 border border-black text-[13px] text-gray-600">Non-GST Supplies</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px] font-bold text-gray-700">0</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-              </tr>
+              {renderEmptyHeaderRow("Tax Liability(Advances received) - 11A(1),11A(2)")}
+              {renderEmptyHeaderRow("Adjustment of Advances - I I B(I), II B(2)")}
+              {renderEmptyHeaderRow("Nil Rated Invoices - 8A, 8B, 8C, 8D")}
               
-              {/* Total Row */}
-              <tr>
-                <td className="py-2 px-3 border border-black text-[13px] font-bold text-[#4F46E5]">Total</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px] font-bold text-gray-800">0</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-              </tr>
-
-              {/* HSN/SAC summary (b2b) */}
-              <tr>
-                <td className="py-2 px-3 border border-black text-[13px] font-bold text-gray-800">HSN/SAC summary (b2b)</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px] font-bold text-gray-800">0</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-              </tr>
-
-              {/* HSN/SAC summary (b2c) */}
-              <tr>
-                <td className="py-2 px-3 border border-black text-[13px] font-bold text-gray-800">HSN/SAC summary (b2c)</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px] font-bold text-gray-800">0</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-              </tr>
-
-              {/* Document Summary */}
-              <tr>
-                <td className="py-2 px-3 border border-black text-[13px] font-bold text-gray-800">Document Summary</td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-                <td className="py-2 px-2 border border-black text-center text-[13px]"></td>
-              </tr>
+              {renderRow("Nil Rated Supplies", "nilRated")}
+              {renderRow("Exempted Supplies", "exempted")}
+              {renderRow("Non-GST Supplies", "nonGst")}
+              
+              {renderRow("Total", "total", "font-bold text-[#4F46E5]", "font-bold text-gray-800", false)}
+              
+              {renderRow("HSN/SAC summary (b2b)", "hsnB2b", "font-bold text-gray-800", "font-bold text-gray-800", false)}
+              {renderRow("HSN/SAC summary (b2c)", "hsnB2c", "font-bold text-gray-800", "font-bold text-gray-800", false)}
+              {renderEmptyHeaderRow("Document Summary")}
 
             </tbody>
           </table>

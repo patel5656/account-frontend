@@ -11,6 +11,8 @@ export function EmployeeMasterModal({ isOpen, onClose, employee }) {
   const [joiningDate, setJoiningDate] = useState('2026-05-25');
   const [designation, setDesignation] = useState('');
   const [salary, setSalary] = useState('0');
+  const [openingBalance, setOpeningBalance] = useState('0');
+  const [openingBalanceType, setOpeningBalanceType] = useState('DUE');
   const [paidHoliday, setPaidHoliday] = useState('0');
   const [commission, setCommission] = useState('0');
   const [specialCommission, setSpecialCommission] = useState('0');
@@ -25,6 +27,9 @@ export function EmployeeMasterModal({ isOpen, onClose, employee }) {
       setJoiningDate(employee.joiningDate || '2026-05-25');
       setDesignation(employee.designation || '');
       setSalary(employee.salary || '0');
+      // existing employees don't show opening balance easily unless we fetch it. We will just leave it at 0 for edit mode.
+      setOpeningBalance('0'); 
+      setOpeningBalanceType('DUE');
       setPaidHoliday(employee.paidHoliday || '0');
       setCommission(employee.commission || '0');
       setSpecialCommission(employee.specialCommission || '0');
@@ -39,6 +44,8 @@ export function EmployeeMasterModal({ isOpen, onClose, employee }) {
       setJoiningDate('2026-05-25');
       setDesignation('');
       setSalary('0');
+      setOpeningBalance('0');
+      setOpeningBalanceType('DUE');
       setPaidHoliday('0');
       setCommission('0');
       setSpecialCommission('0');
@@ -59,6 +66,8 @@ export function EmployeeMasterModal({ isOpen, onClose, employee }) {
         joiningDate, 
         designation, 
         salary, 
+        openingBalance,
+        openingBalanceType,
         paidHoliday, 
         commission, 
         specialCommission, 
@@ -76,6 +85,8 @@ export function EmployeeMasterModal({ isOpen, onClose, employee }) {
     setJoiningDate('2026-05-25');
     setDesignation('');
     setSalary('0');
+    setOpeningBalance('0');
+    setOpeningBalanceType('DUE');
     setPaidHoliday('0');
     setCommission('0');
     setSpecialCommission('0');
@@ -188,7 +199,31 @@ export function EmployeeMasterModal({ isOpen, onClose, employee }) {
               </div>
             </div>
 
-            {/* Row 4: Paid Holiday, Commission, Special Commission */}
+            {/* Row 4: Opening Balance */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-[14px] font-bold text-gray-800">Opening Balance</label>
+                <input 
+                  type="text" 
+                  value={openingBalance}
+                  onChange={(e) => setOpeningBalance(e.target.value)}
+                  className="w-full border border-gray-300 rounded-[3px] px-3 py-[6px] text-[14px] outline-none focus:border-[#4F46E5]"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[14px] font-bold text-gray-800">Balance Type</label>
+                <select 
+                  value={openingBalanceType}
+                  onChange={(e) => setOpeningBalanceType(e.target.value)}
+                  className="w-full border border-gray-300 rounded-[3px] px-3 py-[6px] text-[14px] outline-none focus:border-[#4F46E5]"
+                >
+                  <option value="DUE">Due (Salary pending)</option>
+                  <option value="ADVANCE">Advance (Given in advance)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Row 5: Paid Holiday, Commission, Special Commission */}
             <div className="grid grid-cols-3 gap-4">
               <div className="flex flex-col gap-1">
                 <label className="text-[14px] font-bold text-gray-800">Paid Holiday</label>

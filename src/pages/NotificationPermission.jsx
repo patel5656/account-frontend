@@ -1,8 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '../utils';
+import apiClient from '../api/apiClient';
 
 export function NotificationPermission() {
   const [isPaymentReminderEnabled, setIsPaymentReminderEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const res = await apiClient.get('/settings');
+      if (res.data.success) {
+        setIsPaymentReminderEnabled(res.data.data.paymentReminderEnabled || false);
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      const res = await apiClient.put('/settings', {
+        paymentReminderEnabled: isPaymentReminderEnabled
+      });
+      if (res.data.success) {
+        alert('Notification settings saved successfully!');
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      alert('Failed to save settings.');
+    }
+  };
 
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-60px)] flex flex-col p-4">
@@ -45,8 +78,12 @@ export function NotificationPermission() {
 
       {/* Save Button Container */}
       <div className="flex justify-center mt-6">
-        <button className="bg-[#24529b] hover:bg-[#1e4482] text-white px-5 py-[6px] rounded-[3px] text-[13px] font-medium transition-colors">
-          Save Settings
+        <button 
+          onClick={handleSave}
+          disabled={loading}
+          className="bg-[#24529b] hover:bg-[#1e4482] text-white px-5 py-[6px] rounded-[3px] text-[13px] font-medium transition-colors disabled:opacity-50"
+        >
+          {loading ? 'Loading...' : 'Save Settings'}
         </button>
       </div>
     </div>

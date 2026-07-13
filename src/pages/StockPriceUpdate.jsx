@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Filter, Download, Check, Info, Tag, HelpCircle } from 'lucide-react';
+import { X, Filter, Download, Check, Info, Tag, HelpCircle, Save } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { cn } from '../utils';
 import { useSettings } from '../context/SettingsContext';
+import apiClient from '../api/apiClient';
 
 export function StockPriceUpdate() {
   const { settings } = useSettings();
@@ -12,6 +15,8 @@ export function StockPriceUpdate() {
   const [showBulkPriceUpdate, setShowBulkPriceUpdate] = useState(false);
   
   const [selectedField, setSelectedField] = useState('');
+  const [stockFilter, setStockFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Bulk Price Update states
   const [updateField, setUpdateField] = useState('MRP');
@@ -20,53 +25,55 @@ export function StockPriceUpdate() {
   const [formulaValue, setFormulaValue] = useState('');
   const [preventNegative, setPreventNegative] = useState(true);
 
-  const [products, setProducts] = useState([
-    {
-      id: 1,
-      name: '12',
-      hsn: '+Add',
-      gst: '0',
-      branch: 'swayam billing software',
-      purchasePrice: '120',
-      qty: 182,
-      value: '22,590',
-      mrp: '200',
-      creditSale: '0',
-      cashSale: '180',
-      wholeSale: '0',
-      modified: false
-    },
-    {
-      id: 2,
-      name: 'scr',
-      hsn: '+Add',
-      gst: '0',
-      branch: 'swayam billing software',
-      purchasePrice: '0',
-      qty: -1,
-      value: '0',
-      mrp: '0',
-      creditSale: '0',
-      cashSale: '0',
-      wholeSale: '0',
-      modified: false
-    },
-    {
-      id: 3,
-      name: 'coller',
-      hsn: '+Add',
-      gst: '0',
-      branch: 'swayam billing software',
-      purchasePrice: '1,000',
-      qty: 8,
-      value: '8,000',
-      mrp: '0',
-      creditSale: '0',
-      cashSale: '0',
-      wholeSale: '0',
-      modified: false
+  const [products, setProducts] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const res = await apiClient.get('/products');
+      const allProds = res.data.products || res.data.data || res.data;
+      
+      const mapped = allProds.map(p => ({
+        id: p.id,
+        name: p.name,
+        hsn: p.hsnCode || '+Add',
+        gst: p.tax || '0',
+        branch: 'swayam billing software', // Static per mock, no branch assigned in db initially
+        purchasePrice: (p.purchasePrice || 0).toString(),
+        qty: p.stock || 0,
+        value: ((p.stock || 0) * (p.purchasePrice || 0)).toString(),
+        mrp: (p.mrp || 0).toString(),
+        creditSale: (p.creditSalePrice || 0).toString(),
+        cashSale: (p.price || 0).toString(),
+        wholeSale: (p.wholesalePrice || 0).toString(),
+        modified: false
+      }));
+      setProducts(mapped);
+    } catch (error) {
+      console.error('Error fetching products:', error);
     }
-  ]);
+  };
+
+  const handleSaveChanges = async () => {
+    const modifiedProducts = products.filter(p => p.modified);
+    if (modifiedProducts.length === 0) return alert('No changes to save.');
+
+    try {
+      setIsSaving(true);
+      await apiClient.post('/products/bulk-prices', { products: modifiedProducts });
+      alert('Prices updated successfully!');
+      fetchProducts();
+    } catch (error) {
+      console.error('Error updating prices:', error);
+      alert('Failed to update prices.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Update a single product field and mark it as modified
   const handleFieldChange = (id, field, value) => {
@@ -91,13 +98,18 @@ export function StockPriceUpdate() {
     const newValue = prompt(`Enter new value for "${selectedField}":`);
     if (newValue === null) return;
 
-    setProducts(prev => prev.map(p => ({
-      ...p,
-      [selectedField]: newValue,
-      modified: true
-    })));
+    const displayedIds = new Set(displayedProducts.map(d => d.id));
+
+    setProducts(prev => prev.map(p => {
+      if (!displayedIds.has(p.id)) return p;
+      return {
+        ...p,
+        [selectedField]: newValue,
+        modified: true
+      };
+    }));
     setShowBulkUpdate(false);
-    alert(`Bulk Update: "${selectedField}" set to "${newValue}" for all products.`);
+    alert(`Bulk Update: "${selectedField}" set to "${newValue}" for filtered products.`);
   };
 
   // Perform bulk price update using math formulas
@@ -108,7 +120,13 @@ export function StockPriceUpdate() {
     }
     const val = parseFloat(formulaValue) || 0;
     
+    // Only apply to the currently filtered/displayed products
+    const displayedIds = new Set(displayedProducts.map(d => d.id));
+    
     setProducts(prev => prev.map(p => {
+      // Skip products that are not currently filtered
+      if (!displayedIds.has(p.id)) return p;
+
       // Map Based On field names
       let baseVal = 0;
       if (basedOnField === 'Purchase Price') {
@@ -158,8 +176,11 @@ export function StockPriceUpdate() {
     alert(`Bulk Price Update applied: ${updateField} updated using ${formulaType} of ${formulaValue}.`);
   };
 
-  // Export current list to CSV file
+  // Export current list to PDF file
   const handleExport = () => {
+    const doc = new jsPDF('landscape'); // use landscape as there are many columns
+    doc.text("Stock Price Update", 14, 15);
+
     const headers = ['ID', 'Product Name'];
     if (settings.showHSN) headers.push('HSN');
     if (settings.showGST) headers.push('GST');
@@ -187,26 +208,32 @@ export function StockPriceUpdate() {
       return row;
     });
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(val => `"${val}"`).join(','))
-    ].join('\n');
+    autoTable(doc, {
+      head: [headers],
+      body: rows,
+      startY: 25,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [79, 70, 229] }
+    });
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `Stock_Price_Update_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    doc.save(`Stock_Price_Update_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
-  // Filter products: if viewAll is true, show only modified products. Else show all.
-  const displayedProducts = viewAll 
-    ? products.filter(p => p.modified) 
-    : products;
+  // Filter products
+  const displayedProducts = products.filter(p => {
+    if (viewAll && !p.modified) return false;
+    
+    if (stockFilter === 'in_stock' && p.qty <= 0) return false;
+    if (stockFilter === 'negative' && p.qty >= 0) return false;
+    if (stockFilter === 'zero' && p.qty !== 0) return false;
+    // Note: expire and expiry_soon need expiry data which might not be mapped yet
+    
+    if (searchQuery) {
+      if (!p.name?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    }
+
+    return true;
+  });
 
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-60px)] flex flex-col relative select-none">
@@ -248,6 +275,13 @@ export function StockPriceUpdate() {
               Bulk Update
             </button>
             <button 
+              onClick={handleSaveChanges}
+              disabled={isSaving}
+              className="bg-[#28a745] hover:bg-[#218838] text-white px-3 py-[5px] rounded-[3px] text-[12px] font-bold flex items-center gap-1.5 transition-colors disabled:opacity-70 ml-2"
+            >
+              <Save className="w-[14px] h-[14px]" strokeWidth={2.5} /> {isSaving ? 'Saving...' : 'Save'}
+            </button>
+            <button 
               onClick={handleExport}
               className="bg-[#ffc107] hover:bg-[#e0a800] text-gray-900 px-3 py-[5px] rounded-[3px] text-[12px] font-bold flex items-center gap-1.5 transition-colors"
             >
@@ -286,13 +320,24 @@ export function StockPriceUpdate() {
               </select>
               <input 
                 type="text" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search for Product Name" 
                 className="flex-1 px-3 py-[5px] text-[13px] outline-none text-gray-700 placeholder-gray-400"
               />
             </div>
             
-            <select className="w-full sm:w-[300px] min-w-0 border border-gray-300 rounded-[3px] px-2 py-[6px] text-[13px] outline-none text-gray-700 bg-white">
-              <option>Show All</option>
+            <select 
+              value={stockFilter}
+              onChange={(e) => setStockFilter(e.target.value)}
+              className="w-full sm:w-[300px] min-w-0 border border-gray-300 rounded-[3px] px-2 py-[6px] text-[13px] outline-none text-gray-700 bg-white"
+            >
+              <option value="all">Show All</option>
+              <option value="in_stock">Only In Stock</option>
+              <option value="negative">Only Negative</option>
+              <option value="zero">Zero Stock</option>
+              <option value="expire">Expire</option>
+              <option value="expiry_soon">Expiry Soon</option>
             </select>
           </div>
         </div>
@@ -314,7 +359,13 @@ export function StockPriceUpdate() {
                       )}
                     </h3>
                     <div className="text-[12.5px] text-gray-500 font-medium">
-                      {settings.showHSN && <>HSN : <span className="text-[#007bff] hover:underline cursor-pointer font-bold">{product.hsn}</span> | </>}
+                      {settings.showHSN && <>HSN : <span 
+                        onClick={() => {
+                          const newHsn = prompt("Enter HSN Code:", product.hsn === '+Add' ? '' : product.hsn);
+                          if (newHsn !== null) handleFieldChange(product.id, 'hsn', newHsn || '+Add');
+                        }}
+                        className="text-[#007bff] hover:underline cursor-pointer font-bold"
+                      >{product.hsn}</span> | </>}
                       {settings.showGST && <>GST : <span className="font-bold">{product.gst}</span> | </>}
                       {settings.showBranches && <>Branches : <span className="font-bold">{product.branch}</span></>}
                     </div>
@@ -426,7 +477,7 @@ export function StockPriceUpdate() {
               <div className="bg-[#17a2b8] text-white p-3 rounded-[3px] flex items-start gap-2.5">
                 <Info className="w-[18px] h-[18px] mt-[1px] flex-shrink-0" />
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[13px] font-bold">This will update 3 product(s) with the selected field value.</span>
+                  <span className="text-[13px] font-bold">This will update {displayedProducts.length} product(s) with the selected field value.</span>
                   <span className="text-[11px] text-white/80 font-medium">Only one field can be updated at a time.</span>
                 </div>
               </div>
@@ -463,7 +514,7 @@ export function StockPriceUpdate() {
                 onClick={handleBulkUpdate}
                 className="bg-[#007bff] hover:bg-[#0069d9] text-white px-4 h-[34px] rounded-[3px] text-[13px] font-bold flex items-center gap-1.5 transition-colors focus:outline-none"
               >
-                <Check className="w-3.5 h-3.5" strokeWidth={3} /> Update 3 Product(s)
+                <Check className="w-3.5 h-3.5" strokeWidth={3} /> Update {displayedProducts.length} Product(s)
               </button>
             </div>
           </div>
@@ -567,7 +618,7 @@ export function StockPriceUpdate() {
 
               {/* Rows Count Banner */}
               <div className="bg-[#f8f9fa] border border-gray-200 p-2.5 px-3 rounded-[3px] text-[12.5px] text-gray-500">
-                This action will be applied to <span className="font-bold text-gray-700">3</span> filtered row(s).
+                This action will be applied to <span className="font-bold text-gray-700">{displayedProducts.length}</span> filtered row(s).
               </div>
             </div>
 

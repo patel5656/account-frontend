@@ -7,6 +7,7 @@ import {
 import { useSettings } from '../context/SettingsContext';
 import apiClient from '../api/apiClient';
 import { ProductMasterModal } from '../components/ProductMasterModal';
+import { ProductSelectDropdown } from '../components/ProductSelectDropdown';
 
 // Inline Youtube SVG to avoid lucide-react export issues
 const YoutubeIcon = ({ className }) => (
@@ -14,6 +15,21 @@ const YoutubeIcon = ({ className }) => (
     <path d="M21.582,6.186c-0.23-0.86-0.908-1.538-1.768-1.768C18.254,4,12,4,12,4S5.746,4,4.186,4.418 c-0.86,0.23-1.538,0.908-1.768,1.768C2,7.746,2,12,2,12s0,4.254,0.418,5.814c0.23,0.86,0.908,1.538,1.768,1.768 C5.746,20,12,20,12,20s6.254,0,7.814-0.418c0.861-0.23,1.538-0.908,1.768-1.768C22,16.254,22,12,22,12S22,7.746,21.582,6.186z M10,15.464V8.536L16,12L10,15.464z" />
   </svg>
 );
+
+const timeAgo = (dateParam) => {
+  if (!dateParam) return 'No transaction';
+  const date = new Date(dateParam);
+  const today = new Date();
+  const days = Math.round((today - date) / (1000 * 60 * 60 * 24));
+  
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 30) return `${days} days ago`;
+  const months = Math.round(days / 30);
+  if (months < 12) return `${months} month${months > 1 ? 's' : ''} ago`;
+  const years = Math.round(months / 12);
+  return `${years} year${years > 1 ? 's' : ''} ago`;
+};
 
 export function PurchaseInvoice() {
   const navigate = useNavigate();
@@ -40,10 +56,35 @@ export function PurchaseInvoice() {
 
   const [suppliers, setSuppliers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [units, setUnits] = useState([]);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
+  const [supplierInput, setSupplierInput] = useState("");
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [activeBatchRow, setActiveBatchRow] = useState(null);
+  const [activeBatchDropdownRow, setActiveBatchDropdownRow] = useState(null);
+  const [tempBatchData, setTempBatchData] = useState({ batchNo: '', expDate: '' });
   const [remark, setRemark] = useState("");
   const [invoiceNo, setInvoiceNo] = useState("");
+  const [customerStats, setCustomerStats] = useState(null);
+
+  useEffect(() => {
+    if (selectedSupplierId) {
+      apiClient.get(`/customers/${selectedSupplierId}/stats`)
+        .then(res => {
+          if (res.data.success) {
+            setCustomerStats(res.data.data);
+          }
+        })
+        .catch(err => {
+          console.error('Failed to fetch stats', err);
+          setCustomerStats(null);
+        });
+    } else {
+      setCustomerStats(null);
+    }
+  }, [selectedSupplierId]);
 
   useEffect(() => {
     fetchData();
@@ -52,14 +93,26 @@ export function PurchaseInvoice() {
   const fetchData = async () => {
     try {
       // Assuming suppliers are kept in customers table or separate table. We fetch customers for now.
-      const [custRes, prodRes] = await Promise.all([
+      const [custRes, prodRes, unitRes] = await Promise.all([
         apiClient.get('/customers'), // Ideally /suppliers
-        apiClient.get('/products')
+        apiClient.get('/products'),
+        apiClient.get('/units')
       ]);
       if (custRes.data.success) setSuppliers(custRes.data.data);
       if (prodRes.data.success) setProducts(prodRes.data.data);
+      if (unitRes.data?.success) setUnits(unitRes.data.data.map(u => u.name));
     } catch (error) {
       console.error('Failed to fetch data', error);
+    }
+  };
+
+  const handleDeleteProduct = async (productId) => {
+    if (!window.confirm("Are you sure you want to delete this product?")) return;
+    try {
+      await apiClient.delete(`/products/${productId}`);
+      fetchData();
+    } catch (error) {
+      alert(error.response?.data?.message || "Failed to delete product.");
     }
   };
 
@@ -78,25 +131,40 @@ export function PurchaseInvoice() {
     salePrice: 0,
     wholeSalePrice: 0,
     price: 0,
-    disc1: 0,
+    disc1: "",
     disc1Type: '%',
-    disc2: 0,
+    disc2: "",
     disc2Type: '%',
     imei: "",
-    amount: 0
+    amount: 0,
+    taxRate: 0
   });
 
   const [rows, setRows] = useState([createEmptyRow()]);
 
   const handleProductSelect = (index, productId) => {
+    if (!productId) return;
     const product = products.find(p => p.id === parseInt(productId));
-    if (product) {
+    if (!product) return;
+
+    // Check if this product already exists in another row
+    const existingIndex = rows.findIndex((r, i) => i !== index && parseInt(r.productId) === product.id);
+
+    if (existingIndex !== -1) {
+      // Product already in list — increment its qty, reset current row to empty
+      const newRows = [...rows];
+      newRows[existingIndex] = { ...newRows[existingIndex], qty: Number(newRows[existingIndex].qty) + 1 };
+      newRows[index] = createEmptyRow(); // clear the row user was typing in
+      setRows(newRows);
+    } else {
+      // New product — fill current row
       const newRows = [...rows];
       newRows[index] = {
         ...newRows[index],
         productId: product.id,
         mrp: product.mrp || 0,
-        price: product.price || 0 // usually purchase price is less, using price for now
+        price: product.price || 0,
+        taxRate: product.tax || 0
       };
       setRows(newRows);
     }
@@ -116,14 +184,22 @@ export function PurchaseInvoice() {
   };
 
   // Manual Summary Inputs
-  const [manualDiscPercent, setManualDiscPercent] = useState("");
-  const [manualDiscAmount, setManualDiscAmount] = useState("");
-  const [manualFreightAmt, setManualFreightAmt] = useState("");
+  const [manualDiscAmount, setManualDiscAmount] = useState('');
+  const [manualFreightAmt, setManualFreightAmt] = useState('');
+  const [manualFreightGst, setManualFreightGst] = useState('');
+  const [manualTcsPercent, setManualTcsPercent] = useState('');
+  const [manualTcsAmt, setManualTcsAmt] = useState('');
+  const [manualDiscPercent, setManualDiscPercent] = useState('');
+  const [showSummaryDiscDropdown, setShowSummaryDiscDropdown] = useState(false);
 
   // Calculation Logic
   let totalQty = 0;
   let baseAmount = 0;
   let totalRowDiscount = 0;
+  let totalGstAmount = 0;
+  let totalCgst = 0;
+  let totalSgst = 0;
+  let totalIgst = 0;
 
   const calculatedRows = rows.map(row => {
     const pPrice = Number(row.price) || 0;
@@ -143,43 +219,70 @@ export function PurchaseInvoice() {
     totalRowDiscount += rowDisc;
     
     const amount = Math.max(0, rowBaseAmount - rowDisc);
-    return { ...row, amount };
+
+    const gstRate = Number(row.taxRate) || 0;
+    let gstAmount = 0;
+    if (isTaxIncluded) {
+      gstAmount = amount - (amount / (1 + gstRate / 100));
+    } else {
+      gstAmount = amount * (gstRate / 100);
+    }
+    const cgst = gstAmount / 2;
+    const sgst = gstAmount / 2;
+    const igst = 0;
+
+    totalGstAmount += gstAmount;
+    totalCgst += cgst;
+    totalSgst += sgst;
+    totalIgst += igst;
+
+    return { ...row, amount, gstRate, gstAmount, cgst, sgst, igst };
   });
 
-  const effectiveDiscPercent = baseAmount > 0 ? ((totalRowDiscount / baseAmount) * 100).toFixed(2) : 0;
-  const finalDiscToApply = manualDiscAmount !== "" ? Number(manualDiscAmount) : (settings.showDiscount ? totalRowDiscount : 0);
-  const freightAmountToApply = manualFreightAmt !== "" ? Number(manualFreightAmt) : 0;
+  const appliedDiscAmount = manualDiscAmount !== "" ? Number(manualDiscAmount) : (settings.showDiscount ? totalRowDiscount : 0);
   
-  const finalCalculatedAmount = Math.max(0, baseAmount - finalDiscToApply + freightAmountToApply);
+  const totalFreight = (parseFloat(manualFreightAmt) || 0) + 
+                       (parseFloat(manualFreightAmt) || 0) * (parseFloat(manualFreightGst) || 0) / 100;
 
-  const gridTemplateColumns = [
-    '40px', // S.NO
-    settings.showProductCode ? '90px' : '', // P.CODE
-    '200px', // PRODUCT NAME
-    settings.showUnit ? '70px' : '', // UNIT
-    settings.showBatchNo ? '90px' : '', // BATCH
-    !settings.hideManufactureDate ? '110px' : '', // MFG
-    !settings.hideExpiryDate ? '110px' : '', // EXP
-    settings.showHSN ? '80px' : '', // HSN
-    settings.showGST ? '80px' : '', // GST
-    '80px', // QTY
-    '80px', // FREE QTY
-    settings.showListPrice ? '90px' : '', // LIST P
-    settings.showMRP ? '80px' : '', // MRP
-    settings.showPurchasePrice ? '90px' : '', // PUR P
-    settings.salePrice ? '90px' : '', // SALE P
-    settings.wholeSalePrice ? '90px' : '', // WS P
-    '100px', // PRICE
-    settings.showDiscount ? '110px' : '', // DISC 1
-    settings.showDiscount ? '110px' : '', // DISC 2
-    '120px', // IMEI
-    '100px', // AMOUNT
-    '80px', // ACTION
-  ].filter(Boolean).join(' ');
+  const tempFinalAmount = Math.max(0, baseAmount - appliedDiscAmount) + totalFreight + (isTaxIncluded ? 0 : totalGstAmount);
+  
+  const appliedTcsPercent = parseFloat(manualTcsPercent) || 0;
+  const calculatedTcsAmt = manualTcsAmt !== '' ? parseFloat(manualTcsAmt) : (tempFinalAmount * appliedTcsPercent) / 100;
+  const finalCalculatedAmount = tempFinalAmount + calculatedTcsAmt;
 
+  const allColumnIds = [
+    'sno', 'productCode', 'product', 'batch', 'unit', 'mfgDate', 'expDate', 
+    'hsn', 'gst', 'qty', 'freeQty', 'mrp', 'purchasePrice', 
+    'salePrice', 'wsPrice', 'price', 'disc1', 'disc2', 'imei', 'amount', 'action'
+  ];
+
+  
+  const colVisible = {
+    sno: true, productCode: settings.showProductCode, product: true,
+    batch: true, unit: settings.showUnit,
+    mfgDate: settings.showMfgExpDate, expDate: settings.showMfgExpDate,
+    hsn: settings.showHSN, gst: settings.showGST, qty: true, freeQty: true,
+    mrp: settings.showMRP,
+    purchasePrice: settings.showPurchasePrice, salePrice: false,
+    wsPrice: false, price: true,
+    disc1: settings.showDiscount, disc2: settings.showDiscount2,
+    imei: settings.showIMEI, amount: true, action: true
+  };
+
+  const colWidths = {
+    sno: '40px', productCode: '90px', product: '200px', batch: '90px', unit: '70px',
+    mfgDate: '110px', expDate: '110px', hsn: '80px', gst: '80px', qty: '80px', freeQty: '80px',
+    mrp: '80px', purchasePrice: '90px', salePrice: '90px', wsPrice: '90px',
+    price: '100px', disc1: '110px', disc2: '110px', imei: '120px', amount: '100px', action: '80px'
+  };
+
+  const gridTemplateColumns = allColumnIds
+    .filter(id => colVisible[id])
+    .map(id => colWidths[id])
+    .join(' ');
   const handleSave = async () => {
-    if (!selectedSupplierId) {
-      alert("Please select a company/supplier.");
+    if (!selectedSupplierId && !supplierInput.trim()) {
+      alert("Please select or enter a company/supplier.");
       return;
     }
 
@@ -192,13 +295,18 @@ export function PurchaseInvoice() {
     const payload = {
       invoiceNo: invoiceNo || `PUR-${Date.now()}`,
       date: invoiceDate,
-      customerId: parseInt(selectedSupplierId),
+      customerId: selectedSupplierId ? parseInt(selectedSupplierId) : supplierInput.trim(),
       paymentMode,
       remark,
       subTotal: baseAmount,
-      totalDiscount: finalDiscToApply,
-      freightCharges: freightAmountToApply,
+      totalDiscount: appliedDiscAmount,
+      freightCharges: totalFreight,
       totalAmount: finalCalculatedAmount,
+      totalGstAmount,
+      totalCgst,
+      totalSgst,
+      totalIgst,
+      tcsAmount: calculatedTcsAmt,
       status: paymentMode === 'Cash' ? 'PAID' : 'DUE',
       items: validRows.map(r => ({
         productId: parseInt(r.productId),
@@ -218,6 +326,11 @@ export function PurchaseInvoice() {
         discount1: Number(r.disc1),
         discount2: Number(r.disc2),
         amount: Number(r.amount),
+        gstRate: Number(r.gstRate) || 0,
+        gstAmount: Number(r.gstAmount) || 0,
+        cgst: Number(r.cgst) || 0,
+        sgst: Number(r.sgst) || 0,
+        igst: Number(r.igst) || 0,
         imei: r.imei
       }))
     };
@@ -235,8 +348,8 @@ export function PurchaseInvoice() {
   };
 
   return (
-    <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] flex flex-col relative pb-12">
-      <div className="bg-white m-3 mt-0 shadow-sm border border-gray-200 flex-1 flex flex-col">
+    <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] flex flex-col relative pb-12 w-full overflow-x-hidden">
+      <div className="bg-white m-3 mt-0 shadow-sm border border-gray-200 flex-1 flex flex-col min-w-0 rounded-[3px]">
         
         {/* Top Header */}
         <div className="bg-[#4F46E5] flex items-center justify-between px-3 py-1.5">
@@ -274,24 +387,51 @@ export function PurchaseInvoice() {
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <label className="text-[13px] font-bold text-gray-800">Company Name</label>
+              {customerStats && (
+                <span className="text-[13px] font-bold text-[#dc3545]">Due Amount :{formatAmount(customerStats.dueAmount)}</span>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex-1 flex items-center">
-                <select 
-                  value={selectedSupplierId}
-                  onChange={(e) => setSelectedSupplierId(e.target.value)}
+                <input 
+                  list="supplier-options"
+                  value={supplierInput}
+                  onChange={(e) => {
+                    setSupplierInput(e.target.value);
+                    const matched = suppliers.find(s => s.name.toLowerCase() === e.target.value.toLowerCase());
+                    if (matched) setSelectedSupplierId(matched.id);
+                    else setSelectedSupplierId("");
+                  }}
+                  placeholder="Select Supplier..."
                   className="w-full min-w-0 border border-gray-300 border-r-0 rounded-l-[3px] px-3 py-1.5 text-[13px] focus:outline-none focus:border-[#4F46E5] bg-white text-gray-800 font-bold"
-                >
-                  <option value="">Select Supplier...</option>
+                />
+                <datalist id="supplier-options">
+                  <option value="Select Supplier..." />
                   {suppliers.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                    <option key={c.id} value={c.name} />
                   ))}
-                </select>
+                </datalist>
                 <button className="bg-[#4F46E5] text-white px-3 py-1.5 border border-[#4F46E5] rounded-r-[3px]">
                   <Search className="w-4 h-4" />
                 </button>
               </div>
             </div>
+            {customerStats && (
+              <div className="flex flex-wrap gap-2 mt-0.5">
+                <div className="bg-[#f8f9fa] border border-gray-200 px-3 py-1 rounded-[3px] flex flex-col items-center justify-center min-w-[100px]">
+                  <span className="text-[11px] text-gray-500 font-bold flex items-center gap-1"><Calendar size={11}/> Joining</span>
+                  <span className="text-[12px] font-bold text-gray-800">{formatDisplayDate(customerStats.joiningDate)}</span>
+                </div>
+                <div className="bg-[#e3f2fd] border border-[#bbdefb] px-3 py-1 rounded-[3px] flex flex-col items-center justify-center min-w-[100px]">
+                  <span className="text-[11px] text-[#0277bd] font-bold flex items-center gap-1">Total Billing</span>
+                  <span className="text-[12px] font-bold text-[#0288d1]">{formatAmount(customerStats.totalBilling)}</span>
+                </div>
+                <div className="bg-[#e8f5e9] border border-[#c8e6c9] px-3 py-1 rounded-[3px] flex flex-col items-center justify-center min-w-[100px]">
+                  <span className="text-[11px] text-[#2e7d32] font-bold flex items-center gap-1">Last Transaction</span>
+                  <span className="text-[12px] font-bold text-[#388e3c]">{timeAgo(customerStats.lastTransaction)}</span>
+                </div>
+              </div>
+            )}
           </div>
           
           <div className="flex flex-col items-end justify-center gap-3">
@@ -335,33 +475,49 @@ export function PurchaseInvoice() {
         <div className="flex-1 min-h-[300px] overflow-x-auto">
           <div className="min-w-[1000px]">
             <div style={{ gridTemplateColumns }} className="bg-[#343a40] text-white grid text-center border-b border-gray-600">
-              <div className="border-r border-gray-600 py-2 text-[12px] font-bold leading-tight flex flex-col justify-center">S.NO.</div>
-              {settings.showProductCode && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">P.CODE</div>}
-              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">PRODUCT NAME</div>
-              {settings.showUnit && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">UNIT</div>}
-              {settings.showBatchNo && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">BATCH</div>}
-              {!settings.hideManufactureDate && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">MFG DT</div>}
-              {!settings.hideExpiryDate && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-red-300">EXP DT</div>}
-              {settings.showHSN && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex flex-col justify-center text-teal-300">HSN</div>}
-              {settings.showGST && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex flex-col justify-center text-teal-300">GST %</div>}
-              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex flex-col justify-center">QTY</div>
-              <div className="border-r border-gray-600 py-2 text-[12px] font-bold text-[#ffc107] flex items-center justify-center">FREE</div>
-              {settings.showListPrice && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">LIST P.</div>}
-              {settings.showMRP && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">MRP</div>}
-              {settings.showPurchasePrice && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">PUR. P.</div>}
-              {settings.salePrice && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-green-300">SALE P.</div>}
-              {settings.wholeSalePrice && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-green-300">W.S. P.</div>}
-              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex flex-col justify-center leading-tight">PRICE</div>
-              {settings.showDiscount && (
-                <>
-                  <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-blue-300">DISC 1</div>
-                  <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-blue-300">DISC 2</div>
-                </>
-              )}
-              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-purple-300">IMEI</div>
-              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center">AMOUNT</div>
-              <div className="py-2 text-[12px] font-bold flex items-center justify-center">ACTION</div>
+              <div className="border-r border-gray-600 py-2 text-[12px] font-bold leading-tight flex flex-col justify-center hover:bg-gray-700 transition-colors">S.NO.</div>
+              {settings.showProductCode && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center hover:bg-gray-700 transition-colors">P.CODE</div>}
+              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center hover:bg-gray-700 transition-colors">PRODUCT NAME</div>
+              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center hover:bg-gray-700 transition-colors">BATCH NO</div>
+              {settings.showUnit && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center hover:bg-gray-700 transition-colors">UNIT</div>}
+              {settings.showMfgExpDate && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center hover:bg-gray-700 transition-colors">MFG DT</div>}
+              {settings.showMfgExpDate && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-red-300 hover:bg-gray-700 transition-colors">EXP DT</div>}
+              {settings.showHSN && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex flex-col justify-center text-teal-300 hover:bg-gray-700 transition-colors">HSN</div>}
+              {settings.showGST && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex flex-col justify-center text-teal-300 hover:bg-gray-700 transition-colors">GST %</div>}
+              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex flex-col justify-center hover:bg-gray-700 transition-colors">QTY</div>
+              <div className="border-r border-gray-600 py-2 text-[12px] font-bold text-[#ffc107] flex items-center justify-center hover:bg-gray-700 transition-colors">FREE</div>
+              {settings.showMRP && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center hover:bg-gray-700 transition-colors">MRP</div>}
+              {settings.showPurchasePrice && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center hover:bg-gray-700 transition-colors">PUR. P.</div>}
+              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex flex-col justify-center leading-tight hover:bg-gray-700 transition-colors">
+                <span className="font-normal text-[10px]">(TAX {isTaxIncluded ? 'INCLUDED' : 'EXCLUDED'})</span>
+                <div 
+                  onClick={() => setIsTaxIncluded(!isTaxIncluded)}
+                  className="flex items-center justify-center gap-1 mt-0.5 cursor-pointer"
+                >
+                  <div className={`w-[24px] h-[14px] rounded-full relative transition-colors ${isTaxIncluded ? 'bg-[#117a8b]' : 'bg-gray-400'}`}>
+                    <div className={`w-[10px] h-[10px] bg-white rounded-full absolute top-[2px] transition-all shadow-sm ${isTaxIncluded ? 'right-[2px]' : 'left-[2px]'}`}></div>
+                  </div>
+                  PRICE
+                </div>
+              </div>
+              {settings.showDiscount && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-blue-300 hover:bg-gray-700 transition-colors">DISC 1</div>}
+              {settings.showDiscount2 && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-blue-300 hover:bg-gray-700 transition-colors">DISC 2</div>}
+              {settings.showIMEI && <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center text-purple-300 hover:bg-gray-700 transition-colors">IMEI</div>}
+              <div className="border-r border-gray-600 py-2 text-[12px] font-bold flex items-center justify-center hover:bg-gray-700 transition-colors">AMOUNT</div>
+              <div className="py-2 text-[12px] font-bold flex items-center justify-center hover:bg-gray-700 transition-colors">ACTION</div>
             </div>
+
+            <datalist id="unit-options">
+              {units.map((u, i) => (
+                <option key={i} value={u} />
+              ))}
+            </datalist>
+            <datalist id="disc-options">
+              <option value="5" />
+              <option value="12" />
+              <option value="18" />
+              <option value="28" />
+            </datalist>
 
             {calculatedRows.map((row, idx) => (
               <div key={idx} style={{ gridTemplateColumns }} className="grid bg-white border-b border-gray-200">
@@ -372,41 +528,72 @@ export function PurchaseInvoice() {
                   </div>
                 )}
                 <div className="border-r border-gray-200 p-1 flex relative">
-                  <button 
-                    onClick={() => setIsProductModalOpen(true)}
-                    className="bg-[#28a745] text-white w-[24px] h-[24px] flex-shrink-0 flex items-center justify-center rounded-[3px] mr-1.5 hover:bg-[#218838]"
-                    title="Add Product"
-                  >
-                    <PlusCircle className="w-[14px] h-[14px]" strokeWidth={2.5} />
-                  </button>
-                  <select 
-                    value={row.productId} 
-                    onChange={(e) => handleProductSelect(idx, e.target.value)}
-                    className="w-full px-2 py-1 text-[13px] outline-none font-bold text-gray-800 appearance-none bg-transparent" 
-                  >
-                    <option value="">Select Product...</option>
-                    {products.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} - SKU: {p.sku}</option>
-                    ))}
-                  </select>
+
+                  <div className="flex-1 min-w-0">
+                    <ProductSelectDropdown 
+                      products={products}
+                      value={row.productId}
+                      onChange={(val) => handleProductSelect(idx, val)}
+                      onEdit={(product) => {
+                        setEditingProduct(product);
+                        setIsProductModalOpen(true);
+                      }}
+                      onDelete={(productId) => handleDeleteProduct(productId)}
+                    />
+                  </div>
                 </div>
                 
+                <div className="border-r border-gray-200 p-1 flex items-center justify-center relative">
+                  <div className={`flex items-center justify-between w-full h-full border rounded-[3px] px-1 bg-[#b8e2f2] ${activeBatchDropdownRow === idx ? 'border-[#90c5da]' : 'border-transparent'}`}>
+                    <input 
+                      type="text" 
+                      value={row.batchNo} 
+                      onChange={(e) => updateRow(idx, 'batchNo', e.target.value)}
+                      onClick={() => setActiveBatchDropdownRow(idx)}
+                      onBlur={() => setTimeout(() => setActiveBatchDropdownRow(null), 200)}
+                      placeholder="Batch No" 
+                      className="w-full h-full bg-transparent text-[12px] outline-none text-gray-800 font-bold" 
+                    />
+                    <ChevronDown size={14} className="text-gray-400 cursor-pointer" onClick={() => setActiveBatchDropdownRow(idx === activeBatchDropdownRow ? null : idx)} />
+                  </div>
+                  
+                  {activeBatchDropdownRow === idx && row.batchNo && (
+                    <div className="absolute top-[calc(100%-4px)] left-1 min-w-[180px] bg-[#b8e2f2] shadow-md z-[60] border-t border-white rounded-b-[3px]">
+                      <div 
+                        className="p-1.5 flex justify-center items-center hover:bg-[#a5d7ea] transition-colors cursor-pointer"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setActiveBatchDropdownRow(null);
+                          setActiveBatchRow(idx);
+                          setTempBatchData({ batchNo: row.batchNo || '', expDate: row.expDate || '' });
+                          setIsBatchModalOpen(true);
+                        }}
+                      >
+                        <span className="font-bold text-[#007bff] text-[14px]">Add item "{row.batchNo}"</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {settings.showUnit && (
                   <div className="border-r border-gray-200 p-1 flex items-center justify-center">
-                    <input type="text" value={row.unit} onChange={(e) => updateRow(idx, 'unit', e.target.value)} placeholder="Unit" className="w-full h-full border border-gray-200 rounded-[3px] px-1 text-[12px] outline-none text-center" />
+                    <input 
+                      type="text" 
+                      list="unit-options"
+                      value={row.unit} 
+                      onChange={(e) => updateRow(idx, 'unit', e.target.value)} 
+                      placeholder="Unit"
+                      className="w-full h-full border border-gray-200 rounded-[3px] px-1 text-[12px] outline-none text-center bg-white"
+                    />
                   </div>
                 )}
-                {settings.showBatchNo && (
-                  <div className="border-r border-gray-200 p-1 flex items-center justify-center">
-                    <input type="text" value={row.batchNo} onChange={(e) => updateRow(idx, 'batchNo', e.target.value)} placeholder="Batch" className="w-full h-full border border-gray-200 rounded-[3px] px-1 text-[12px] outline-none text-center text-purple-700" />
-                  </div>
-                )}
-                {!settings.hideManufactureDate && (
+                {settings.showMfgExpDate && (
                   <div className="border-r border-gray-200 p-1 flex items-center justify-center">
                     <input type="date" value={row.mfgDate} onChange={(e) => updateRow(idx, 'mfgDate', e.target.value)} className="w-full h-full border border-gray-200 rounded-[3px] px-1 text-[11px] outline-none" />
                   </div>
                 )}
-                {!settings.hideExpiryDate && (
+                {settings.showMfgExpDate && (
                   <div className="border-r border-gray-200 p-1 flex items-center justify-center">
                     <input type="date" value={row.expDate} onChange={(e) => updateRow(idx, 'expDate', e.target.value)} className="w-full h-full border border-red-200 rounded-[3px] px-1 text-[11px] outline-none text-red-700 bg-red-50" />
                   </div>
@@ -418,7 +605,11 @@ export function PurchaseInvoice() {
                 )}
                 {settings.showGST && (
                   <div className="border-r border-gray-200 p-1 flex items-center justify-center">
-                    <select className="w-full h-full border border-gray-200 rounded-[3px] px-0 text-[12px] outline-none text-center">
+                    <select 
+                      value={row.taxRate}
+                      onChange={(e) => updateRow(idx, 'taxRate', Number(e.target.value))}
+                      className="w-full h-full border border-gray-200 rounded-[3px] px-0 text-[12px] outline-none text-center"
+                    >
                       <option value="0">0%</option>
                       <option value="5">5%</option>
                       <option value="12">12%</option>
@@ -434,11 +625,6 @@ export function PurchaseInvoice() {
                 <div className="border-r border-gray-200 p-1">
                    <input type="number" value={row.freeQty} onChange={(e) => updateRow(idx, 'freeQty', Number(e.target.value))} className="w-full h-full border border-yellow-300 bg-yellow-50 rounded-[3px] px-2 text-[13px] outline-none text-center font-bold text-yellow-800" />
                 </div>
-                {settings.showListPrice && (
-                  <div className="border-r border-gray-200 p-1 flex flex-col justify-center">
-                    <input type="number" value={row.listPrice} onChange={(e) => updateRow(idx, 'listPrice', Number(e.target.value))} className="w-full h-full border border-gray-200 rounded-[3px] px-1 text-[12px] outline-none text-right" />
-                  </div>
-                )}
                 {settings.showMRP && (
                   <div className="border-r border-gray-200 p-1 flex flex-col justify-center bg-gray-50 text-[13px] font-bold text-gray-500">
                     <input type="number" value={row.mrp} onChange={(e) => updateRow(idx, 'mrp', Number(e.target.value))} className="w-full h-full border-none bg-transparent px-1 text-[12px] outline-none text-right font-bold text-gray-600" />
@@ -449,44 +635,35 @@ export function PurchaseInvoice() {
                     <input type="number" value={row.purchasePrice} onChange={(e) => updateRow(idx, 'purchasePrice', Number(e.target.value))} className="w-full h-full border border-gray-200 rounded-[3px] px-1 text-[12px] outline-none text-right" />
                   </div>
                 )}
-                {settings.salePrice && (
-                  <div className="border-r border-gray-200 p-1 flex flex-col justify-center">
-                    <input type="number" value={row.salePrice} onChange={(e) => updateRow(idx, 'salePrice', Number(e.target.value))} className="w-full h-full border border-green-200 rounded-[3px] px-1 text-[12px] outline-none text-right bg-green-50 text-green-700" />
-                  </div>
-                )}
-                {settings.wholeSalePrice && (
-                  <div className="border-r border-gray-200 p-1 flex flex-col justify-center">
-                    <input type="number" value={row.wholeSalePrice} onChange={(e) => updateRow(idx, 'wholeSalePrice', Number(e.target.value))} className="w-full h-full border border-green-200 rounded-[3px] px-1 text-[12px] outline-none text-right bg-green-50 text-green-700" />
-                  </div>
-                )}
                 
                 <div className="border-r border-gray-200 p-1 flex flex-col justify-center">
                   <input type="number" value={row.price} onChange={(e) => updateRow(idx, 'price', Number(e.target.value))} className="w-full h-full border border-gray-200 rounded-[3px] px-2 text-[13px] outline-none text-right font-bold transition-colors bg-blue-50 border-blue-200" />
                 </div>
 
                 {settings.showDiscount && (
-                  <>
-                    <div className="border-r border-gray-200 p-1 flex">
-                       <input type="number" value={row.disc1} onChange={(e) => updateRow(idx, 'disc1', Number(e.target.value))} className="w-[60%] border border-blue-200 rounded-l-[3px] px-1 text-[13px] outline-none border-r-0 text-center text-blue-800 bg-blue-50" />
-                        <select value={row.disc1Type} onChange={(e) => updateRow(idx, 'disc1Type', e.target.value)} className="w-[40%] border border-blue-200 rounded-r-[3px] px-0 text-[12px] outline-none bg-blue-100 text-blue-800 appearance-none text-center">
-                          <option value="%">%</option>
-                          <option value={currentCurrency.symbol}>{currentCurrency.symbol}</option>
-                        </select>
-                    </div>
-
-                    <div className="border-r border-gray-200 p-1 flex">
-                       <input type="number" value={row.disc2} onChange={(e) => updateRow(idx, 'disc2', Number(e.target.value))} className="w-[60%] border border-blue-200 rounded-l-[3px] px-1 text-[13px] outline-none border-r-0 text-center text-blue-800 bg-blue-50" />
-                        <select value={row.disc2Type} onChange={(e) => updateRow(idx, 'disc2Type', e.target.value)} className="w-[40%] border border-blue-200 rounded-r-[3px] px-0 text-[12px] outline-none bg-blue-100 text-blue-800 appearance-none text-center">
-                          <option value="%">%</option>
-                          <option value={currentCurrency.symbol}>{currentCurrency.symbol}</option>
-                        </select>
-                    </div>
-                  </>
+                  <div className="border-r border-gray-200 p-1 flex">
+                     <input list="disc-options" type="text" value={row.disc1} onChange={(e) => updateRow(idx, 'disc1', e.target.value)} className="w-[60%] border border-blue-200 rounded-l-[3px] px-1 text-[13px] outline-none border-r-0 text-center text-blue-800 bg-blue-50" />
+                      <select value={row.disc1Type} onChange={(e) => updateRow(idx, 'disc1Type', e.target.value)} className="w-[40%] border border-blue-200 rounded-r-[3px] px-0 text-[12px] outline-none bg-blue-100 text-blue-800 appearance-none text-center">
+                        <option value="%">%</option>
+                        <option value={currentCurrency.symbol}>{currentCurrency.symbol}</option>
+                      </select>
+                  </div>
+                )}
+                {settings.showDiscount2 && (
+                  <div className="border-r border-gray-200 p-1 flex">
+                     <input list="disc-options" type="text" value={row.disc2} onChange={(e) => updateRow(idx, 'disc2', e.target.value)} className="w-[60%] border border-blue-200 rounded-l-[3px] px-1 text-[13px] outline-none border-r-0 text-center text-blue-800 bg-blue-50" />
+                      <select value={row.disc2Type} onChange={(e) => updateRow(idx, 'disc2Type', e.target.value)} className="w-[40%] border border-blue-200 rounded-r-[3px] px-0 text-[12px] outline-none bg-blue-100 text-blue-800 appearance-none text-center">
+                        <option value="%">%</option>
+                        <option value={currentCurrency.symbol}>{currentCurrency.symbol}</option>
+                      </select>
+                  </div>
                 )}
 
-                <div className="border-r border-gray-200 p-1 flex items-center justify-center">
-                    <input type="text" placeholder="IMEI..." value={row.imei || ''} onChange={(e) => updateRow(idx, 'imei', e.target.value)} className="w-full h-full border border-purple-200 bg-purple-50 rounded-[3px] px-1 text-[11px] outline-none text-purple-800" />
-                </div>
+                {settings.showIMEI && (
+                  <div className="border-r border-gray-200 p-1 flex items-center justify-center">
+                      <input type="text" placeholder="IMEI..." value={row.imei || ''} onChange={(e) => updateRow(idx, 'imei', e.target.value)} className="w-full h-full border border-purple-200 bg-purple-50 rounded-[3px] px-1 text-[11px] outline-none text-purple-800" />
+                  </div>
+                )}
 
                 <div className="border-r border-gray-200 p-1 flex items-center justify-end pr-2 text-[13px] font-bold text-gray-800 bg-gray-50">
                   {row.amount.toFixed(2)}
@@ -520,11 +697,11 @@ export function PurchaseInvoice() {
               </div>
               <div className="border border-gray-200 bg-[#f8f9fa] rounded-[3px] p-2 flex flex-col items-center justify-center text-center">
                 <span className="text-[12px] font-bold text-gray-700">CGST</span>
-                <span className="text-[14px] font-bold text-[#007bff]">{formatAmount(0)}</span>
+                <span className="text-[14px] font-bold text-[#007bff]">{formatAmount(totalCgst)}</span>
               </div>
               <div className="border border-gray-200 bg-[#f8f9fa] rounded-[3px] p-2 flex flex-col items-center justify-center text-center">
                 <span className="text-[12px] font-bold text-gray-700">SGST</span>
-                <span className="text-[14px] font-bold text-[#007bff]">{formatAmount(0)}</span>
+                <span className="text-[14px] font-bold text-[#007bff]">{formatAmount(totalSgst)}</span>
               </div>
             </div>
 
@@ -548,7 +725,44 @@ export function PurchaseInvoice() {
                  <div className="w-[200px] flex gap-2">
                    <div className="flex-1 relative mt-[18px]">
                      <span className="absolute -top-[18px] left-0 text-[11px] font-bold text-gray-800">Dis.%</span>
-                     <input type="number" value={manualDiscPercent !== "" ? manualDiscPercent : effectiveDiscPercent} onChange={(e) => setManualDiscPercent(e.target.value)} className="w-full border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] text-right text-blue-700 font-bold" />
+                     <div className="relative">
+                       <input 
+                         type="text" 
+                         value={manualDiscPercent}
+                         onChange={(e) => {
+                           setManualDiscPercent(e.target.value);
+                           if (e.target.value) {
+                             setManualDiscAmount((baseAmount * Number(e.target.value) / 100).toFixed(2));
+                           } else {
+                             setManualDiscAmount('');
+                           }
+                         }}
+                         onFocus={() => setShowSummaryDiscDropdown(true)}
+                         onBlur={() => setTimeout(() => setShowSummaryDiscDropdown(false), 200)}
+                         className="w-full border border-gray-300 rounded-[3px] py-1 pl-2 pr-6 text-[13px] text-right text-blue-700 font-bold" 
+                       />
+                       <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-blue-600 text-[10px]">
+                         ▼
+                       </div>
+                     </div>
+                     {showSummaryDiscDropdown && (
+                        <div className="absolute top-full left-0 w-full bg-white border border-gray-300 shadow-lg z-50 rounded-b-[3px] mt-[1px]">
+                          {[5, 12, 18, 28].map(val => (
+                            <div 
+                              key={val} 
+                              className="px-2 py-1.5 hover:bg-blue-50 cursor-pointer text-center text-[13px] text-gray-800 font-bold border-b border-gray-100 last:border-0"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setManualDiscPercent(val);
+                                setManualDiscAmount((baseAmount * Number(val) / 100).toFixed(2));
+                                setShowSummaryDiscDropdown(false);
+                              }}
+                            >
+                              {val}
+                            </div>
+                          ))}
+                        </div>
+                     )}
                    </div>
                    <div className="flex-1 relative mt-[18px]">
                      <span className="absolute -top-[18px] left-0 text-[11px] font-bold text-gray-800">Dis. Amt</span>
@@ -557,6 +771,47 @@ export function PurchaseInvoice() {
                  </div>
                </div>
              )}
+
+              <div className="flex justify-between items-start">
+                <span className="text-[13px] font-bold text-gray-800 mt-3">Fright Charges:</span>
+                <div className="w-[200px] flex gap-2">
+                  <div className="flex-1 relative mt-[18px]">
+                    <span className="absolute -top-[18px] left-0 text-[11px] font-bold text-gray-800">Amount</span>
+                    <div className="flex h-full">
+                      <input type="number" value={manualFreightAmt !== "" ? manualFreightAmt : "0"} onChange={(e) => setManualFreightAmt(e.target.value)} className="w-full min-w-0 border border-gray-300 border-r-0 rounded-l-[3px] px-2 py-1 text-[13px] outline-none bg-white text-right" />
+                      <button 
+                        onClick={() => {
+                          const addAmt = parseFloat(window.prompt("Enter amount to add to Freight Charges:", "0"));
+                          if (!isNaN(addAmt) && addAmt > 0) {
+                            setManualFreightAmt(String((parseFloat(manualFreightAmt) || 0) + addAmt));
+                          }
+                        }}
+                        className="bg-[#e9ecef] border border-gray-300 border-l-0 px-2 rounded-r-[3px] flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-700 font-bold"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex-1 relative mt-[18px]">
+                    <span className="absolute -top-[18px] left-0 text-[11px] font-bold text-gray-800">Gst %</span>
+                    <input type="number" value={manualFreightGst !== "" ? manualFreightGst : "0"} onChange={(e) => setManualFreightGst(e.target.value)} className="w-full min-w-0 border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] outline-none bg-white text-right" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-start">
+                <span className="text-[13px] font-bold text-gray-800 mt-3">TCS:</span>
+                <div className="w-[200px] flex gap-2">
+                  <div className="flex-1 relative mt-[18px]">
+                    <span className="absolute -top-[18px] left-0 text-[11px] font-bold text-gray-800">TCS %</span>
+                    <input type="number" value={manualTcsPercent !== "" ? manualTcsPercent : "0"} onChange={(e) => setManualTcsPercent(e.target.value)} className="w-full min-w-0 border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] outline-none bg-white text-right text-[#4F46E5] font-bold" />
+                  </div>
+                  <div className="flex-1 relative mt-[18px]">
+                    <span className="absolute -top-[18px] left-0 text-[11px] font-bold text-gray-800">TCS Amount</span>
+                    <input type="number" value={manualTcsAmt !== "" ? manualTcsAmt : calculatedTcsAmt.toFixed(2)} onChange={(e) => setManualTcsAmt(e.target.value)} className="w-full min-w-0 border border-gray-300 rounded-[3px] px-2 py-1 text-[13px] outline-none bg-white text-right text-[#4F46E5] font-bold" />
+                  </div>
+                </div>
+              </div>
 
              <div className="flex items-center justify-between mt-1">
                <span className="text-[13px] font-bold text-gray-800">Final Amount:</span>
@@ -587,13 +842,63 @@ export function PurchaseInvoice() {
       {/* Product Master Modal */}
       <ProductMasterModal 
         isOpen={isProductModalOpen} 
-        onClose={() => setIsProductModalOpen(false)} 
-        onSuccess={() => {
-          setIsProductModalOpen(false);
-          // Assuming fetchProducts or similar exists to refresh list. It's fetched on mount, so we'll just reload or trigger effect if needed.
-          window.location.reload(); 
+        onClose={() => { setIsProductModalOpen(false); setEditingProduct(null); }}
+        editProduct={editingProduct}
+        onSubmit={(newProduct) => {
+          fetchData(); // Refresh products list
         }}
       />
+
+      {/* Batch Details Modal */}
+      {isBatchModalOpen && (
+        <div className="fixed inset-0 bg-black/30 z-[100] flex items-center justify-center">
+          <div className="bg-white rounded-[4px] shadow-lg w-[450px] overflow-hidden flex flex-col">
+            <div className="bg-[#007bff] px-3 py-2 flex items-center justify-between">
+              <h3 className="text-white font-bold text-[15px]">Enter Batch Details</h3>
+              <button onClick={() => setIsBatchModalOpen(false)} className="text-[#dc3545] hover:text-red-600">
+                <X className="w-6 h-6" strokeWidth={3} />
+              </button>
+            </div>
+            <div className="p-4 grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-[13px] font-bold text-gray-800">Batch No :</label>
+                <input 
+                  type="text" 
+                  value={tempBatchData.batchNo} 
+                  onChange={(e) => setTempBatchData({ ...tempBatchData, batchNo: e.target.value })}
+                  className="w-full border border-[#90c5da] bg-[#b8e2f2] rounded-[3px] px-2 py-1.5 text-[13px] outline-none text-gray-800 font-bold"
+                  autoFocus
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[13px] font-bold text-gray-800">Expiry Date:</label>
+                <input 
+                  type="date" 
+                  value={tempBatchData.expDate} 
+                  onChange={(e) => setTempBatchData({ ...tempBatchData, expDate: e.target.value })}
+                  className="w-full border border-gray-300 rounded-[3px] px-2 py-1.5 text-[13px] outline-none text-gray-800"
+                />
+              </div>
+            </div>
+            <div className="px-4 py-3 border-t border-gray-200 flex justify-end">
+              <button 
+                onClick={() => {
+                  if (activeBatchRow !== null) {
+                    const newRows = [...rows];
+                    newRows[activeBatchRow].batchNo = tempBatchData.batchNo;
+                    newRows[activeBatchRow].expDate = tempBatchData.expDate;
+                    setRows(newRows);
+                  }
+                  setIsBatchModalOpen(false);
+                }}
+                className="border border-gray-800 text-gray-800 hover:bg-gray-100 px-4 py-1.5 rounded-[3px] text-[13px] font-medium transition-colors"
+              >
+                Okay
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

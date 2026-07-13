@@ -79,7 +79,7 @@ export function ItemMaster() {
     try {
       const payload = {
         ...newItem,
-        sku: newItem.sku || `SKU${Date.now()}`,
+        sku: newItem.sku || `SKU${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
         price: parseFloat(newItem.price) || 0,
         mrp: parseFloat(newItem.mrp) || 0,
         stock: parseInt(newItem.qty) || 0,
@@ -126,7 +126,8 @@ export function ItemMaster() {
     // Add professional header
     doc.setFontSize(18);
     doc.setTextColor(79, 70, 229); // Indigo 600
-    doc.text('Os Books - Item Master Report', 14, 22);
+    doc.text('Swayam Bill Book - Item Master Report', 14, 22);
+
     
     doc.setFontSize(11);
     doc.setTextColor(100);

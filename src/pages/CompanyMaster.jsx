@@ -449,8 +449,8 @@ export function CompanyMaster() {
 
       {/* Edit Modal */}
       {editModalOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-[4px] shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-[4px] shadow-2xl w-full sm:max-w-[750px] max-h-[95vh] overflow-hidden flex flex-col">
             <div className="bg-[#4F46E5] px-4 py-3 flex items-center justify-between">
               <h3 className="text-white font-medium text-[15px]">{t('company_master.edit_company')}</h3>
               <button onClick={() => setEditModalOpen(false)} className="text-white hover:text-red-200 transition-colors">
@@ -458,33 +458,191 @@ export function CompanyMaster() {
               </button>
             </div>
             
-            <div className="p-5 flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <label className="text-[13px] font-bold text-gray-800">Party Name</label>
-                <input 
-                  type="text" 
-                  value={editRow?.name || ''}
-                  onChange={(e) => setEditRow({...editRow, name: e.target.value})}
-                  className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[13px] font-bold text-gray-800">Mobile No</label>
-                <input 
-                  type="text" 
-                  value={editRow?.mobile || ''}
-                  onChange={(e) => setEditRow({...editRow, mobile: e.target.value})}
-                  className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[13px] font-bold text-gray-800">City</label>
-                <input 
-                  type="text" 
-                  value={editRow?.city || ''}
-                  onChange={(e) => setEditRow({...editRow, city: e.target.value})}
-                  className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
-                />
+            <div className="p-5 flex-1 overflow-y-auto">
+              <div className="flex flex-col gap-4">
+                {/* Row 1 */}
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1 flex flex-col gap-1">
+                    <label className="text-[13px] font-bold text-gray-800">Party Name</label>
+                    <input 
+                      type="text" 
+                      value={editRow?.name || ''}
+                      onChange={(e) => setEditRow({...editRow, name: e.target.value})}
+                      className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
+                    />
+                  </div>
+                  <div className="flex-1 flex flex-col gap-1">
+                    <label className="text-[13px] font-bold text-gray-800">Mobile No</label>
+                    <input 
+                      type="text" 
+                      value={editRow?.mobile || ''}
+                      onChange={(e) => setEditRow({...editRow, mobile: e.target.value})}
+                      className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
+                    />
+                  </div>
+                </div>
+
+                {/* Row 2 */}
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1 flex flex-col gap-1">
+                    <label className="text-[13px] font-bold text-gray-800">City</label>
+                    <input 
+                      type="text" 
+                      value={editRow?.city || ''}
+                      onChange={(e) => setEditRow({...editRow, city: e.target.value})}
+                      className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
+                    />
+                  </div>
+                  <div className="flex-1 flex flex-col gap-1">
+                    <label className="text-[13px] font-bold text-gray-800">Address</label>
+                    <input 
+                      type="text" 
+                      value={editRow?.address || ''}
+                      onChange={(e) => setEditRow({...editRow, address: e.target.value})}
+                      className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
+                    />
+                  </div>
+                </div>
+
+                {/* Row 3 */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13px] font-bold text-gray-800">GSTIN</label>
+                    <input 
+                      type="text" 
+                      value={editRow?.gstin || ''}
+                      onChange={(e) => setEditRow({...editRow, gstin: e.target.value})}
+                      className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13px] font-bold text-gray-800">Party Tags</label>
+                    <input 
+                      type="text" 
+                      value={editRow?.partyTags || ''}
+                      onChange={(e) => setEditRow({...editRow, partyTags: e.target.value})}
+                      className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13px] font-bold text-gray-800">State</label>
+                    <input 
+                      type="text" 
+                      value={editRow?.stateName || editRow?.state || ''}
+                      onChange={(e) => setEditRow({...editRow, stateName: e.target.value, state: e.target.value})}
+                      className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
+                    />
+                  </div>
+                </div>
+
+                {/* Row 4 */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13px] font-bold text-gray-800">Email Address</label>
+                    <input 
+                      type="email" 
+                      value={editRow?.emailAddress || editRow?.email || ''}
+                      onChange={(e) => setEditRow({...editRow, emailAddress: e.target.value, email: e.target.value})}
+                      className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13px] font-bold text-gray-800">Pin Code</label>
+                    <input 
+                      type="text" 
+                      value={editRow?.pinCode || ''}
+                      onChange={(e) => setEditRow({...editRow, pinCode: e.target.value})}
+                      className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13px] font-bold text-gray-800">Drug License</label>
+                    <input 
+                      type="text" 
+                      value={editRow?.drugLicense || ''}
+                      onChange={(e) => setEditRow({...editRow, drugLicense: e.target.value})}
+                      className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
+                    />
+                  </div>
+                </div>
+
+                {/* Row 5 */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13px] font-bold text-gray-800">Other Mobile No</label>
+                    <input 
+                      type="text" 
+                      value={editRow?.otherMobileNo || ''}
+                      onChange={(e) => setEditRow({...editRow, otherMobileNo: e.target.value})}
+                      className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13px] font-bold text-gray-800">GST Applicable</label>
+                    <select 
+                      value={editRow?.gstApplicable || 'GST'}
+                      onChange={(e) => setEditRow({...editRow, gstApplicable: e.target.value})}
+                      className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5] bg-white"
+                    >
+                      <option value="GST">GST</option>
+                      <option value="COMPOSITION">COMPOSITION</option>
+                      <option value="UNREGISTERED">UNREGISTERED</option>
+                      <option value="CONSUMER">CONSUMER</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13px] font-bold text-gray-800">Party Type</label>
+                    <select 
+                      value={editRow?.partyType || 'company'}
+                      onChange={(e) => setEditRow({...editRow, partyType: e.target.value})}
+                      className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5] bg-white"
+                    >
+                      <option value="company">company</option>
+                      <option value="retailer">retailer</option>
+                      <option value="distributor">distributor</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Row 6 */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13px] font-bold text-gray-800">Due Days</label>
+                    <input 
+                      type="text" 
+                      value={editRow?.dueDays || ''}
+                      onChange={(e) => setEditRow({...editRow, dueDays: e.target.value})}
+                      className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13px] font-bold text-gray-800">Party Limit</label>
+                    <input 
+                      type="text" 
+                      value={editRow?.partyLimit || ''}
+                      onChange={(e) => setEditRow({...editRow, partyLimit: e.target.value})}
+                      className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13px] font-bold text-gray-800">Interest / Month</label>
+                    <input 
+                      type="text" 
+                      value={editRow?.interestRate || ''}
+                      onChange={(e) => setEditRow({...editRow, interestRate: e.target.value})}
+                      className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13px] font-bold text-gray-800">Loyalty Points</label>
+                    <input 
+                      type="text" 
+                      value={editRow?.loyaltyPoints || ''}
+                      onChange={(e) => setEditRow({...editRow, loyaltyPoints: e.target.value})}
+                      className="border border-gray-300 rounded-[4px] px-3 py-2 text-[14px] outline-none focus:border-[#4F46E5]"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
             

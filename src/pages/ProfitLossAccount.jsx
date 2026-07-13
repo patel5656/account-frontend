@@ -1,8 +1,92 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../api/apiClient';
 
 export function ProfitLossAccount() {
   const navigate = useNavigate();
+
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+  const formatDate = (date) => date.toISOString().split('T')[0];
+  
+  const defaultFrom = formatDate(firstDay);
+  const defaultTo = formatDate(today);
+
+  const [fromDate, setFromDate] = useState(defaultFrom);
+  const [toDate, setToDate] = useState(defaultTo);
+  const [reportDates, setReportDates] = useState({ from: defaultFrom, to: defaultTo });
+  
+  const [reportData, setReportData] = useState({
+    sales: 0,
+    salesReturn: 0,
+    purchase: 0,
+    purchaseReturn: 0,
+    openingStock: 0,
+    closingStock: 0,
+    operatingExpenses: 0,
+    operatingIncome: 0,
+    otherIncomes: 0,
+    otherExpenses: 0
+  });
+
+  const handleShowReport = async () => {
+    const d1 = new Date(fromDate);
+    const d2 = new Date(toDate);
+    
+    if (d1 > d2) {
+      alert("From Date cannot be greater than To Date.");
+      return;
+    }
+
+    setReportDates({ from: fromDate, to: toDate });
+    
+    try {
+      const res = await apiClient.get('/financial/profit-loss', {
+        params: { fromDate, toDate }
+      });
+      
+      if (res.data && res.data.success) {
+        setReportData({
+          sales: res.data.data.sales || 0,
+          salesReturn: res.data.data.salesReturn || 0,
+          purchase: res.data.data.purchase || 0,
+          purchaseReturn: res.data.data.purchaseReturn || 0,
+          openingStock: res.data.data.openingStock || 0,
+          closingStock: res.data.data.closingStock || 0,
+          operatingExpenses: res.data.data.operatingExpenses || 0,
+          operatingIncome: res.data.data.operatingIncome || 0,
+          otherIncomes: res.data.data.otherIncomes || 0,
+          otherExpenses: res.data.data.otherExpenses || 0
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching profit and loss report:", error);
+      alert("Failed to load profit and loss data");
+    }
+  };
+
+  useEffect(() => {
+    handleShowReport();
+  }, []);
+
+  const formatDateLabel = (dateStr) => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-');
+    const date = new Date(year, parseInt(month) - 1, parseInt(day));
+    return `${parseInt(day)}-${date.toLocaleString('default', { month: 'short' })}-${date.getFullYear()}`;
+  };
+
+  const netSales = reportData.sales - reportData.salesReturn;
+  const netPurchase = reportData.purchase - reportData.purchaseReturn;
+  const cogs = reportData.openingStock + netPurchase - reportData.closingStock;
+  const grossProfit = netSales - cogs;
+  
+  const totalOperatingExpenses = reportData.operatingExpenses;
+  const totalOperatingIncome = reportData.operatingIncome;
+  const totalOtherIncomes = reportData.otherIncomes;
+  const totalOtherExpenses = reportData.otherExpenses;
+  
+  const netIncome = grossProfit - totalOperatingExpenses + totalOperatingIncome + totalOtherIncomes - totalOtherExpenses;
 
   return (
     <div className="bg-[#f4f6f9] min-h-[calc(100vh-45px)] p-3 flex flex-col relative pb-[70px]">
@@ -14,7 +98,8 @@ export function ProfitLossAccount() {
             <div className="relative">
               <input 
                 type="date" 
-                defaultValue="2026-05-24"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
                 className="h-[32px] w-[140px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-600 bg-white"
               />
             </div>
@@ -22,18 +107,19 @@ export function ProfitLossAccount() {
             <div className="relative">
               <input 
                 type="date" 
-                defaultValue="2026-05-24"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
                 className="h-[32px] w-[140px] border border-gray-300 rounded-[3px] px-2 text-[13px] outline-none text-gray-600 bg-white"
               />
             </div>
 
-            <button className="h-[32px] px-4 bg-[#007bff] hover:bg-[#0069d9] text-white text-[13px] font-medium rounded-[3px] transition-colors shadow-sm">
+            <button onClick={handleShowReport} className="h-[32px] px-4 bg-[#007bff] hover:bg-[#0069d9] text-white text-[13px] font-medium rounded-[3px] transition-colors shadow-sm">
               Show Report
             </button>
           </div>
 
           <h2 className="text-[14px] text-gray-700 mb-1">PROFIT AND LOSS REPORT</h2>
-          <p className="text-[14px] text-gray-600">(From 24-May-2026 To 24-May-2026)</p>
+          <p className="text-[14px] text-gray-600">(From {formatDateLabel(reportDates.from)} To {formatDateLabel(reportDates.to)})</p>
         </div>
 
         {/* Ledger Table */}
@@ -52,20 +138,23 @@ export function ProfitLossAccount() {
               <tr className="border-b border-gray-200">
                 <td className="py-3 px-4">
                   <div className="text-[13px] text-gray-800 mb-0.5">Net Sales</div>
-                  <div className="text-[12px] text-gray-500">Sales : 0</div>
-                  <div className="text-[12px] text-gray-500">Sales Return : 0</div>
+                  <div className="text-[12px] text-gray-500">Sales : {reportData.sales}</div>
+                  <div className="text-[12px] text-gray-500">Sales Return : {reportData.salesReturn}</div>
                 </td>
                 <td className="py-3 px-4 text-center text-[13px]"></td>
-                <td className="py-3 px-4 text-center text-[13px] font-medium">0</td>
+                <td className="py-3 px-4 text-center text-[13px] font-medium">{netSales}</td>
               </tr>
               
               {/* Row: Cost of goods Sold */}
               <tr className="border-b border-gray-200">
-                <td className="py-3 px-4 text-[13px] text-gray-800">
-                  Cost of goods Sold
+                <td className="py-3 px-4">
+                  <div className="text-[13px] text-gray-800 mb-0.5">Cost of goods Sold</div>
+                  <div className="text-[12px] text-gray-500">Opening Stock : {reportData.openingStock}</div>
+                  <div className="text-[12px] text-gray-500">Net Purchase : {netPurchase}</div>
+                  <div className="text-[12px] text-gray-500">Closing Stock : {reportData.closingStock}</div>
                 </td>
                 <td className="py-3 px-4 text-center text-[13px]"></td>
-                <td className="py-3 px-4 text-center text-[13px] font-medium">0</td>
+                <td className="py-3 px-4 text-center text-[13px] font-medium">{cogs}</td>
               </tr>
 
               {/* Row: Gross Profit */}
@@ -74,7 +163,7 @@ export function ProfitLossAccount() {
                   Gross Profit
                 </td>
                 <td className="py-3 px-4 text-center text-[13px]"></td>
-                <td className="py-3 px-4 text-center text-[13px] font-bold text-[#28a745]">0</td>
+                <td className="py-3 px-4 text-center text-[13px] font-bold text-[#28a745]">{grossProfit}</td>
               </tr>
 
               {/* Row: Operating Expenses */}
@@ -90,7 +179,7 @@ export function ProfitLossAccount() {
                   Total Operating Expenses
                 </td>
                 <td className="py-3 px-4 text-center text-[13px]"></td>
-                <td className="py-3 px-4 text-center text-[13px] font-bold text-[#dc3545]">0</td>
+                <td className="py-3 px-4 text-center text-[13px] font-bold text-[#dc3545]">{totalOperatingExpenses}</td>
               </tr>
 
               {/* Row: Total Operating Income */}
@@ -99,7 +188,7 @@ export function ProfitLossAccount() {
                   Total Operating Income
                 </td>
                 <td className="py-3 px-4 text-center text-[13px]"></td>
-                <td className="py-3 px-4 text-center text-[13px] font-bold text-gray-800">0</td>
+                <td className="py-3 px-4 text-center text-[13px] font-bold text-gray-800">{totalOperatingIncome}</td>
               </tr>
 
               {/* Row: Other Incomes */}
@@ -115,7 +204,7 @@ export function ProfitLossAccount() {
                   Total Other Incomes
                 </td>
                 <td className="py-3 px-4 text-center text-[13px]"></td>
-                <td className="py-3 px-4 text-center text-[13px] font-bold text-[#28a745]">0</td>
+                <td className="py-3 px-4 text-center text-[13px] font-bold text-[#28a745]">{totalOtherIncomes}</td>
               </tr>
 
               {/* Row: Other Expenses */}
@@ -131,7 +220,7 @@ export function ProfitLossAccount() {
                   Total Other Expenses
                 </td>
                 <td className="py-3 px-4 text-center text-[13px]"></td>
-                <td className="py-3 px-4 text-center text-[13px] font-bold text-[#dc3545]">0</td>
+                <td className="py-3 px-4 text-center text-[13px] font-bold text-[#dc3545]">{totalOtherExpenses}</td>
               </tr>
 
               {/* Row: Net Income */}
@@ -140,7 +229,7 @@ export function ProfitLossAccount() {
                   Net Income
                 </td>
                 <td className="py-3 px-4 text-center text-[13px]"></td>
-                <td className="py-3 px-4 text-center text-[13px] font-bold text-[#28a745]">0</td>
+                <td className="py-3 px-4 text-center text-[13px] font-bold text-[#28a745]">{netIncome}</td>
               </tr>
 
             </tbody>

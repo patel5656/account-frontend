@@ -2,7 +2,7 @@ import React from 'react';
 import { Plus, ArrowRightCircle } from 'lucide-react';
 import { cn } from '../utils';
 
-export function SummaryCard({ title, amount, color, icon: Icon, onPlusClick, onMoreInfoClick }) {
+export function SummaryCard({ title, amount, color, icon: Icon, isPrivacyOn, onPlusClick, onMoreInfoClick }) {
   const iconColors = {
     green: "text-[#A855F7]", 
     blue: "text-[#3B82F6]", 
@@ -30,7 +30,7 @@ export function SummaryCard({ title, amount, color, icon: Icon, onPlusClick, onM
              </div>
              <div className="flex flex-col">
                <span className="text-[14px] font-medium text-gray-500 leading-tight mb-0.5">{title}</span>
-               <span className="text-[20px] font-bold text-gray-800 leading-none">{amount}</span>
+               <span className={`text-[20px] font-bold text-gray-800 leading-none transition-all duration-300 ${isPrivacyOn ? 'blur-[6px] select-none' : ''}`}>{amount}</span>
              </div>
           </div>
           {onPlusClick && (
